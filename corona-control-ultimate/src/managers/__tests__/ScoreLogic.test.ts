@@ -4,23 +4,24 @@ import { useGameStore } from '@/stores/gameStore';
 
 describe('EndingManager', () => {
     it('should calculate Rank S for high score', () => {
-        useGameStore.getState = vi.fn(() => ({
-            gameState: { points: 3000, health: 100 },
+        // Mock Zustand Store State directly
+        useGameStore.setState({
+            gameState: { points: 3000, health: 100 } as any,
             tensionLevel: 0
-        })) as any;
+        });
 
         const result = EndingManager.calculateEnding();
         expect(result.rank).toBe('S');
     });
 
     it('should fail mission if health is 0', () => {
-         useGameStore.getState = vi.fn(() => ({
-            gameState: { points: 5000, health: 0 },
+        useGameStore.setState({
+            gameState: { points: 5000, health: 0 } as any,
             tensionLevel: 0
-        })) as any;
+        });
 
         const result = EndingManager.calculateEnding();
         expect(result.rank).toBe('F');
-        expect(result.summary).toContain('FAILED');
+        expect(result.summary).toContain('GESCHEITERT');
     });
 });

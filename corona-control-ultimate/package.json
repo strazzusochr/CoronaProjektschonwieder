@@ -19,6 +19,8 @@
     "postprocessing": "^6.38.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
     "three": "^0.182.0",
     "zustand": "^5.0.10"
   },
@@ -36,6 +38,7 @@
     "globals": "^16.5.0",
     "jsdom": "^27.4.0",
     "needle-cloud": "^1.6.8",
+    "puppeteer": "^24.36.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vite": "npm:rolldown-vite@7.2.5",

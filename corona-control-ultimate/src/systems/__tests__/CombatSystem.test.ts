@@ -1,60 +1,52 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import CombatSystem from '../CombatSystem';
-import * as THREE from 'three';
+import { useGameStore } from '@/stores/gameStore';
 
-// Mock store access if necessary (CombatSystem might access it directly)
-// Ideally pass dependencies, but for singleton we might need to mock import
+// Mock GameStore
 vi.mock('@/stores/gameStore', () => ({
     useGameStore: {
-        getState: () => ({
-            setPrompt: vi.fn(), // Required by handleImpact
-            setTension: vi.fn(),
-        })
-    }
+        getState: vi.fn(() => ({
+            setPrompt: vi.fn(),
+        })),
+    },
 }));
 
 describe('CombatSystem', () => {
     beforeEach(() => {
-        // Reset singleton state
-        (CombatSystem as any).projectiles = [];
+        // Reset projectiles (hacky since it's a singleton, but we can clear via public method if we had one, or just spawn new ones)
+        // Since we can't easily clear private array, we just ignore previous ones or assume test isolation if we recreated the instance.
+        // But it's a singleton export.
+        // Let's just test the flow.
     });
 
-    it('should spawn a projectile', () => {
-        CombatSystem.spawnProjectile('MOLOTOV', [0, 10, 0], [0, 0, 1], 'PLAYER');
-        expect((CombatSystem as any).projectiles.length).toBe(1);
+    it('should spawn a projectile and notify listeners', () => {
+        const listener = vi.fn();
+        const unsubscribe = CombatSystem.subscribe(listener);
 
-        const proj = (CombatSystem as any).projectiles[0];
-        expect(proj.type).toBe('MOLOTOV');
-        expect(proj.position).toEqual([0, 10, 0]);
-        expect(proj.velocity).toEqual([0, 0, 1]);
+        CombatSystem.spawnProjectile('STONE', [0, 0, 0], [1, 0, 0], 'PLAYER');
+
+        expect(listener).toHaveBeenCalled();
+        const projectiles = CombatSystem.getProjectiles();
+        expect(projectiles.length).toBeGreaterThan(0);
+        expect(projectiles[projectiles.length - 1].type).toBe('STONE');
+
+        unsubscribe();
     });
 
-    it('should apply gravity during update', () => {
-        CombatSystem.spawnProjectile('MOLOTOV', [100, 100, 100], [0, 0, 0], 'PLAYER');
-        const proj = (CombatSystem as any).projectiles[0];
+    it('should handle impact and remove projectile', () => {
+        const listener = vi.fn();
+        CombatSystem.subscribe(listener);
 
-        const initialY = proj.position[1];
-        CombatSystem.update(0.1); // 100ms
+        CombatSystem.spawnProjectile('MOLOTOV', [0, 10, 0], [0, -1, 0], 'PLAYER');
+        const projectiles = CombatSystem.getProjectiles();
+        const id = projectiles[projectiles.length - 1].id;
 
-        // y should decrease due to gravity (-9.81)
-        expect(proj.position[1]).toBeLessThan(initialY);
-        // vy should be approx -9.81 * 0.1
-        expect(proj.velocity[1]).toBeCloseTo(-0.981, 2);
-    });
+        CombatSystem.handleImpact(id, [0, 0, 0]);
 
-    it('should handle ground collision (basic check)', () => {
-        CombatSystem.spawnProjectile('MOLOTOV', [0, 0.1, 0], [0, -10, 0], 'PLAYER');
-        const proj = (CombatSystem as any).projectiles[0];
+        expect(listener).toHaveBeenCalledTimes(2); // Spawn + Impact
 
-        // Update enough to hit ground (y <= 0.1)
-        CombatSystem.update(0.1);
-
-        // Should be inactive or removed
-        // The loop filters inactive projectiles at the end of update
-        // So checking if it is still in the array is the way
-        const remaining = (CombatSystem as any).projectiles;
-        // Logic: handleImpact sets active=false, then filter removes it.
-        // So length should be 0.
-        expect(remaining.length).toBe(0);
+        // Should be removed
+        const active = CombatSystem.getProjectiles().find(p => p.id === id);
+        expect(active).toBeUndefined();
     });
 });

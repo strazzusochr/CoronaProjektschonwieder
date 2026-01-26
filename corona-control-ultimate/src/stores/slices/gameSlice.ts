@@ -8,7 +8,8 @@ export const createGameSlice: StateCreator<GameStore, [], [], Pick<GameStore,
     'startGame' | 'resetGame' | 'setPoints' | 'addPoints' | 'setHealth' | 'takeDamage' |
     'setTime' | 'updateMissionProgress' | 'nextMission' | 'setGameOver' | 'setVictory' |
     'startCutscene' | 'endCutscene' | 'setCutsceneTime' | 'setPrompt' | 'spawnWave' | 'addProjectile' |
-    'removeProjectile' | 'spawnItem' | 'removeWorldItem' | 'saveGame' | 'loadGame' | 'markNpc' | 'updateNpc'
+    'removeProjectile' | 'spawnItem' | 'removeWorldItem' | 'saveGame' | 'loadGame' | 'markNpc' | 'updateNpc' |
+    'openSettings' | 'closeSettings'
 >> = (set, get) => ({
     gameState: {
         points: 0,
@@ -17,6 +18,7 @@ export const createGameSlice: StateCreator<GameStore, [], [], Pick<GameStore,
         isVictory: false,
         dayTime: 1080, // 18:00 (in Minuten seit Mitternacht)
         currentMissionIndex: 0,
+        menuState: 'MAIN',
         isPlaying: false,
         activeCutscene: null,
         activePrompt: null,
@@ -36,7 +38,8 @@ export const createGameSlice: StateCreator<GameStore, [], [], Pick<GameStore,
     startGame: () => set((state) => ({
         gameState: {
             ...state.gameState,
-            isPlaying: true,
+            menuState: 'PLAYING',
+            isPlaying: true, // Sync
             isGameOver: false,
             isVictory: false,
             health: 100,
@@ -95,7 +98,9 @@ export const createGameSlice: StateCreator<GameStore, [], [], Pick<GameStore,
     resetGame: () => set((state) => ({
         gameState: {
             ...state.gameState,
-            isPlaying: false,
+            menuState: 'MAIN',
+            previousMenuState: undefined,
+            isPlaying: false, // Sync
             isGameOver: false,
             isVictory: false
         }
@@ -256,4 +261,24 @@ export const createGameSlice: StateCreator<GameStore, [], [], Pick<GameStore,
         }
         return false;
     },
+
+    openSettings: () => set((state) => ({
+        gameState: {
+            ...state.gameState,
+            menuState: 'SETTINGS',
+            previousMenuState: state.gameState.menuState as 'MAIN' | 'PLAYING' | 'PAUSED',
+            isPlaying: false
+        }
+    })),
+
+    closeSettings: () => set((state) => {
+        const prev = state.gameState.previousMenuState || 'MAIN';
+        return {
+            gameState: {
+                ...state.gameState,
+                menuState: prev,
+                isPlaying: prev === 'PLAYING' // Sync
+            }
+        };
+    }),
 });

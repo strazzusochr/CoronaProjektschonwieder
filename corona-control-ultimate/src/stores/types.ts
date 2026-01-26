@@ -18,13 +18,17 @@ export interface GameState {
   isVictory: boolean;
   dayTime: number;
   currentMissionIndex: number;
-  isPlaying: boolean; // Menü vs Gameplay
+  menuState: 'MAIN' | 'PLAYING' | 'PAUSED' | 'SETTINGS';
+  previousMenuState?: 'MAIN' | 'PLAYING' | 'PAUSED';
+  isPlaying: boolean; // Deprecated, derived from menuState === 'PLAYING'
   activeCutscene: string | null;
   activePrompt: string | null;
   cutsceneTime: number;
 }
 
 export type ItemType = 'WEAPON' | 'CONSUMABLE' | 'MATERIAL';
+
+export type DamageType = 'PHYSICAL' | 'FIRE' | 'EXPLOSIVE' | 'GAS';
 
 export interface Item {
   id: string;
@@ -33,10 +37,35 @@ export interface Item {
   description: string;
   maxStack: number;
   quantity: number;
-  effect?: {
-    type: 'HEAL' | 'BUFF';
-    value: number;
+  icon?: string; // Emoji oder Pfad
+  stats?: {
+    damage?: number;
+    damageType?: DamageType;
+    defense?: number;
+    range?: number;
   };
+  effect?: {
+    type: 'HEAL' | 'BUFF' | 'RESTORE_STAMINA';
+    value: number;
+    duration?: number;
+  };
+  equippableSlot?: 'HEAD' | 'BODY' | 'MAIN_HAND' | 'OFF_HAND';
+}
+
+export interface EquipmentSlots {
+  head: Item | null;
+  body: Item | null;
+  mainHand: Item | null;
+  offHand: Item | null;
+}
+
+export interface CraftingRecipe {
+  id: string;
+  name: string;
+  resultId: string;
+  resultCount: number;
+  ingredients: { itemId: string; count: number }[];
+  requiredStation?: string; // Optional: Werkbank nötig?
 }
 
 export interface InventorySlot {
@@ -49,12 +78,17 @@ export interface GameStore {
   missions: Mission[];
 
   // Inventory
+  // Inventory
   inventory: InventorySlot[];
+  equipment: EquipmentSlots;
   isInventoryOpen: boolean;
   toggleInventory: () => void;
   addItem: (newItem: Item) => boolean;
   removeItem: (slotIndex: number, amount?: number) => void;
   useItem: (slotIndex: number) => void;
+  equipItem: (inventorySlotIndex: number) => void;
+  unequipItem: (slot: keyof EquipmentSlots) => void;
+  craftItem: (recipe: CraftingRecipe) => boolean;
 
   // Persistence
   saveGame: () => void;
@@ -109,9 +143,16 @@ export interface GameStore {
     musicVolume: number;
     sfxVolume: number;
     graphicsQuality: 'LOW' | 'MEDIUM' | 'HIGH';
+    // Accessibility
+    colorblindMode: 'NONE' | 'DEUTERANOPIA' | 'PROTANOPIA' | 'TRITANOPIA';
+    ttsEnabled: boolean;
+    largeTextEnabled: boolean;
   };
   setVolume: (type: 'MASTER' | 'MUSIC' | 'SFX', value: number) => void;
   setGraphicsQuality: (quality: 'LOW' | 'MEDIUM' | 'HIGH') => void;
+  setAccessibilitySetting: (key: 'colorblindMode' | 'ttsEnabled' | 'largeTextEnabled', value: any) => void;
+  openSettings: () => void;
+  closeSettings: () => void;
 
   // Debugging
   debugMode: {

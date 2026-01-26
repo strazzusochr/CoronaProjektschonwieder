@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Test</title>
+    <style>
+        body { 
+            margin: 0; 
+            background: #1a1a2e; 
+            color: white; 
+            font-family: Arial; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh;
+            flex-direction: column;
+        }
+        #status { font-size: 2rem; margin-bottom: 1rem; }
+        #details { font-size: 1rem; opacity: 0.7; max-width: 600px; text-align: center; }
+        .success { color: #4caf50; }
+        .error { color: #f44336; }
+    </style>
+</head>
+<body>
+    <div id="status">🔄 Prüfe System...</div>
+    <div id="details"></div>
+    
+    <script type="module">
+        const status = document.getElementById('status');
+        const details = document.getElementById('details');
+        
+        try {
+            // Test 1: ES Modules
+            details.innerHTML += '✅ ES Modules funktionieren<br>';
+            
+            // Test 2: Import React
+            const React = await import('https://esm.sh/react@18');
+            details.innerHTML += '✅ React geladen<br>';
+            
+            // Test 3: Import Three.js
+            const THREE = await import('https://esm.sh/three@0.160');
+            details.innerHTML += '✅ Three.js geladen<br>';
+            
+            status.innerHTML = '✅ Alle Tests erfolgreich!';
+            status.className = 'success';
+            
+            details.innerHTML += '<br><br>Das Problem liegt wahrscheinlich in lokalen Imports oder npm-Paketen.';
+            
+        } catch (err) {
+            status.innerHTML = '❌ Fehler gefunden!';
+            status.className = 'error';
+            details.innerHTML += '<br><br><strong>Fehler:</strong> ' + err.message;
+        }
+    </script>
+</body>
+</html>

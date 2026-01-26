@@ -1,3 +1,4 @@
+import React, { useEffect } from 'react';
 import { useGameStore } from '@/stores/gameStore';
 import { getActiveQuests } from '@/managers/QuestManager';
 import { EndingManager } from '@/managers/EndingManager';
@@ -25,6 +26,20 @@ const HUD: React.FC = () => {
         const minutes = Math.floor(time % 60);
         return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
     };
+
+    // TTS: Prompts
+    React.useEffect(() => {
+        if (activePrompt) {
+            import('@/managers/AccessibilityManager').then(m => m.default.getInstance().speak(`Hinweis: ${activePrompt}`));
+        }
+    }, [activePrompt]);
+
+    // TTS: Mission Update
+    React.useEffect(() => {
+        if (currentMission) {
+            import('@/managers/AccessibilityManager').then(m => m.default.getInstance().speak(`Aktuelles Ziel: ${currentMission.description}`));
+        }
+    }, [currentMission?.id]);
 
     if (activeCutscene) {
         console.log('HUD: Hidden due to active cutscene');
@@ -105,6 +120,28 @@ const HUD: React.FC = () => {
 
     return (
         <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', color: 'white', fontFamily: 'monospace', zIndex: 100 }}>
+
+            {/* Damage Overlay */}
+            <div style={{
+                position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                boxShadow: gameState.health < 30 ? 'inset 0 0 100px rgba(255, 0, 0, 0.8)' : 'none',
+                transition: 'box-shadow 0.5s ease-in-out',
+                pointerEvents: 'none',
+                zIndex: 90
+            }} />
+
+            {/* Crosshair */}
+            {!isUsingBinoculars && (
+                <div style={{
+                    position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                    width: '20px', height: '20px', pointerEvents: 'none', zIndex: 150,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                    <div style={{ width: '4px', height: '4px', background: 'white', borderRadius: '50%' }} />
+                    <div style={{ position: 'absolute', width: '20px', height: '2px', background: 'rgba(255,255,255,0.3)' }} />
+                    <div style={{ position: 'absolute', width: '2px', height: '20px', background: 'rgba(255,255,255,0.3)' }} />
+                </div>
+            )}
             {/* Binoculars Overlay */}
             {isUsingBinoculars && (
                 <>

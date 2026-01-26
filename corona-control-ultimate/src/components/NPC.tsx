@@ -2,8 +2,7 @@ import { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RigidBody, CapsuleCollider, RapierRigidBody } from '@react-three/rapier';
 import type { NPCData, NPCType } from '@/types/npc';
-// import { CivilianController, RioterController, PoliceController } from '@/systems/ai/Controllers'; // LEGACY
-// import { AIController } from '@/systems/ai/AIController'; // LEGACY
+
 import AISystem from '@/systems/AISystem';
 import { NPCAIController } from '@/ai/NPCAIController';
 import * as THREE from 'three';
@@ -11,6 +10,8 @@ import { useGameStore } from '@/stores/gameStore';
 import CameraShakeSystem from '@/systems/CameraShake';
 import type { CollisionEnterPayload } from '@react-three/rapier';
 import { useParticleStore } from './Effects/ParticleSystem';
+import HumanCharacter from './characters/HumanCharacter';
+
 
 interface NPCProps {
     id: number;
@@ -50,6 +51,7 @@ const NPC: React.FC<NPCProps> = ({ id, type = 'TOURIST', state = 'IDLE', positio
     useEffect(() => {
         const context = {
             id: id,
+            type: initialData.type,
             position: new THREE.Vector3(initialData.position[0], initialData.position[1], initialData.position[2]),
             forward: new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), initialData.rotation),
             // Callbacks for the AI to control the body
@@ -143,7 +145,14 @@ const NPC: React.FC<NPCProps> = ({ id, type = 'TOURIST', state = 'IDLE', positio
 
     const handleCollision = (e: CollisionEnterPayload) => {
         if (e.other.rigidBodyObject?.name === 'projectile') {
-            spawnExplosion(dataRef.current.position, dataRef.current.type === 'RIOTER' ? 'red' : 'orange', 15);
+            const projectileData = e.other.rigidBodyObject.userData as any;
+            const damage = projectileData?.damage || 10;
+            const damageType = projectileData?.damageType || 'PHYSICAL';
+
+            console.log(`NPC ${id} hit by ${damageType} for ${damage} damage`);
+
+            // Visual feedback
+            spawnExplosion(dataRef.current.position, damageType === 'FIRE' ? 'orange' : 'gray', 5);
             CameraShakeSystem.getInstance().hitShake();
 
             // Inform AI about threat!
@@ -151,56 +160,56 @@ const NPC: React.FC<NPCProps> = ({ id, type = 'TOURIST', state = 'IDLE', positio
                 controllerRef.current.onSensoryInput('EXPLOSION', new THREE.Vector3(dataRef.current.position[0], dataRef.current.position[1], dataRef.current.position[2]));
             }
 
+            // Apply Damage Logic (TODO: Move to a proper HealthSystem or method on NPCData)
+            // For now, we simulate death/reaction
             if (dataRef.current.type === 'RIOTER') {
                 addPoints(50);
                 updateMissionProgress(1);
-                dataRef.current.type = 'CIVILIAN';
+                dataRef.current.type = 'CIVILIAN'; // Pacify
             } else {
                 addPoints(-10);
             }
         }
     };
 
-    const getColor = (npcType: NPCType | 'KRAUSE', state: string) => {
-        // Visual Debugging of AI State
-        if (controllerRef.current) {
-            const aiState = controllerRef.current.stateMachine.getCurrentStateName();
-            if (aiState === 'FLEE') return '#FF00FF'; // Magenta for Fleeing
-            if (aiState === 'WANDER') return '#00FFFF'; // Cyan for Wandering
-            if (aiState === 'ALERT') return '#FFFF00';
-        }
-
-        if (npcType === 'POLICE') return '#002266';
-        if (npcType === 'RIOTER') return state === 'ATTACK' ? '#D32F2F' : '#8E0000';
-        if (npcType === 'KRAUSE') return '#4e342e';
-        if (state === 'PANIC') return '#FF9800';
-        return '#7CB342';
-    };
-
     return (
         <RigidBody
             ref={bodyRef}
-            type="dynamic" // Changed to dynamic so velocity works!
-            enabledRotations={[false, false, false]} // Lock rotation so physics doesn't spin them
-            position={initialData.position}
             colliders={false}
+            type="dynamic"
+            position={position ? [position[0], position[1], position[2]] : [0, 0, 0]}
+            enabledRotations={[false, true, false]}
+            userData={{ type: 'npc', id: id, faction: type === 'KRAUSE' ? 'KRAUSE' : 'CIVILIAN' }}
             onCollisionEnter={handleCollision}
-            userData={{ type: 'npc', id: id, faction: dataRef.current.type }}
-            linearDamping={0.5} // Add drag
         >
-            <CapsuleCollider args={[0.5, 0.3]} />
-            <group ref={meshRef}>
-                <mesh castShadow receiveShadow>
-                    <capsuleGeometry args={[0.3, 1.4, 4, 8]} />
-                    <meshStandardMaterial color={getColor(dataRef.current.type, dataRef.current.state)} />
+            <CapsuleCollider args={[0.5, 0.3]} position={[0, 0.8, 0]} />
 
-                    <mesh position={[0, 0.5, 0.25]}>
-                        <boxGeometry args={[0.4, 0.15, 0.2]} />
-                        <meshStandardMaterial color={dataRef.current.type === 'POLICE' ? 'black' : 'white'} />
-                    </mesh>
-                </mesh>
+            <group ref={meshRef}>
+                {/* AAA High-Poly Human Character (~35.000 Polygone) */}
+                <HumanCharacter
+                    characterType={
+                        type === 'KRAUSE' ? 'police' :
+                            type === 'POLICE' ? 'police' :
+                                type === 'DEMONSTRATOR' ? 'demonstrator' :
+                                    type === 'RIOTER' ? 'demonstrator' :
+                                        'civilian'
+                    }
+                    clothingColor={
+                        type === 'KRAUSE' ? [30, 35, 50] :
+                            type === 'POLICE' ? [0, 34, 102] :
+                                type === 'DEMONSTRATOR' ? [142, 0, 0] :
+                                    type === 'RIOTER' ? [211, 47, 47] :
+                                        type === 'TOURIST' ? [60, 120, 180] :
+                                            [80, 80, 80]
+                    }
+                    skinTone={['light', 'medium', 'dark'][id % 3] as 'light' | 'medium' | 'dark'}
+                    animate={state !== 'ARRESTED'}
+                    scale={0.5}
+                />
+
+                {/* Type specific decoration - Markierung für aktive NPCs */}
                 {markedNpcIds.includes(id) && (
-                    <group position={[0, 2.2, 0]}>
+                    <group position={[0, 2, 0]}>
                         <mesh>
                             <sphereGeometry args={[0.15, 16, 16]} />
                             <meshStandardMaterial color="red" emissive="red" emissiveIntensity={2} />

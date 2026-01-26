@@ -9,13 +9,13 @@ export class CivilianController extends AIController {
     constructor(npc: NPCData) {
         super(npc);
         this.stateMachine.changeState(new IdleState());
-        
+
         // --- Setup Utility Brain ---
-        
+
         // Action: FLEE / PANIC
         this.brain.addAction({
             name: 'PANIC',
-            weight: 1.0, 
+            weight: 1.0,
             execute: () => {
                 if (this.stateMachine.getCurrentStateName() !== 'PANIC') {
                     this.stateMachine.changeState(new PanicState());
@@ -51,9 +51,9 @@ export class CivilianController extends AIController {
             execute: () => {
                 // Determine if we should wander or idle randomly if safe
                 if (this.stateMachine.getCurrentStateName() !== 'WANDER' && this.stateMachine.getCurrentStateName() !== 'IDLE') {
-                     this.stateMachine.changeState(new WanderState());
+                    this.stateMachine.changeState(new WanderState());
                 } else if (this.stateMachine.getCurrentStateName() === 'IDLE' && Math.random() < 0.01) {
-                     this.stateMachine.changeState(new WanderState());
+                    this.stateMachine.changeState(new WanderState());
                 }
             },
             considerations: [
@@ -62,7 +62,7 @@ export class CivilianController extends AIController {
                     weight: 1.5,
                     curve: new UtilityCurve('SIGMOID'),
                     getValue: () => {
-                         // Safe if far from threats
+                        // Safe if far from threats
                         const maxDist = 30;
                         const dist = this.distanceToPlayer;
                         return Math.min(1, dist / maxDist);
@@ -80,18 +80,18 @@ export class CivilianController extends AIController {
         const tension = store.tensionLevel;
 
         if (tension > 80) {
-            const threshold = 0.0005 * (tension - 80); 
+            const threshold = 0.0005 * (tension - 80);
             if (Math.random() < threshold) {
                 console.log(`Civilian ${this.npc.id} radicalized!`);
                 store.updateNpc(this.npc.id, { type: 'RIOTER' });
                 return;
             }
         }
-        
+
         // --- Utility Decision ---
         // Run brain every few frames to save perf, or every frame for responsiveness
         // For 500 NPCs, we should interleave. But for now, simple every frame check (math is cheap)
-        
+
         const bestAction = this.brain.decide();
         if (bestAction) {
             // console.log(`NPC ${this.npc.id} chose ${bestAction.name}`);
@@ -108,15 +108,15 @@ export class RioterController extends AIController {
 
     public update(delta: number, playerPos?: [number, number, number] | number[]) {
         super.update(delta, playerPos);
-        
+
         // Rioter Specific High-Level Logic Overshield
         // Aggressiverer State Change Check
         const tension = useGameStore.getState().tensionLevel;
         const aggressionRange = 15 + (tension * 0.3); // 15m (0%) -> 45m (100%)
 
         if (this.distanceToPlayer < aggressionRange && this.stateMachine.getCurrentStateName() !== 'ATTACK') {
-             this.stateMachine.changeState(new AttackState());
+            this.stateMachine.changeState(new AttackState());
         }
     }
 }
-export * from './PoliceController';
+

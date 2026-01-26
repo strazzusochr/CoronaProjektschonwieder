@@ -1,86 +1,108 @@
-
-import React, { useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import React, { useEffect, useState, useRef } from 'react';
+import { RigidBody, CapsuleCollider, BallCollider } from '@react-three/rapier';
 import CombatSystem from '@/systems/CombatSystem';
 import type { Projectile } from '@/systems/CombatSystem';
 import * as THREE from 'three';
+import { useFrame } from '@react-three/fiber';
 
 const CombatRenderer: React.FC = () => {
-    // Wir können Instances für Performance nutzen, wenn es viele sind,
-    // aber für jetzt reicht einfaches Mapping für geringe Anzahl.
-    // Nutzen wir einen einfachen zustandslosen Ansatz, der vom System jeden Frame liest.
+    const [projectiles, setProjectiles] = useState<Projectile[]>([]);
 
-    // Eigentlich braucht React State, um Re-Renders auszulösen, wenn wir Komponenten mappen.
-    // ABER für 3D wollen wir oft React Reconciler für jedes Frame-Update vermeiden.
-    // Hybrider Ansatz: Eine einzelne Komponente, die eine Gruppe von Refs aktualisiert?
-    // Oder einfach einen State mappen, der periodisch synct?
-    // Da das CombatSystem extern ist, nutzen wir ein Ref-Updater-Pattern.
+    useEffect(() => {
+        const updateProjectiles = () => {
+            setProjectiles([...CombatSystem.getProjectiles()]);
+        };
 
-    // Projektile per ID identifizieren, um Meshes nicht neu zu erstellen
-    // Wir rendern einen festen Pool oder mappen einfach.
-    // Da wir React nicht leicht zwingen können, neue Kinder ohne State zu rendern,
-    // nutzen wir ein kleines "forceUpdate" oder State-Sync bei 60fps?
-    // State-Sync 60fps ist schlecht für React.
+        // Initial load
+        updateProjectiles();
 
-    // Besser: CombatSystem sollte einen Store nutzen?
-    // ODER: Wir interpretieren "CombatSystem" als die Logik, und wir haben eine Visual Komponente,
-    // die nur rendert, was da ist.
-
-    // Einfache Lösung:
-    // Lese CombatSystem-Projektile jeden Frame und aktualisiere Positionen bekannter Meshes.
-    // Wenn die Liste sich in der Länge ändert, State setzen.
-
-    const [projectiles, setProjectiles] = React.useState<Projectile[]>([]);
-
-    useFrame(() => {
-        const active = CombatSystem.getProjectiles();
-        // Optimierung: React State nur aktualisieren, wenn Anzahl oder IDs sich ändern
-        if (active.length !== projectiles.length ||
-            (active.length > 0 && active[0].id !== projectiles[0].id)) {
-            setProjectiles([...active]);
-        }
-    });
+        // Subscribe to changes
+        const unsubscribe = CombatSystem.subscribe(updateProjectiles);
+        return () => unsubscribe();
+    }, []);
 
     return (
         <group>
             {projectiles.map(p => (
-                <MolotovMesh key={p.id} projectile={p} />
+                <ProjectileBody key={p.id} projectile={p} />
             ))}
         </group>
     );
 };
 
-const MolotovMesh: React.FC<{ projectile: Projectile }> = ({ projectile }) => {
-    const ref = useRef<THREE.Group>(null);
+const ProjectileBody: React.FC<{ projectile: Projectile }> = ({ projectile }) => {
+    const rigidBodyRef = useRef<any>(null);
+    const isMolotov = projectile.type === 'MOLOTOV';
 
-    useFrame(() => {
-        if (ref.current) {
-            ref.current.position.set(
-                projectile.position[0],
-                projectile.position[1],
-                projectile.position[2]
-            );
-            // Rotate visually
-            ref.current.rotation.x += 0.1;
-            ref.current.rotation.z += 0.1;
+    // Handle collision
+    const handleCollision = (e: any) => {
+        // We only care about the first impact usually, or we let the system decide.
+        // Rapier might fire multiple times.
+        // We report the impact position.
+        if (rigidBodyRef.current) {
+            const pos = rigidBodyRef.current.translation();
+            CombatSystem.handleImpact(projectile.id, [pos.x, pos.y, pos.z]);
+        }
+    };
+
+    return (
+        <RigidBody
+            ref={rigidBodyRef}
+            position={projectile.position}
+            linearVelocity={projectile.velocity}
+            colliders="ball"
+            name="projectile"
+            userData={{
+                id: projectile.id,
+                type: projectile.type,
+                damage: isMolotov ? 20 : 10, // Example values
+                damageType: isMolotov ? 'FIRE' : 'PHYSICAL'
+            }}
+            onCollisionEnter={handleCollision}
+        >
+            <BallCollider args={[0.1]} />
+            <group>
+                {isMolotov ? (
+                    <MolotovVisuals />
+                ) : (
+                    <StoneVisuals />
+                )}
+            </group>
+        </RigidBody>
+    );
+};
+
+const MolotovVisuals: React.FC = () => {
+    const meshRef = useRef<THREE.Group>(null);
+    useFrame((state) => {
+        if (meshRef.current) {
+            meshRef.current.rotation.x += 0.1;
+            meshRef.current.rotation.z += 0.1;
         }
     });
 
     return (
-        <group ref={ref}>
+        <group ref={meshRef}>
             {/* Bottle */}
             <mesh>
-                <cylinderGeometry args={[0.1, 0.1, 0.4, 8]} />
+                <cylinderGeometry args={[0.05, 0.05, 0.2, 8]} />
                 <meshStandardMaterial color="green" transparent opacity={0.8} />
             </mesh>
             {/* Rag/Fire */}
-            <mesh position={[0, 0.25, 0]}>
-                <sphereGeometry args={[0.08]} />
-                <meshStandardMaterial color="orange" emissive="red" emissiveIntensity={0.5} />
+            <mesh position={[0, 0.15, 0]}>
+                <sphereGeometry args={[0.04]} />
+                <meshStandardMaterial color="orange" emissive="red" emissiveIntensity={1} />
             </mesh>
-            <pointLight distance={3} intensity={0.5} color="orange" />
+            <pointLight distance={2} intensity={1} color="orange" />
         </group>
     );
 };
+
+const StoneVisuals: React.FC = () => (
+    <mesh>
+        <dodecahedronGeometry args={[0.08]} />
+        <meshStandardMaterial color="gray" />
+    </mesh>
+);
 
 export default CombatRenderer;

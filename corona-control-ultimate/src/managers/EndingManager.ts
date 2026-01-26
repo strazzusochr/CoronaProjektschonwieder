@@ -22,14 +22,14 @@ export class EndingManager {
         const state = useGameStore.getState();
         const score = state.gameState.points; // Punkte
         const tension = state.tensionLevel;
-        
+
         let rank: GameRank = 'F';
 
         if (state.gameState.health <= 0) {
             return {
                 rank: 'F',
                 score: score,
-                summary: 'MISSION FAILED: Agent incapacitated.',
+                summary: 'MISSION GESCHEITERT: Agent handlungsunfähig.',
                 objectivesCompleted: 0, // Placeholder
                 tensionLevel: tension
             };

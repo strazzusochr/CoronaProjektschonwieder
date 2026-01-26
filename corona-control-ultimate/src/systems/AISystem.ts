@@ -1,5 +1,6 @@
 import { NPCAIController } from '../ai/NPCAIController';
 import type { NPCContext } from '../ai/NPCAIController';
+import { useGameStore } from '@/stores/gameStore';
 import * as THREE from 'three';
 
 class AISystem {
@@ -37,6 +38,20 @@ class AISystem {
             // For now, assume the Context object holds references to vector objects that are updated by the view/physics.
             const ctx = (controller as any).context;
             controller.update(delta, ctx.position, ctx.forward);
+
+            // Sync State to Store (Visuals)
+            // Optimization: Only update if changed or throttled? For prototype, every frame is okay for < 500 NPCs
+            const currentState = controller.getCurrentState();
+            let color = 'white';
+            if (currentState === 'WANDER') color = 'cyan';
+            else if (currentState === 'FLEE') color = 'magenta';
+            else if (currentState === 'RIOT') color = 'red';
+
+            // Direct Store Access (Performance Warning: In production, batch this!)
+            useGameStore.getState().updateNpc(ctx.id, {
+                aiState: currentState,
+                color: color
+            });
         });
 
         const perfEnd = performance.now();

@@ -1,141 +1,52 @@
-import React, { useEffect, useState } from 'react';
-import { useGameStore } from '@/stores/gameStore';
 
-// --- DIALOG MANAGER LOGIC (Integrated) ---
-
-export interface DialogOption {
-    id: string;
-    text: string;
-    nextId?: string;
-    action?: () => void;
-    condition?: () => boolean;
-}
-
-export interface DialogNode {
-    id: string;
-    speaker: string;
-    text: string;
-    options: DialogOption[];
-}
-
-class DialogManager {
-    private static instance: DialogManager;
-    private dialogs: Map<string, DialogNode> = new Map();
-
-    private constructor() {
-        this.initializeDialogs();
-    }
-
-    public static getInstance(): DialogManager {
-        if (!DialogManager.instance) {
-            DialogManager.instance = new DialogManager();
-        }
-        return DialogManager.instance;
-    }
-
-    private initializeDialogs() {
-        // Beispiel-Dialog: Verlorener Sohn (Quest Start)
-        this.addDialog({
-            id: 'DIALOG_MOTHER_START',
-            speaker: 'Besorgte Mutter',
-            text: 'Bitte, haben Sie meinen Sohn gesehen? Er wollte nur friedlich demonstrieren, aber jetzt ist alles außer Kontrolle!',
-            options: [
-                {
-                    id: 'opt_1',
-                    text: 'Wie sieht er aus?',
-                    nextId: 'DIALOG_MOTHER_DESCRIBE'
-                },
-                {
-                    id: 'opt_2',
-                    text: 'Ich habe keine Zeit für Zivilisten.',
-                    nextId: 'DIALOG_END',
-                    action: () => console.log('Reputation gesenkt')
-                }
-            ]
-        });
-
-        this.addDialog({
-            id: 'DIALOG_MOTHER_DESCRIBE',
-            speaker: 'Besorgte Mutter',
-            text: 'Er trägt eine rote Jacke und hat einen Rucksack. Er wollte zum Graben. Bitte helfen Sie ihm!',
-            options: [
-                {
-                    id: 'opt_1',
-                    text: 'Ich werde die Augen offen halten. (Quest annehmen)',
-                    nextId: 'DIALOG_END',
-                    action: () => {
-                        useGameStore.getState().setPrompt("QUEST GESTARTET: Der verlorene Sohn");
-                        console.log("Quest 'Der verlorene Sohn' akzeptiert");
-                    }
-                },
-                {
-                    id: 'opt_2',
-                    text: 'Bleiben Sie hier in Sicherheit.',
-                    nextId: 'DIALOG_END'
-                }
-            ]
-        });
-    }
-
-    public addDialog(node: DialogNode) {
-        this.dialogs.set(node.id, node);
-    }
-
-    public getDialog(id: string): DialogNode | undefined {
-        return this.dialogs.get(id);
-    }
-}
-
-// --- UI COMPONENT ---
-
-// Globale Funktion um Dialog zu öffnen
-export const openDialog = (dialogId: string) => {
-    const event = new CustomEvent('open-dialog', { detail: dialogId });
-    window.dispatchEvent(event);
-};
+import React, { useEffect } from 'react';
+import { useDialogStore } from '@/managers/DialogManager';
+import type { DialogNode, DialogChoice } from '@/types/DialogTypes';
 
 const DialogUI: React.FC = () => {
-    const [currentDialog, setCurrentDialog] = useState<DialogNode | null>(null);
+    const { isOpen, currentNode, advance, closeDialog } = useDialogStore();
 
     useEffect(() => {
-        const handleOpenDialog = (e: Event) => {
-            const customEvent = e as CustomEvent;
-            const dialogId = customEvent.detail;
-            const dialog = DialogManager.getInstance().getDialog(dialogId);
-            if (dialog) {
-                setCurrentDialog(dialog);
-                document.exitPointerLock();
-            }
-        };
-
-        window.addEventListener('open-dialog', handleOpenDialog);
-        return () => window.removeEventListener('open-dialog', handleOpenDialog);
-    }, []);
-
-    const handleOptionClick = (option: DialogOption) => {
-        if (option.action) {
-            option.action();
-        }
-
-        if (option.nextId && option.nextId !== 'DIALOG_END') {
-            const nextDialog = DialogManager.getInstance().getDialog(option.nextId);
-            if (nextDialog) {
-                setCurrentDialog(nextDialog);
-            } else {
-                closeDialog();
-            }
+        if (isOpen) {
+            document.exitPointerLock();
         } else {
-            closeDialog();
+            const canvas = document.querySelector('canvas');
+            if (canvas) canvas.requestPointerLock();
+        }
+    }, [isOpen]);
+
+    // TTS Effect
+    useEffect(() => {
+        if (isOpen && currentNode?.text) {
+            import('@/managers/AccessibilityManager').then(m => {
+                m.default.getInstance().speak(currentNode.text);
+            });
+        }
+    }, [currentNode, isOpen]);
+
+    if (!isOpen || !currentNode) return null;
+
+    const handleChoice = (index: number) => {
+        advance(index);
+    };
+
+    const handleContinue = () => {
+        advance();
+    };
+
+    // Helper für Emotions-Farben
+    const getEmotionColor = (emotion?: string) => {
+        switch (emotion) {
+            case 'ANGRY': return '#ef5350';
+            case 'HAPPY': return '#66bb6a';
+            case 'SAD': return '#42a5f5';
+            case 'AFRAID': return '#ab47bc';
+            case 'SURPRISED': return '#ffca28';
+            default: return '#4fc3f7'; // Neutral Blue
         }
     };
 
-    const closeDialog = () => {
-        setCurrentDialog(null);
-        const canvas = document.querySelector('canvas');
-        if (canvas) canvas.requestPointerLock();
-    };
-
-    if (!currentDialog) return null;
+    const borderColor = getEmotionColor(currentNode.emotion);
 
     return (
         <div style={{
@@ -143,41 +54,96 @@ const DialogUI: React.FC = () => {
             bottom: '20%',
             left: '50%',
             transform: 'translateX(-50%)',
-            width: '600px',
+            width: '700px',
             backgroundColor: 'rgba(0, 0, 0, 0.9)',
-            border: '2px solid #4fc3f7',
+            border: `2px solid ${borderColor}`,
             borderRadius: '10px',
             padding: '20px',
             color: 'white',
             fontFamily: 'Arial, sans-serif',
             zIndex: 1000,
-            boxShadow: '0 0 20px rgba(79, 195, 247, 0.5)'
+            boxShadow: `0 0 20px ${borderColor}80`
         }}>
-            <h3 style={{ color: '#4fc3f7', marginTop: 0 }}>{currentDialog.speaker}</h3>
-            <p style={{ fontSize: '1.1rem', lineHeight: '1.5' }}>{currentDialog.text}</p>
-            
-            <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {currentDialog.options.map((option) => (
+            {/* Header: Speaker & Emotion */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <h3 style={{ color: borderColor, margin: 0, fontSize: '1.4rem' }}>
+                    {currentNode.speakerId || 'Unknown'}
+                </h3>
+                {currentNode.emotion && (
+                    <span style={{
+                        fontSize: '0.8rem',
+                        backgroundColor: borderColor,
+                        color: 'black',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontWeight: 'bold'
+                    }}>
+                        {currentNode.emotion}
+                    </span>
+                )}
+            </div>
+
+            {/* Dialog Text */}
+            <p style={{ fontSize: '1.2rem', lineHeight: '1.6', marginBottom: '25px' }}>
+                {currentNode.text}
+            </p>
+
+            {/* Choices or Continue */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {currentNode.type === 'PLAYER_CHOICE' && currentNode.choices ? (
+                    currentNode.choices.map((choice, index) => (
+                        <button
+                            key={index}
+                            onClick={() => handleChoice(index)}
+                            style={{
+                                padding: '12px 15px',
+                                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                                border: '1px solid #666',
+                                color: 'white',
+                                cursor: 'pointer',
+                                textAlign: 'left',
+                                borderRadius: '5px',
+                                fontSize: '1rem',
+                                transition: 'all 0.2s',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                            }}
+                            onMouseOver={(e) => {
+                                e.currentTarget.style.backgroundColor = `${borderColor}30`;
+                                e.currentTarget.style.borderColor = borderColor;
+                            }}
+                            onMouseOut={(e) => {
+                                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                                e.currentTarget.style.borderColor = '#666';
+                            }}
+                        >
+                            <span>➤ {choice.text}</span>
+                            {choice.skillCheck && (
+                                <span style={{ fontSize: '0.8rem', color: '#aaa' }}>
+                                    [{choice.skillCheck.skillType} {choice.skillCheck.difficulty}]
+                                </span>
+                            )}
+                        </button>
+                    ))
+                ) : (
                     <button
-                        key={option.id}
-                        onClick={() => handleOptionClick(option)}
+                        onClick={handleContinue}
                         style={{
-                            padding: '10px 15px',
-                            backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                            border: '1px solid #666',
-                            color: 'white',
+                            padding: '10px 20px',
+                            backgroundColor: borderColor,
+                            border: 'none',
+                            color: 'black',
+                            fontWeight: 'bold',
                             cursor: 'pointer',
-                            textAlign: 'left',
                             borderRadius: '5px',
-                            fontSize: '1rem',
-                            transition: 'background 0.2s'
+                            alignSelf: 'flex-end',
+                            fontSize: '1rem'
                         }}
-                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(79, 195, 247, 0.3)'}
-                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
                     >
-                        ➤ {option.text}
+                        Weiter ➤
                     </button>
-                ))}
+                )}
             </div>
         </div>
     );

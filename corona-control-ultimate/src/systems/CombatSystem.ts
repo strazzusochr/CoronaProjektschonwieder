@@ -12,28 +12,23 @@ export interface Projectile {
 
 class CombatSystem {
     private projectiles: Projectile[] = [];
-    private readonly GRAVITY = -9.81;
+    // Listeners for UI updates
+    private listeners: (() => void)[] = [];
+
+    public subscribe(listener: () => void) {
+        this.listeners.push(listener);
+        return () => {
+            this.listeners = this.listeners.filter(l => l !== listener);
+        };
+    }
+
+    private notify() {
+        this.listeners.forEach(l => l());
+    }
 
     public update(delta: number) {
-        // 1. Projektile aktualisieren
-        this.projectiles.forEach(p => {
-            if (!p.active) return;
-
-            // Physik-Update (Einfache Euler-Integration)
-            p.velocity[1] += this.GRAVITY * delta;
-
-            p.position[0] += p.velocity[0] * delta;
-            p.position[1] += p.velocity[1] * delta;
-            p.position[2] += p.velocity[2] * delta;
-
-            // Kollisionserkennung (Bodenebene y=0)
-            if (p.position[1] <= 0) {
-                this.handleImpact(p);
-            }
-        });
-
-        // Bereinigen inaktiver Projektile
-        this.projectiles = this.projectiles.filter(p => p.active);
+        // Keine manuelle Physik mehr nötig, da Rapier das übernimmt.
+        // Wir könnten hier Timeouts für Projektile prüfen (z.B. Teargas Dauer).
     }
 
     public spawnProjectile(type: Projectile['type'], position: [number, number, number], velocity: [number, number, number], owner: 'PLAYER' | 'NPC') {
@@ -47,26 +42,28 @@ class CombatSystem {
             active: true
         });
         console.log(`[CombatSystem] Projektil gespawnt: ${type} bei ${position}`);
+        this.notify();
     }
 
-    private handleImpact(p: Projectile) {
+    public handleImpact(id: string, position: [number, number, number]) {
+        const p = this.projectiles.find(proj => proj.id === id);
+        if (!p || !p.active) return;
+
         p.active = false;
-        p.position[1] = 0; // Auf Boden fixieren
+        p.position = position; // Update final position
 
         // Effekte basierend auf Typ auslösen
         if (p.type === 'MOLOTOV') {
-            // Feuerzonen-Logik hier spawnen (Visuals werden von React-Komponenten über Store/Events behandelt)
-            console.log(`[CombatSystem] BUMM! Molotow-Einschlag bei ${p.position}`);
-
-            // Beispiel: Spannung erhöhen
-            // TensionSystem wird separat in eigenem Update behandelt,
-            // aber wir können auf Store zugreifen oder Events dispatchen.
-            // Vorerst einfaches Log.
+            console.log(`[CombatSystem] BUMM! Molotow-Einschlag bei ${position}`);
             useGameStore.getState().setPrompt("ACHTUNG: Brandsatz detoniert!");
+            // Hier könnte man FireSystem.spawnFire(position) aufrufen
         }
+
+        // Entferne inaktive Projektile zeitnah oder beim nächsten Update
+        this.projectiles = this.projectiles.filter(proj => proj.active);
+        this.notify();
     }
 
-    // Helfer um Projektile für das Rendering zu erhalten
     public getProjectiles() {
         return this.projectiles;
     }

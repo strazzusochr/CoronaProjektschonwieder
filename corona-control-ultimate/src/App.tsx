@@ -1,64 +1,149 @@
-import { Suspense, useEffect, useRef } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { Physics, RigidBody, CuboidCollider } from '@react-three/rapier';
-import { Sky, Stars, Stats, Html } from '@react-three/drei';
+import { useEffect, lazy, Suspense } from 'react';
+import { Stats } from '@react-three/drei';
 import { useGameStore } from '@/stores/gameStore';
 
 // Components
-import Player from '@/components/Player';
-import LoadingScreen from '@/components/ui/LoadingScreen';
-import StephansplatzGeometry from '@/components/StephansplatzGeometry';
+import GameCanvas from '@/components/game/GameCanvas';
 import HUD from '@/components/ui/HUD';
-import Inventory from '@/components/ui/Inventory';
-import SettingsMenu from '@/components/ui/SettingsMenu';
-import DebugConsole from '@/components/ui/DebugConsole';
-import CombatRenderer from '@/components/combat/CombatRenderer';
-// Managers (Commented out for stability)
-import '@/utils/VerificationSuite';
-import GameSystem from '@/systems/GameSystem';
+import DialogUI from '@/components/ui/DialogUI';
+import MainMenu from '@/components/ui/MainMenu';
+import PauseMenu from '@/components/ui/PauseMenu';
+
+// Lazy Loaded UI
+const Inventory = lazy(() => import('@/components/ui/Inventory'));
+const SettingsMenu = lazy(() => import('@/components/ui/SettingsMenu'));
+const DebugConsole = lazy(() => import('@/components/ui/DebugConsole'));
+const TutorialUI = lazy(() => import('@/components/ui/TutorialUI'));
+const MultiplayerUI = lazy(() => import('@/components/ui/MultiplayerUI'));
+const PerformanceUI = lazy(() => import('@/components/ui/PerformanceUI'));
+
+import { initTutorialInputListener, useTutorialStore } from '@/managers/TutorialManager';
+import '@/managers/ContextualHintsManager';
+import '@/managers/NetworkManager';
+import '@/managers/AntiCheatManager';
+import '@/managers/PerformanceProfiler';
 
 function App() {
-    console.log('--- APP COMPONENT RENDERING (ENV RESTORED) ---');
-    const debugMode = useGameStore(state => state.debugMode);
+    console.log('--- APP RENDERING ---');
+    const menuState = useGameStore(state => state.gameState.menuState);
+
+    // Global Key Listener for Pause
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                const currentMenuState = useGameStore.getState().gameState.menuState;
+                if (currentMenuState === 'PLAYING') {
+                    useGameStore.setState(state => ({
+                        gameState: { ...state.gameState, menuState: 'PAUSED', isPlaying: false }
+                    }));
+                    document.exitPointerLock();
+                } else if (currentMenuState === 'PAUSED') {
+                    useGameStore.setState(state => ({
+                        gameState: { ...state.gameState, menuState: 'PLAYING', isPlaying: true }
+                    }));
+                    document.body.requestPointerLock();
+                }
+            }
+            // Quick Save/Load
+            if (e.key === 'F5') {
+                e.preventDefault();
+                import('@/managers/SaveManager').then(m => {
+                    m.saveManager.quickSave();
+                    useGameStore.getState().setPrompt('💾 Schnellspeicherung...');
+                    setTimeout(() => useGameStore.getState().setPrompt(null), 2000);
+                });
+            }
+            if (e.key === 'F9') {
+                e.preventDefault();
+                import('@/managers/SaveManager').then(m => {
+                    const success = m.saveManager.quickLoad();
+                    useGameStore.getState().setPrompt(success ? '📂 Geladen!' : '❌ Kein Spielstand');
+                    setTimeout(() => useGameStore.getState().setPrompt(null), 2000);
+                });
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
+    // Tutorial Input Listener
+    useEffect(() => {
+        const cleanup = initTutorialInputListener();
+        return cleanup;
+    }, []);
+
+    // Auto-Start Tutorial on first game start + Auto-Save + Network
+    useEffect(() => {
+        if (menuState === 'PLAYING') {
+            const tutorialCompleted = localStorage.getItem('tutorialCompleted');
+            if (!tutorialCompleted) {
+                setTimeout(() => {
+                    useTutorialStore.getState().startTutorial();
+                }, 1500);
+            }
+            import('@/managers/SaveManager').then(m => m.saveManager.startAutoSave());
+            import('@/managers/NetworkManager').then(m => m.networkManager.connect());
+        }
+    }, [menuState]);
+
+    const settings = useGameStore(state => state.settings);
+
+    const getFilter = () => {
+        switch (settings.colorblindMode) {
+            case 'DEUTERANOPIA': return 'url(#deuteranopia)';
+            case 'PROTANOPIA': return 'url(#protanopia)';
+            case 'TRITANOPIA': return 'url(#tritanopia)';
+            default: return 'none';
+        }
+    };
 
     return (
-        <>
-            <Canvas shadows camera={{ fov: 60 }} style={{ position: 'absolute', top: 0, left: 0, zIndex: 0 }}>
-                <Suspense fallback={<Html fullscreen><LoadingScreen /></Html>}>
-                    {/* Systems */}
-                    <GameSystem />
+        <div style={{
+            width: '100vw', height: '100vh',
+            filter: getFilter(),
+            fontSize: settings.largeTextEnabled ? '1.2rem' : '1rem'
+        }}>
+            {/* SVG Filter Definitions */}
+            <svg style={{ display: 'none' }}>
+                <defs>
+                    <filter id="deuteranopia">
+                        <feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0" />
+                    </filter>
+                    <filter id="protanopia">
+                        <feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0" />
+                    </filter>
+                    <filter id="tritanopia">
+                        <feColorMatrix type="matrix" values="0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0" />
+                    </filter>
+                </defs>
+            </svg>
 
-                    {/* Environment & Lighting */}
-                    <color attach="background" args={['#101015']} />
-                    <fog attach="fog" args={['#101015', 10, 80]} />
-                    <ambientLight intensity={0.35} />
-                    <directionalLight position={[50, 50, 25]} intensity={0.8} castShadow />
+            {menuState === 'MAIN' && <MainMenu />}
+            {menuState === 'PAUSED' && <PauseMenu />}
 
-                    <Sky sunPosition={[0, -1, 0]} />
-                    <Stars />
+            {/* 3D World */}
+            <GameCanvas />
 
-                    {/* Geometry */}
-                    <StephansplatzGeometry showGrid={true} showLandmarks={true} />
+            {/* In-Game UI Overlays */}
+            {menuState === 'PLAYING' && (
+                <>
+                    <HUD />
+                    <Suspense fallback={null}>
+                        <Inventory />
+                    </Suspense>
+                    <DialogUI />
+                </>
+            )}
 
-                    {/* Physics */}
-                    <Physics gravity={[0, -9.81, 0]}>
-                        <Player />
-                        <CombatRenderer />
-                        <RigidBody type="fixed" position={[0, -1, 0]}>
-                            <CuboidCollider args={[50, 1, 50]} />
-                            <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
-                                <planeGeometry args={[100, 100]} />
-                                <meshStandardMaterial color="#222" />
-                            </mesh>
-                        </RigidBody>
-                    </Physics>
-                </Suspense>
-            </Canvas>
-            <HUD />
-            <Inventory />
-            <SettingsMenu />
-            <DebugConsole />
-        </>
+            <Suspense fallback={null}>
+                {menuState === 'SETTINGS' && <SettingsMenu />}
+                <DebugConsole />
+                <TutorialUI />
+                <MultiplayerUI />
+                <PerformanceUI />
+            </Suspense>
+            <Stats />
+        </div>
     );
 }
 
