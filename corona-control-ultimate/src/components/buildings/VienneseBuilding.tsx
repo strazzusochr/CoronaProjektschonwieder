@@ -9,7 +9,7 @@
  */
 import React, { useMemo } from 'react';
 import * as THREE from 'three';
-import { createBrickTexture, createConcreteTexture } from '@/utils/ProceduralTextures';
+import { createBrickTexture, createConcreteTexture, createBrickNormalMap } from '@/utils/ProceduralTextures';
 
 // High-poly segment counts
 const SEGMENTS = {
@@ -26,7 +26,7 @@ interface VienneseBuildingProps {
     floors?: number;
     width?: number;
     depth?: number;
-    style?: 'classic' | 'ornate';
+    style?: 'classic' | 'ornate' | 'corner' | 'rustika';
 }
 
 /**
@@ -213,28 +213,34 @@ const VienneseBuilding: React.FC<VienneseBuildingProps> = ({
     rotation = [0, 0, 0],
     floors = 5,
     width = 18,
-    depth = 12
+    depth = 12,
+    style = 'classic'
 }) => {
     const groundFloorHeight = 4.2;
     const upperFloorHeight = 3.4;
     const totalHeight = groundFloorHeight + (floors - 1) * upperFloorHeight;
     const windowsPerFloor = Math.floor((width - 3) / 3.2);
 
-    // Wall material with brick texture
+    // --- MATERIAL VARIATIONS ---
+    const wallColor = style === 'ornate' ? 0xF5F0E8 : (style === 'rustika' ? 0xD8CDB8 : 0xE8DCC8);
+    const roofColor = style === 'corner' ? 0x2D4356 : 0x4A4A4A;
+
+    // Wall material
     const wallMat = useMemo(() => new THREE.MeshStandardMaterial({
         map: createBrickTexture(),
-        color: 0xE8DCC8,
+        normalMap: createBrickNormalMap(), // AAA Detail
+        color: wallColor,
         roughness: 0.75
-    }), []);
+    }), [wallColor]);
 
-    // Stucco material for ornaments
+    // Stucco material
     const stuccoMat = useMemo(() => new THREE.MeshStandardMaterial({
         map: createConcreteTexture(512),
         color: 0xF5F0E8,
         roughness: 0.6
     }), []);
 
-    // Rustika (ground floor stone work)
+    // Rustika material
     const rustikaMat = useMemo(() => new THREE.MeshStandardMaterial({
         color: 0xC8BFA8,
         roughness: 0.8
@@ -242,19 +248,20 @@ const VienneseBuilding: React.FC<VienneseBuildingProps> = ({
 
     // Roof material
     const roofMat = useMemo(() => new THREE.MeshStandardMaterial({
-        color: 0x4A4A4A,
+        color: roofColor,
         roughness: 0.85
-    }), []);
+    }), [roofColor]);
 
-    // Wall geometries
+    // --- GEOMETRY ---
     const frontWallGeo = useMemo(() => new THREE.BoxGeometry(width, totalHeight, 0.4, 32, 64, 2), [width, totalHeight]);
     const sideWallGeo = useMemo(() => new THREE.BoxGeometry(0.4, totalHeight, depth, 2, 64, 16), [totalHeight, depth]);
 
-    // Ground floor rustika band
-    const rustikaGeo = useMemo(() => new THREE.BoxGeometry(width + 0.05, groundFloorHeight, 0.15, 32, 16, 2), [width, groundFloorHeight]);
+    // Rustika Height: 'rustika' style has stone up to 1st floor
+    const rustikaHeight = style === 'rustika' ? groundFloorHeight + upperFloorHeight : groundFloorHeight;
+    const rustikaGeo = useMemo(() => new THREE.BoxGeometry(width + 0.05, rustikaHeight, 0.15, 32, 16, 2), [width, rustikaHeight]);
 
-    // Pilaster (decorative columns)
-    const pilasterGeo = useMemo(() => new THREE.BoxGeometry(0.25, totalHeight - groundFloorHeight, 0.08, 4, 48, 2), [totalHeight, groundFloorHeight]);
+    // Pilaster
+    const pilasterGeo = useMemo(() => new THREE.BoxGeometry(0.25, totalHeight - rustikaHeight, 0.08, 4, 48, 2), [totalHeight, rustikaHeight]);
 
     // Roof structure
     const roofGeo = useMemo(() => {
@@ -267,10 +274,14 @@ const VienneseBuilding: React.FC<VienneseBuildingProps> = ({
         return new THREE.ExtrudeGeometry(shape, { depth: depth + 0.4, bevelEnabled: false });
     }, [width, depth]);
 
-    // Chimney
-    const chimneyGeo = useMemo(() => new THREE.BoxGeometry(0.7, 1.8, 0.5, 6, 12, 6), []);
+    // Corner Dome
+    const cornerDomeGeo = useMemo(() => {
+        if (style !== 'corner') return null;
+        return new THREE.CylinderGeometry(2.5, 2.5, 3, 8);
+    }, [style]);
 
-    // Kranzgesims (crown molding)
+    // Others
+    const chimneyGeo = useMemo(() => new THREE.BoxGeometry(0.7, 1.8, 0.5, 6, 12, 6), []);
     const kranzGeo = useMemo(() => {
         const shape = new THREE.Shape();
         shape.moveTo(0, 0);
@@ -287,18 +298,15 @@ const VienneseBuilding: React.FC<VienneseBuildingProps> = ({
     return (
         <group position={position} rotation={rotation}>
             {/* WALLS */}
-            {/* Front wall */}
             <mesh geometry={frontWallGeo} material={wallMat} position={[0, totalHeight / 2, depth / 2]} castShadow receiveShadow />
-            {/* Back wall */}
             <mesh geometry={frontWallGeo} material={wallMat} position={[0, totalHeight / 2, -depth / 2]} castShadow receiveShadow />
-            {/* Side walls */}
             <mesh geometry={sideWallGeo} material={wallMat} position={[-width / 2, totalHeight / 2, 0]} castShadow receiveShadow />
             <mesh geometry={sideWallGeo} material={wallMat} position={[width / 2, totalHeight / 2, 0]} castShadow receiveShadow />
 
-            {/* GROUND FLOOR - Rustika */}
-            <mesh geometry={rustikaGeo} material={rustikaMat} position={[0, groundFloorHeight / 2, depth / 2 + 0.07]} castShadow />
+            {/* RUSTIKA ZONE */}
+            <mesh geometry={rustikaGeo} material={rustikaMat} position={[0, rustikaHeight / 2, depth / 2 + 0.07]} castShadow />
 
-            {/* GROUND FLOOR WINDOWS (larger) */}
+            {/* GROUND FLOOR WINDOWS */}
             {Array.from({ length: Math.floor(windowsPerFloor / 2) }).map((_, i) => (
                 <React.Fragment key={`gw${i}`}>
                     <WindowModule position={[-(i + 1) * 3.2 - 1, groundFloorHeight / 2 + 0.4, depth / 2 + 0.2]} width={1.4} height={2.2} />
@@ -306,7 +314,7 @@ const VienneseBuilding: React.FC<VienneseBuildingProps> = ({
                 </React.Fragment>
             ))}
 
-            {/* Door/Entrance Portal */}
+            {/* ENTRANCE */}
             <group position={[0, groundFloorHeight / 2, depth / 2 + 0.25]}>
                 <mesh>
                     <boxGeometry args={[2.2, groundFloorHeight - 0.5, 0.4]} />
@@ -315,44 +323,69 @@ const VienneseBuilding: React.FC<VienneseBuildingProps> = ({
             </group>
 
             {/* UPPER FLOORS */}
-            {Array.from({ length: floors - 1 }).map((_, floor) => (
-                <React.Fragment key={`floor${floor}`}>
-                    {/* Floor divider cornice */}
-                    <CorniceModule width={width + 0.2} zOffset={depth / 2 + 0.12} />
+            {Array.from({ length: floors - 1 }).map((_, floor) => {
+                // Skip windows on rustika extension layer if handled by texture, 
+                // but here we just render them over it for now.
 
-                    {/* Windows per floor */}
-                    {Array.from({ length: windowsPerFloor }).map((_, win) => {
-                        const x = (win - (windowsPerFloor - 1) / 2) * 3.2;
-                        const y = groundFloorHeight + floor * upperFloorHeight + upperFloorHeight / 2 + 0.2;
-                        const hasBalcony = floor === 0 && (win === 0 || win === windowsPerFloor - 1 || win === Math.floor(windowsPerFloor / 2));
+                return (
+                    <React.Fragment key={`floor${floor}`}>
+                        {/* Floor divider cornice */}
+                        {(style === 'ornate' || floor === 0 || floor === floors - 2) && (
+                            <CorniceModule width={width + 0.2} zOffset={depth / 2 + 0.12} />
+                        )}
 
-                        return (
-                            <React.Fragment key={`w${floor}_${win}`}>
-                                <WindowModule position={[x, y, depth / 2 + 0.2]} />
-                                {hasBalcony && (
-                                    <BalconyModule position={[x, y - 1.15, depth / 2 + 0.55]} />
-                                )}
-                            </React.Fragment>
-                        );
-                    })}
+                        {/* Windows per floor */}
+                        {Array.from({ length: windowsPerFloor }).map((_, win) => {
+                            const x = (win - (windowsPerFloor - 1) / 2) * 3.2;
+                            const y = groundFloorHeight + floor * upperFloorHeight + upperFloorHeight / 2 + 0.2;
 
-                    {/* Cornice between floors */}
-                    <mesh position={[0, groundFloorHeight + floor * upperFloorHeight, depth / 2 + 0.12]}>
-                        <boxGeometry args={[width + 0.15, 0.12, 0.22, 32, 2, 4]} />
-                        <meshStandardMaterial color={0xF5F0E8} roughness={0.6} />
-                    </mesh>
-                </React.Fragment>
-            ))}
+                            const hasBalcony = (style === 'ornate' && floor < 2) ||
+                                (floor === 0 && (win === 0 || win === windowsPerFloor - 1 || win === Math.floor(windowsPerFloor / 2)));
 
-            {/* PILASTERS at corners */}
-            <mesh geometry={pilasterGeo} material={stuccoMat} position={[-width / 2 + 0.15, groundFloorHeight + (totalHeight - groundFloorHeight) / 2, depth / 2 + 0.04]} castShadow />
-            <mesh geometry={pilasterGeo} material={stuccoMat} position={[width / 2 - 0.15, groundFloorHeight + (totalHeight - groundFloorHeight) / 2, depth / 2 + 0.04]} castShadow />
+                            return (
+                                <React.Fragment key={`w${floor}_${win}`}>
+                                    <WindowModule position={[x, y, depth / 2 + 0.2]} />
+                                    {hasBalcony && (
+                                        <BalconyModule position={[x, y - 1.15, depth / 2 + 0.55]} />
+                                    )}
+                                </React.Fragment>
+                            );
+                        })}
 
-            {/* KRANZGESIMS (Crown molding) */}
+                        {/* Cornice between floors */}
+                        <mesh position={[0, groundFloorHeight + floor * upperFloorHeight, depth / 2 + 0.12]}>
+                            <boxGeometry args={[width + 0.15, 0.12, 0.22, 32, 2, 4]} />
+                            <meshStandardMaterial color={0xF5F0E8} roughness={0.6} />
+                        </mesh>
+                    </React.Fragment>
+                )
+            })}
+
+            {/* PILASTERS */}
+            {/* Show pilasters unless it disrupts the specific style, kept for all for now but customized material */}
+            <mesh geometry={pilasterGeo} material={stuccoMat} position={[-width / 2 + 0.15, rustikaHeight + (totalHeight - rustikaHeight) / 2, depth / 2 + 0.04]} castShadow />
+            <mesh geometry={pilasterGeo} material={stuccoMat} position={[width / 2 - 0.15, rustikaHeight + (totalHeight - rustikaHeight) / 2, depth / 2 + 0.04]} castShadow />
+
+            {/* KRANZGESIMS */}
             <mesh geometry={kranzGeo} material={stuccoMat} position={[-width / 2 - 0.2, totalHeight, -depth / 2 - 0.2]} rotation={[0, Math.PI / 2, 0]} castShadow />
 
             {/* ROOF */}
             <mesh geometry={roofGeo} material={roofMat} position={[0, totalHeight, -depth / 2 - 0.2]} rotation={[-Math.PI / 2, 0, 0]} castShadow />
+
+            {/* CORNER DOME */}
+            {style === 'corner' && cornerDomeGeo && (
+                <group position={[width / 2 - 2, totalHeight + 3, depth / 2 - 2]}>
+                    <mesh geometry={cornerDomeGeo} material={roofMat} castShadow />
+                    <mesh position={[0, 3, 0]}>
+                        <coneGeometry args={[2.6, 3, 8]} />
+                        <primitive object={roofMat} attach="material" />
+                    </mesh>
+                    <mesh position={[0, 4.5, 0]}>
+                        <cylinderGeometry args={[0.1, 0.1, 2]} />
+                        <meshStandardMaterial color="gold" metalness={1} roughness={0.2} />
+                    </mesh>
+                </group>
+            )}
 
             {/* CHIMNEYS */}
             <mesh geometry={chimneyGeo} material={wallMat} position={[-width / 3, totalHeight + 2.8, 0]} castShadow />

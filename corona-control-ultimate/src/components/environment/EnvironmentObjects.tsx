@@ -15,18 +15,25 @@ const SEGMENTS = {
     TREE_LEAVES: 32,
 };
 
+import { useFrame } from '@react-three/fiber';
+import TimeSystem from '@/core/TimeSystem';
+import { LANTERN_FLICKER_SEQUENCE } from '@/shaders/ShaderConstants';
+
 interface StreetLampProps {
     position?: [number, number, number];
     isLit?: boolean;
+    id?: number; // V6.0 Lantern ID for sequence
 }
 
 /**
  * Historic Viennese Street Lamp
  * ~2.000 Polygone
+ * V6.0: Integrierte Flacker-Welle (06:03)
  */
 export const StreetLamp: React.FC<StreetLampProps> = ({
     position = [0, 0, 0],
-    isLit = true
+    isLit = true,
+    id
 }) => {
     // Base with decorative volutes
     const baseGeo = useMemo(() => new THREE.CylinderGeometry(0.2, 0.28, 0.25, SEGMENTS.LAMP_POST, 4), []);
@@ -54,7 +61,22 @@ export const StreetLamp: React.FC<StreetLampProps> = ({
     const lanternTopGeo = useMemo(() => new THREE.ConeGeometry(0.14, 0.12, 6, 4), []);
     const lanternGlassGeo = useMemo(() => new THREE.CylinderGeometry(0.1, 0.11, 0.28, 6, 4), []);
 
-    // Materials
+    // Dynamic State Refs
+    const lightRef = React.useRef<THREE.PointLight>(null);
+    const glassMatRef = React.useRef<THREE.MeshPhysicalMaterial>(null);
+
+    // Berechne Delay basierend auf Position (East-to-West) oder ID
+    // Wien Stephansplatz: East ist +X, West ist -X (grob)
+    // Range ca. -100 bis +100
+    const propagationDelay = useMemo(() => {
+        if (id !== undefined) return id * LANTERN_FLICKER_SEQUENCE.propagationDelayPerLantern;
+        // Fallback: Nutze X-Position (normiert)
+        // 0.033s pro Meter? Nein, Welle soll sichtbar sein.
+        // Angenommen Welle braucht 5 Sekunden für 200m -> 0.025s/m
+        return ((position[0] + 100) / 200) * 5.0;
+    }, [id, position]);
+
+    // Materials - Static part
     const metalMat = useMemo(() => new THREE.MeshStandardMaterial({
         map: createMetalTexture(),
         color: 0x2F2F2F,
@@ -62,6 +84,7 @@ export const StreetLamp: React.FC<StreetLampProps> = ({
         metalness: 0.75
     }), []);
 
+    // Glass Material - initial
     const glassMat = useMemo(() => new THREE.MeshPhysicalMaterial({
         color: isLit ? 0xFFF8E7 : 0xE8E8E8,
         transmission: 0.75,
@@ -69,6 +92,49 @@ export const StreetLamp: React.FC<StreetLampProps> = ({
         emissive: isLit ? 0xFFE4B5 : 0x000000,
         emissiveIntensity: isLit ? 0.8 : 0
     }), [isLit]);
+
+    // V6.0 Flicker Logic
+    useFrame(() => {
+        if (!isLit || !lightRef.current || !glassMatRef.current) return;
+
+        const currentMinutes = TimeSystem.getCurrentGameMinutes();
+
+        // 1. Force OFF during day (06:05 - 19:00)
+        // Flicker starts at 06:03 for 5 seconds (realtime) -> 5 minutes gametime?
+        // Wait, 1:60 compression means 5 real seconds = 5 game minutes.
+        // So 06:03 to 06:08 is the transition window.
+
+        // Check if we are in the flicker window
+        // Start: 06:03 (363 min) + delay (converted to minutes? No, logic runs in realtime for visuals usually, but system is gametime bound)
+        // Let's us game time for consistency. 
+        // 1 real second delay = 1 game minute delay.
+
+        const flickerStartMinute = 363 + propagationDelay; // 06:03 + delay
+        const flickerEndMinute = flickerStartMinute + 5;   // 5 minutes duration
+
+        if (currentMinutes >= flickerStartMinute && currentMinutes <= flickerEndMinute) {
+            // FLICKER SEQUENCE
+            const progress = (currentMinutes - flickerStartMinute) / 5; // 0..1
+
+            // Chaotischer Flicker basierend auf Noise
+            const flicker = Math.random() > 0.5 ? 1 : 0;
+            const intensity = flicker * 1.5 * (1 - progress); // Fade out
+
+            lightRef.current.intensity = intensity;
+            glassMatRef.current.emissiveIntensity = intensity * 0.5;
+        } else if (currentMinutes > flickerEndMinute && currentMinutes < 1140) {
+            // 06:08 - 19:00 (1140 min) -> OFF
+            lightRef.current.intensity = 0;
+            glassMatRef.current.emissiveIntensity = 0;
+        } else {
+            // NIGHT -> ON
+            // Smooth transition on switch ON? 
+            // For now hard ON or keep 'isLit' value logic
+            const baseIntensity = 1.5;
+            lightRef.current.intensity = baseIntensity;
+            glassMatRef.current.emissiveIntensity = 0.8;
+        }
+    });
 
     return (
         <group position={position}>
@@ -91,17 +157,16 @@ export const StreetLamp: React.FC<StreetLampProps> = ({
             <group position={[0.5, 4.2, 0]}>
                 <mesh geometry={lanternFrameGeo} material={metalMat} castShadow />
                 <mesh geometry={lanternTopGeo} material={metalMat} position={[0, 0.22, 0]} castShadow />
-                <mesh geometry={lanternGlassGeo} material={glassMat} />
+                <mesh geometry={lanternGlassGeo} material={glassMat} ref={glassMatRef} />
 
                 {/* Light source */}
-                {isLit && (
-                    <pointLight
-                        color={0xFFE4B5}
-                        intensity={1.5}
-                        distance={18}
-                        decay={2}
-                    />
-                )}
+                <pointLight
+                    ref={lightRef}
+                    color={0xFFE4B5}
+                    intensity={isLit ? 1.5 : 0}
+                    distance={18}
+                    decay={2}
+                />
             </group>
         </group>
     );

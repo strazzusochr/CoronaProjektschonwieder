@@ -1,0 +1,15 @@
+name: webgame-cloudrun-deploy
+description: "Build & Deploy React/Vite Webgame to Cloud Run (main branch)"
+filename: cloudbuild.yaml
+
+github:
+  owner: "YOUR_GITHUB_ORG"
+  name: "YOUR_REPO_NAME"
+  push:
+    branch: '^main$'
+
+substitutions:
+  _SERVICE_NAME: "webgame"
+  _REGION: "europe-west3"
+  _REPO: "webgame-repo"
+  _IMAGE_NAME: "webgame"

@@ -10,7 +10,8 @@
  * - Globale Events: 0.2 Hz (5000ms)
  */
 
-import TimeSystem from '@/systems/TimeSystem';
+import TimeSystem from './TimeSystem';
+import DeescalationManager from '@/systems/DeescalationManager';
 
 // Update-Frequenzen in Millisekunden
 export const UPDATE_FREQUENCIES = {
@@ -38,7 +39,6 @@ class EngineLoop {
         global: 0
     };
 
-    private lastTime: number = 0;
     private isRunning: boolean = false;
 
     // Callbacks für die verschiedenen Systeme
@@ -59,7 +59,7 @@ class EngineLoop {
     /**
      * Hauptupdate-Funktion - wird von React Three Fiber's useFrame aufgerufen
      */
-    public update(currentTime: number, delta: number): void {
+    public update(_currentTime: number, delta: number): void {
         if (!this.isRunning) return;
 
         // Zeitdelta in Millisekunden
@@ -85,6 +85,10 @@ class EngineLoop {
         if (this.accumulators.ai >= UPDATE_FREQUENCIES.AI) {
             const aiDelta = this.accumulators.ai / 1000;
             this.aiCallbacks.forEach(cb => cb(aiDelta));
+
+            // Phase 4: Social Dynamics passive update
+            DeescalationManager.passiveUpdate(aiDelta);
+
             this.accumulators.ai = 0;
         }
 
@@ -106,7 +110,6 @@ class EngineLoop {
      */
     public start(): void {
         this.isRunning = true;
-        this.lastTime = performance.now();
     }
 
     /**

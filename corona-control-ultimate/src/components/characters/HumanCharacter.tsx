@@ -24,12 +24,13 @@ interface HumanCharacterProps {
     clothingColor?: [number, number, number];
     skinTone?: 'light' | 'medium' | 'dark';
     animate?: boolean;
+    segmentMultiplier?: number; // V6.0 LOD support
 }
 
-// High-poly segment counts
-const SEGMENTS = {
-    HEAD_H: 48,      // Horizontal
-    HEAD_V: 32,      // Vertical
+// Base high-poly segment counts
+const BASE_SEGMENTS = {
+    HEAD_H: 48,
+    HEAD_V: 32,
     TORSO: 48,
     LIMB_RADIAL: 24,
     LIMB_HEIGHT: 16,
@@ -41,7 +42,7 @@ const SEGMENTS = {
  * Create anatomically correct head with facial features
  * ~8.000 Polygone
  */
-function HeadGroup({ skinMaterial, hairColor }: { skinMaterial: THREE.Material, hairColor: number }) {
+function HeadGroup({ skinMaterial, hairColor, SEGMENTS }: { skinMaterial: THREE.Material, hairColor: number, SEGMENTS: any }) {
     // Skull - stretched ellipsoid (1.15x taller, 0.9x deeper)
     const skullGeo = useMemo(() => {
         const geo = new THREE.SphereGeometry(0.11, SEGMENTS.HEAD_H, SEGMENTS.HEAD_V);
@@ -150,7 +151,7 @@ function HeadGroup({ skinMaterial, hairColor }: { skinMaterial: THREE.Material, 
  * Create torso with muscle definition
  * ~6.500 Polygone
  */
-function TorsoGroup({ skinMaterial, clothingMaterial }: { skinMaterial: THREE.Material, clothingMaterial: THREE.Material }) {
+function TorsoGroup({ skinMaterial, clothingMaterial, SEGMENTS }: { skinMaterial: THREE.Material, clothingMaterial: THREE.Material, SEGMENTS: any }) {
     // Torso using LatheGeometry for organic shape
     const torsoGeo = useMemo(() => {
         const points: THREE.Vector2[] = [];
@@ -200,7 +201,7 @@ function TorsoGroup({ skinMaterial, clothingMaterial }: { skinMaterial: THREE.Ma
  * Detailed hand with 5 fingers
  * ~2.000 Polygone pro Hand
  */
-function HandGroup({ side, skinMaterial }: { side: 'left' | 'right', skinMaterial: THREE.Material }) {
+function HandGroup({ side, skinMaterial, SEGMENTS }: { side: 'left' | 'right', skinMaterial: THREE.Material, SEGMENTS: any }) {
     const palmGeo = useMemo(() => new THREE.BoxGeometry(0.055, 0.075, 0.022, 10, 12, 6), []);
 
     // Finger segments with decreasing size
@@ -262,7 +263,7 @@ function HandGroup({ side, skinMaterial }: { side: 'left' | 'right', skinMateria
  * Arm with upper, lower, and hand
  * ~2.500 Polygone pro Arm
  */
-function ArmGroup({ side, skinMaterial, clothingMaterial }: { side: 'left' | 'right', skinMaterial: THREE.Material, clothingMaterial: THREE.Material }) {
+function ArmGroup({ side, skinMaterial, clothingMaterial, SEGMENTS }: { side: 'left' | 'right', skinMaterial: THREE.Material, clothingMaterial: THREE.Material, SEGMENTS: any }) {
     const upperArmGeo = useMemo(() => new THREE.CapsuleGeometry(0.042, 0.2, 12, SEGMENTS.LIMB_RADIAL), []);
     const lowerArmGeo = useMemo(() => new THREE.CapsuleGeometry(0.032, 0.18, 12, SEGMENTS.LIMB_RADIAL), []);
     const elbowGeo = useMemo(() => new THREE.SphereGeometry(0.036, 20, 20), []);
@@ -289,7 +290,7 @@ function ArmGroup({ side, skinMaterial, clothingMaterial }: { side: 'left' | 'ri
 
             {/* Hand */}
             <group position={[0, -0.48, 0]}>
-                <HandGroup side={side} skinMaterial={skinMaterial} />
+                <HandGroup side={side} skinMaterial={skinMaterial} SEGMENTS={SEGMENTS} />
             </group>
         </group>
     );
@@ -299,11 +300,12 @@ function ArmGroup({ side, skinMaterial, clothingMaterial }: { side: 'left' | 'ri
  * Leg with thigh, calf, and foot
  * ~5.250 Polygone pro Bein (inkl. Fuß)
  */
-function LegGroup({ side, skinMaterial, pantsMaterial, shoeMaterial }: {
+function LegGroup({ side, skinMaterial, pantsMaterial, shoeMaterial, SEGMENTS }: {
     side: 'left' | 'right',
     skinMaterial: THREE.Material,
     pantsMaterial: THREE.Material,
-    shoeMaterial: THREE.Material
+    shoeMaterial: THREE.Material,
+    SEGMENTS: any
 }) {
     const thighGeo = useMemo(() => new THREE.CapsuleGeometry(0.065, 0.32, 14, SEGMENTS.LIMB_RADIAL), []);
     const calfGeo = useMemo(() => new THREE.CapsuleGeometry(0.05, 0.28, 14, SEGMENTS.LIMB_RADIAL), []);
@@ -356,12 +358,26 @@ const HumanCharacter: React.FC<HumanCharacterProps> = ({
     position = [0, 0, 0],
     rotation = [0, 0, 0],
     scale = 1,
-    characterType = 'civilian',
     clothingColor = [60, 80, 120],
     skinTone = 'medium',
-    animate = true
+    animate = true,
+    segmentMultiplier = 1.0 // V6.0 LOD factor
 }) => {
     const groupRef = useRef<THREE.Group>(null);
+
+    // Derived segments based on multiplier
+    const SEGMENTS = useMemo(() => ({
+        HEAD_H: Math.max(4, Math.floor(BASE_SEGMENTS.HEAD_H * segmentMultiplier)),
+        HEAD_V: Math.max(2, Math.floor(BASE_SEGMENTS.HEAD_V * segmentMultiplier)),
+        TORSO: Math.max(4, Math.floor(BASE_SEGMENTS.TORSO * segmentMultiplier)),
+        LIMB_RADIAL: Math.max(3, Math.floor(BASE_SEGMENTS.LIMB_RADIAL * segmentMultiplier)),
+        LIMB_HEIGHT: Math.max(1, Math.floor(BASE_SEGMENTS.LIMB_HEIGHT * segmentMultiplier)),
+        HAND_DETAIL: Math.max(2, Math.floor(BASE_SEGMENTS.HAND_DETAIL * segmentMultiplier)),
+        FINGER_SEGMENTS: Math.max(1, Math.floor(BASE_SEGMENTS.FINGER_SEGMENTS * segmentMultiplier)),
+    }), [segmentMultiplier]);
+
+    // Sub-components need access to SEGMENTS
+    // Using SEGMENTS directly in sub-components below
 
     // Skin material with procedural texture
     const skinMaterial = useMemo(() => {
@@ -427,12 +443,12 @@ const HumanCharacter: React.FC<HumanCharacterProps> = ({
 
     return (
         <group ref={groupRef} position={position} rotation={rotation} scale={scale}>
-            <HeadGroup skinMaterial={skinMaterial} hairColor={hairColor} />
-            <TorsoGroup skinMaterial={skinMaterial} clothingMaterial={clothingMaterial} />
-            <ArmGroup side="left" skinMaterial={skinMaterial} clothingMaterial={clothingMaterial} />
-            <ArmGroup side="right" skinMaterial={skinMaterial} clothingMaterial={clothingMaterial} />
-            <LegGroup side="left" skinMaterial={skinMaterial} pantsMaterial={pantsMaterial} shoeMaterial={shoeMaterial} />
-            <LegGroup side="right" skinMaterial={skinMaterial} pantsMaterial={pantsMaterial} shoeMaterial={shoeMaterial} />
+            <HeadGroup skinMaterial={skinMaterial} hairColor={hairColor} SEGMENTS={SEGMENTS} />
+            <TorsoGroup skinMaterial={skinMaterial} clothingMaterial={clothingMaterial} SEGMENTS={SEGMENTS} />
+            <ArmGroup side="left" skinMaterial={skinMaterial} clothingMaterial={clothingMaterial} SEGMENTS={SEGMENTS} />
+            <ArmGroup side="right" skinMaterial={skinMaterial} clothingMaterial={clothingMaterial} SEGMENTS={SEGMENTS} />
+            <LegGroup side="left" skinMaterial={skinMaterial} pantsMaterial={pantsMaterial} shoeMaterial={shoeMaterial} SEGMENTS={SEGMENTS} />
+            <LegGroup side="right" skinMaterial={skinMaterial} pantsMaterial={pantsMaterial} shoeMaterial={shoeMaterial} SEGMENTS={SEGMENTS} />
         </group>
     );
 };

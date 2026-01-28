@@ -195,6 +195,10 @@ export const createGameSlice: StateCreator<GameStore, [], [], Pick<GameStore,
         return { npcs: [...state.npcs, ...newNpcs] };
     }),
 
+    addNPC: (npc) => set((state) => ({
+        npcs: [...state.npcs, { ...npc, velocity: [0, 0, 0], rotation: 0, state: npc.state || 'IDLE' }]
+    })),
+
     markNpc: (id: number) => set((state) => ({
         markedNpcIds: [...state.markedNpcIds, id]
     })),

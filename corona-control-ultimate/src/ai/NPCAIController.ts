@@ -1,6 +1,5 @@
 import { StateMachine } from './StateMachine';
 import { PerceptionSystem } from './PerceptionSystem';
-import type { PerceptionEvent } from './PerceptionSystem';
 import { MemorySystem } from './MemorySystem';
 import { useGameStore } from '@/stores/gameStore';
 import * as THREE from 'three';
@@ -25,6 +24,9 @@ export class NPCAIController {
     private context: NPCContext;
     private updateTimer: number = 0;
     private readonly UPDATE_RATE = 0.1; // 10 Hz
+
+    // V6.0 Deeskalation
+    private relationshipScore: number = 0; // -100 (Hate) to +100 (Trust)
 
     constructor(context: NPCContext) {
         this.context = context;
@@ -134,7 +136,59 @@ export class NPCAIController {
             }
         });
 
+        // --- CALM STATE (Phase 6: De-escalation) ---
+        this.stateMachine.addState({
+            name: 'CALM',
+            onEnter: () => {
+                this.context.stop();
+                // Optional: Animation "Hands up" or "Nodding"
+            },
+            onUpdate: (delta) => {
+                // Regenerate relationship slowly back to neutral?
+                // Or just stay calm for a while
+                if (this.updateTimer > 5.0) { // 5 sec calm
+                    this.stateMachine.transitionTo('IDLE');
+                }
+            }
+        });
+
+        // --- FORMATION STATE (Phase 4) ---
+        this.stateMachine.addState({
+            name: 'FORMATION',
+            onEnter: () => {
+                // console.log(`NPC ${this.context.id} entering FORMATION`);
+            },
+            onUpdate: () => {
+                if (this.formationTarget) {
+                    const dist = this.context.position.distanceTo(this.formationTarget);
+
+                    if (dist > 0.5) {
+                        const dir = new THREE.Vector3().subVectors(this.formationTarget, this.context.position).normalize();
+                        // Smooth approach
+                        const speed = Math.min(3.0, dist * 2);
+                        this.context.move(dir, speed);
+                        this.context.lookAt(this.formationTarget); // Look at destination? Or Look Forward? Better Look Forward (Squad leader dir)
+                        // For prototype: Look at target while moving
+                    } else {
+                        this.context.stop();
+
+                        // Wenn am Ziel, rotiere wie Leader? 
+                        // TODO: FormationDirection übergeben
+                    }
+                } else {
+                    this.stateMachine.transitionTo('IDLE');
+                }
+
+                // Break formation on Threat? 
+                // Only if huge threat. Police stay disciplined.
+            }
+        });
+
         this.stateMachine.transitionTo('IDLE');
+    }
+
+    public getContext(): NPCContext {
+        return this.context;
     }
 
     private checkGlobalTension(): void {
@@ -209,5 +263,25 @@ export class NPCAIController {
     public orderCharge(): void {
         this.formationTarget = null;
         this.stateMachine.transitionTo('RIOT'); // Reuse RIOT state for aggressive charge for now, or add ATTACK
+    }
+
+    // --- DEESCALATION INTERFACE ---
+    public listenToCommand(type: 'CALM_DOWN' | 'INSULT'): void {
+        if (type === 'CALM_DOWN') {
+            this.modifyRelationship(20);
+            if (this.relationshipScore > 30 && this.stateMachine.getCurrentStateName() === 'RIOT') {
+                this.stateMachine.transitionTo('CALM');
+            }
+        } else if (type === 'INSULT') {
+            this.modifyRelationship(-30);
+            if (this.relationshipScore < -50) {
+                this.stateMachine.transitionTo('RIOT');
+            }
+        }
+    }
+
+    public modifyRelationship(amount: number) {
+        this.relationshipScore = Math.max(-100, Math.min(100, this.relationshipScore + amount));
+        // console.log(`NPC ${this.context.id} Relationship: ${this.relationshipScore}`);
     }
 }

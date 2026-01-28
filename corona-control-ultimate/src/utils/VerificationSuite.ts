@@ -1,6 +1,5 @@
 import { useGameStore } from '@/stores/gameStore';
 import CombatSystem from '@/systems/CombatSystem';
-import TimeSystem from '@/systems/TimeSystem';
 
 export class VerificationSuite {
     static async runAllTests() {

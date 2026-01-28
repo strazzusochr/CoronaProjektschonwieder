@@ -40,6 +40,7 @@ export interface BuildingDefinition {
 export interface ChunkData {
     x: number;
     z: number;
+    type: string; // District type for variety
     buildings: BuildingDefinition[];
     streetLights: Vector3Array[];
     trees: Vector3Array[];
@@ -103,6 +104,7 @@ class WienGenerator {
         const chunk: ChunkData = {
             x: chunkX,
             z: chunkZ,
+            type: chunkX === 0 && chunkZ === 0 ? 'district_1' : 'residential',
             buildings: [],
             streetLights: [],
             trees: [],

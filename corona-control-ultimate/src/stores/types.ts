@@ -1,4 +1,5 @@
 import type { PlayerState, Vector3Array } from '@/types/game';
+import type { NPCData } from '@/types/npc';
 
 export type MissionType = 'SURVIVE' | 'DISPERSE_RIOTERS' | 'REACH_TARGET';
 
@@ -166,9 +167,11 @@ export interface GameStore {
   endCutscene: () => void;
   setCutsceneTime: (time: number) => void;
   setPrompt: (text: string | null) => void;
+  npcCount: number; // Optional helper
+  addNPC: (npc: NPCData) => void;
   spawnWave: (count: number, type?: string) => void;
-  npcs: Array<{ id: number; type: string; position: [number, number, number]; velocity?: [number, number, number]; state?: string }>;
-  updateNpc: (id: number, data: any) => void;
+  npcs: NPCData[];
+  updateNpc: (id: number, data: Partial<NPCData>) => void;
   markedNpcIds: number[];
   markNpc: (id: number) => void;
 }

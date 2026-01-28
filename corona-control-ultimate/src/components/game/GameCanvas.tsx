@@ -1,21 +1,26 @@
 import { Suspense, useEffect } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { Physics, RigidBody, CuboidCollider } from '@react-three/rapier';
-import { Sky, Stars, Html } from '@react-three/drei';
+import { Html } from '@react-three/drei';
 import { EffectComposer as ThreeEffectComposer } from '@react-three/postprocessing';
 import { Bloom as PMBloom, ToneMapping as PMToneMapping, SMAA as PMSMAA, Vignette } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
 import * as THREE from 'three';
 import { useGameStore } from '@/stores/gameStore';
 
-// Components
-import Player from '@/components/Player';
-import LoadingScreen from '@/components/ui/LoadingScreen';
-import StephansplatzGeometry from '@/components/StephansplatzGeometry';
+import Barricade from '@/components/environment/Barricade';
+import WaterCannonVehicle from '@/components/vehicles/WaterCannonVehicle';
 import CrowdRenderer from '@/components/CrowdRenderer';
 import CombatRenderer from '@/components/combat/CombatRenderer';
-import GameSystem from '@/systems/GameSystem';
+import GameSystem from '@/core/GameSystem';
+
 import WorldUI from '@/components/ui/WorldUI';
+import Player from '@/components/Player';
+import LoadingScreen from '@/components/ui/LoadingScreen';
+// V6.0 Systems
+import DynamicLighting, { DynamicSky } from '@/rendering/DynamicLighting';
+import WorldStreamingRenderer from '@/world/WorldStreamingRenderer';
+import StephansplatzGeometry from '@/components/StephansplatzGeometry';
 
 /**
  * AAA Post-Processing Pipeline
@@ -25,7 +30,7 @@ const PostProcessingPipeline: React.FC<{ quality: string }> = ({ quality }) => {
     const { gl } = useThree();
 
     useEffect(() => {
-        gl.toneMapping = THREE.ACESFilmicToneMapping;
+        gl.toneMapping = THREE.NoToneMapping;
         gl.toneMappingExposure = 1.0;
         gl.outputColorSpace = THREE.SRGBColorSpace;
     }, [gl]);
@@ -53,7 +58,6 @@ const GameCanvas: React.FC = () => {
     const settings = useGameStore(state => state.settings);
     const quality = settings.graphicsQuality;
 
-    const shadowMapSize = quality === 'HIGH' ? 4096 : (quality === 'MEDIUM' ? 2048 : 1024);
     const dpr = quality === 'HIGH' ? [1, 2] : (quality === 'MEDIUM' ? [0.8, 1.5] : [0.5, 1]);
     const castShadows = true;
 
@@ -68,65 +72,39 @@ const GameCanvas: React.FC = () => {
                 stencil: false,
             }}
         >
-            {/* Himmel */}
-            <Sky
-                sunPosition={[100, 60, 50]}
-                turbidity={8}
-                rayleigh={0.5}
-                mieCoefficient={0.005}
-                mieDirectionalG={0.8}
-            />
+            {/* V6.0 Dynamic Sky & Lighting */}
+            <DynamicSky />
+            <DynamicLighting quality={quality} castShadows={castShadows} />
 
-            {/* Sterne */}
-            <Stars radius={300} depth={60} count={5000} factor={4} saturation={0.5} />
-
-            {/* === AAA LIGHTING === */}
-            <hemisphereLight args={[0xB4D4FF, 0x504030, 0.5]} />
-
-            <directionalLight
-                position={[80, 100, 60]}
-                intensity={2.0}
-                castShadow={castShadows}
-                shadow-mapSize={[shadowMapSize, shadowMapSize]}
-                shadow-camera-left={-100}
-                shadow-camera-right={100}
-                shadow-camera-top={100}
-                shadow-camera-bottom={-100}
-                shadow-camera-near={0.5}
-                shadow-camera-far={300}
-                shadow-bias={-0.0001}
-                shadow-normalBias={0.02}
-                color={0xFFFFF0}
-            />
-
-            <directionalLight
-                position={[-50, 50, -50]}
-                intensity={0.4}
-                castShadow={false}
-                color={0xFFFFFF}
-            />
-
-            <directionalLight
-                position={[0, 30, -80]}
-                intensity={0.3}
-                castShadow={false}
-                color={0xB0C4DE}
-            />
-
-            <ambientLight intensity={0.15} color={0xFFFFFF} />
+            {/* === POST-PROCESSING === */}
 
             {/* === POST-PROCESSING === */}
             <PostProcessingPipeline quality={quality} />
 
             {/* === GAME CONTENT === */}
             <Suspense fallback={<Html><LoadingScreen /></Html>}>
-                <Physics gravity={[0, -9.81, 0]} paused={menuState !== 'PLAYING'}>
+                <Physics
+                    gravity={[0, -9.81, 0]}
+                    paused={menuState !== 'PLAYING'}
+                    timeStep={1 / 120}
+                >
                     <Player />
                     <CombatRenderer />
                     <CrowdRenderer />
 
-                    {/* AAA Stephansplatz */}
+                    {/* AAA Stephansplatz (Zentrum) */}
                     <StephansplatzGeometry showGrid={false} showLandmarks={true} showEnvironment={true} />
+
+                    {/* V6.0 Chaos Elements (Barrikaden) */}
+                    <Barricade position={[5, 0.5, 5]} type="WOOD_BARRIER" rotation={[0, 0.5, 0]} />
+                    <Barricade position={[-5, 0.5, 8]} type="MOLOTOV_PILE" rotation={[0, -0.2, 0]} />
+                    <Barricade position={[0, 0.5, 15]} type="BURNING_TIRE" />
+
+                    {/* PHASE 5: WATER CANNON TEST */}
+                    <WaterCannonVehicle position={[-10, 0.5, 20]} rotation={[0, Math.PI, 0]} />
+
+                    {/* V6.0 World Streaming (Umland) */}
+                    <WorldStreamingRenderer />
 
                     {/* Ground Plane */}
                     <RigidBody type="fixed" position={[0, -0.5, 0]}>

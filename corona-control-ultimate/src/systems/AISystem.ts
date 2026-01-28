@@ -2,12 +2,18 @@ import { NPCAIController } from '../ai/NPCAIController';
 import type { NPCContext } from '../ai/NPCAIController';
 import { useGameStore } from '@/stores/gameStore';
 import * as THREE from 'three';
+import EngineLoop from '@/core/EngineLoop';
+// TacticsManager is imported dynamically below to avoid circular dependencies
 
 class AISystem {
     private controllers: NPCAIController[] = [];
     private static instance: AISystem;
 
-    private constructor() { }
+    private constructor() {
+        // Registriere Update Loop
+        EngineLoop.onAIUpdate(this.update.bind(this));
+        console.log("🧠 AI SYSTEM INITIALIZED");
+    }
 
     public static getInstance(): AISystem {
         if (!AISystem.instance) {
@@ -19,7 +25,15 @@ class AISystem {
     public registerNPC(context: NPCContext): NPCAIController {
         const controller = new NPCAIController(context);
         this.controllers.push(controller);
-        // console.log(`[AISystem] Registered NPC ${context.id}`);
+
+        // Register with TacticsManager (Phase 4)
+        // require um Zyklen mit NPCAIController <-> AISystem <-> TacticsManager zu vermeiden wenn möglich
+        // Aber Standard Import ist besser wenn keine direkten Dependency Loops bestehen.
+        // TacticsManager importiert NPCAIController (Type), das ist ok.
+        import('@/ai/TacticsManager').then(tm => {
+            tm.default.registerController(context.id, context.type, controller);
+        });
+
         return controller;
     }
 
@@ -29,6 +43,11 @@ class AISystem {
 
     public update(delta: number): void {
         const perfStart = performance.now();
+
+        // Update Tactics (Phase 4)
+        import('@/ai/TacticsManager').then(tm => {
+            tm.default.update(delta);
+        });
 
         // Pass mocked current values for now - in real integration these come from the components
         // For Phase 6 Prototype, we assume the Context object references live data or is updated elsewhere
@@ -42,15 +61,10 @@ class AISystem {
             // Sync State to Store (Visuals)
             // Optimization: Only update if changed or throttled? For prototype, every frame is okay for < 500 NPCs
             const currentState = controller.getCurrentState();
-            let color = 'white';
-            if (currentState === 'WANDER') color = 'cyan';
-            else if (currentState === 'FLEE') color = 'magenta';
-            else if (currentState === 'RIOT') color = 'red';
-
             // Direct Store Access (Performance Warning: In production, batch this!)
             useGameStore.getState().updateNpc(ctx.id, {
-                aiState: currentState,
-                color: color
+                state: currentState as any,
+                // Color is not in NPCData standard, but handled as partial update
             });
         });
 

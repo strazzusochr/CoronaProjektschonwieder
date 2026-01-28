@@ -536,6 +536,273 @@ export function createWoodTexture(
     return texture;
 }
 
+/**
+ * Create roof tile texture (ZigZag pattern for Stephansdom)
+ */
+export function createRoofTileTexture(
+    primaryColor: [number, number, number] = [26, 77, 46], // Dark Green
+    secondaryColor: [number, number, number] = [200, 180, 140], // Beige/Gold
+    size: number = 512
+): THREE.CanvasTexture {
+    const cacheKey = `roof_${primaryColor.join('_')}_${size}`;
+    if (textureCache.has(cacheKey)) return textureCache.get(cacheKey)!;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
+
+    // Base background
+    ctx.fillStyle = `rgb(${primaryColor[0]}, ${primaryColor[1]}, ${primaryColor[2]})`;
+    ctx.fillRect(0, 0, size, size);
+
+    // Chevron pattern
+    const tileSize = 32;
+    const rows = size / tileSize;
+    const cols = size / tileSize;
+
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            // Check for pattern logic (Stephansdom has a zigzag)
+            // Simple zigzag: (x + y) % 2 === 0
+            if ((x + y) % 4 === 0 || (x - y) % 4 === 0) {
+                ctx.fillStyle = `rgb(${secondaryColor[0]}, ${secondaryColor[1]}, ${secondaryColor[2]})`;
+
+                // Draw diamond/tile shape
+                ctx.beginPath();
+                ctx.moveTo(x * tileSize + tileSize / 2, y * tileSize);
+                ctx.lineTo(x * tileSize + tileSize, y * tileSize + tileSize / 2);
+                ctx.lineTo(x * tileSize + tileSize / 2, y * tileSize + tileSize);
+                ctx.lineTo(x * tileSize, y * tileSize + tileSize / 2);
+                ctx.fill();
+            }
+
+            // Tile borders
+            ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x * tileSize, y * tileSize, tileSize, tileSize);
+        }
+    }
+
+    // Add noise
+    const imageData = ctx.getImageData(0, 0, size, size);
+    const data = imageData.data;
+    for (let i = 0; i < data.length; i += 4) {
+        const n = (Math.random() - 0.5) * 20;
+        data[i] = Math.max(0, Math.min(255, data[i] + n));
+        data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + n));
+        data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + n));
+    }
+    ctx.putImageData(imageData, 0, 0);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(4, 4); // Repeat for density
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
+    textureCache.set(cacheKey, texture);
+    return texture;
+}
+
+/**
+ * UTILITY: Create Normal Map from Height Map Canvas
+ */
+function createNormalMapFromCanvas(heightCanvas: HTMLCanvasElement, strength: number = 2.0): THREE.CanvasTexture {
+    const size = heightCanvas.width;
+    const ctx = heightCanvas.getContext('2d')!;
+    const heightData = ctx.getImageData(0, 0, size, size).data;
+
+    const normalCanvas = document.createElement('canvas');
+    normalCanvas.width = size;
+    normalCanvas.height = size;
+    const normalCtx = normalCanvas.getContext('2d')!;
+    const normalImageData = normalCtx.createImageData(size, size);
+    const data = normalImageData.data;
+
+    const getHeight = (x: number, y: number) => {
+        const idx = ((y + size) % size * size + (x + size) % size) * 4; // Wrap handling
+        return heightData[idx] / 255.0; // Assume grayscale height in Red channel
+    };
+
+    for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+            const idx = (y * size + x) * 4;
+
+            // Sobel Filter for gradients
+            const tl = getHeight(x - 1, y - 1);
+            const t = getHeight(x, y - 1);
+            const tr = getHeight(x + 1, y - 1);
+            const l = getHeight(x - 1, y);
+            const r = getHeight(x + 1, y);
+            const bl = getHeight(x - 1, y + 1);
+            const b = getHeight(x, y + 1);
+            const br = getHeight(x + 1, y + 1);
+
+            const dx = (tr + 2 * r + br) - (tl + 2 * l + bl);
+            const dy = (bl + 2 * b + br) - (tl + 2 * t + tr);
+
+            const nz = 1.0 / strength;
+            const len = Math.sqrt(dx * dx + dy * dy + nz * nz);
+
+            // Encode Normal (-1..1) to RGB (0..255)
+            data[idx] = ((dx / len) * 0.5 + 0.5) * 255;      // R = X
+            data[idx + 1] = ((dy / len) * 0.5 + 0.5) * 255;  // G = Y
+            data[idx + 2] = ((nz / len) * 0.5 + 0.5) * 255;  // B = Z
+            data[idx + 3] = 255;
+        }
+    }
+
+    normalCtx.putImageData(normalImageData, 0, 0);
+
+    const texture = new THREE.CanvasTexture(normalCanvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.needsUpdate = true;
+    return texture;
+}
+
+/**
+ * Create Cobblestone Normal Map
+ */
+export function createCobblestoneNormalMap(size: number = 1024): THREE.CanvasTexture {
+    const cacheKey = `cobble_norm_${size}`;
+    if (textureCache.has(cacheKey)) return textureCache.get(cacheKey)!;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
+
+    // 1. Generate Height Map (Black = Low/Grout, White = High/Stone)
+    ctx.fillStyle = '#000000'; // Grout
+    ctx.fillRect(0, 0, size, size);
+
+    const stoneSize = 26;
+    const gap = 4;
+
+    for (let y = 0; y < size; y += stoneSize + gap) {
+        for (let x = 0; x < size; x += stoneSize + gap) {
+            const ox = (Math.random() - 0.5) * 3;
+            const oy = (Math.random() - 0.5) * 3;
+
+            // Stone height (rounded)
+            const gradient = ctx.createRadialGradient(
+                x + ox + stoneSize / 2, y + oy + stoneSize / 2, 0,
+                x + ox + stoneSize / 2, y + oy + stoneSize / 2, stoneSize / 1.5
+            );
+            gradient.addColorStop(0, '#FFFFFF'); // High center
+            gradient.addColorStop(0.8, '#AAAAAA'); // Slope
+            gradient.addColorStop(1, '#000000'); // Edge
+
+            ctx.fillStyle = gradient;
+            ctx.fillRect(x + ox, y + oy, stoneSize, stoneSize);
+        }
+    }
+
+    // 2. Convert to Normal Map
+    const texture = createNormalMapFromCanvas(canvas, 3.0);
+    texture.colorSpace = THREE.LinearSRGBColorSpace; // Normal maps should be linear
+    textureCache.set(cacheKey, texture);
+    return texture;
+}
+
+/**
+ * Create Roof Tile Normal Map (ZigZag)
+ */
+export function createRoofTileNormalMap(size: number = 512): THREE.CanvasTexture {
+    const cacheKey = `roof_norm_${size}`;
+    if (textureCache.has(cacheKey)) return textureCache.get(cacheKey)!;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
+
+    // Height Map
+    ctx.fillStyle = '#404040';
+    ctx.fillRect(0, 0, size, size);
+
+    const tileSize = 32;
+    const rows = size / tileSize;
+    const cols = size / tileSize;
+
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            if ((x + y) % 4 === 0 || (x - y) % 4 === 0) {
+                // Raised tile
+                const gradient = ctx.createLinearGradient(x * tileSize, y * tileSize, x * tileSize + tileSize, y * tileSize + tileSize);
+                gradient.addColorStop(0, '#FFFFFF');
+                gradient.addColorStop(1, '#808080'); // Sloped
+                ctx.fillStyle = gradient;
+
+                ctx.beginPath();
+                ctx.moveTo(x * tileSize + tileSize / 2, y * tileSize);
+                ctx.lineTo(x * tileSize + tileSize, y * tileSize + tileSize / 2);
+                ctx.lineTo(x * tileSize + tileSize / 2, y * tileSize + tileSize);
+                ctx.lineTo(x * tileSize, y * tileSize + tileSize / 2);
+                ctx.fill();
+            }
+        }
+    }
+
+    const texture = createNormalMapFromCanvas(canvas, 4.0);
+    texture.repeat.set(4, 4);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.colorSpace = THREE.LinearSRGBColorSpace; // Normal maps should be linear (actually NO, THREE.js handles normal maps in linear space usually? Wait, CanvasTexture defaults to SRGB if not specified? No, defaults to NoColorSpace if I recall, but I set SRGB everywhere else. Normal maps should generally be Linear or NoColorSpace, not SRGB? Actually standard maps are SRGB, normal maps are Linear. I will set to NoColorSpace (Linear) explicitly to be safe.)
+
+    textureCache.set(cacheKey, texture);
+    return texture;
+}
+
+/**
+ * Create Brick Normal Map
+ */
+export function createBrickNormalMap(size: number = 1024): THREE.CanvasTexture {
+    const cacheKey = `brick_norm_${size}`;
+    if (textureCache.has(cacheKey)) return textureCache.get(cacheKey)!;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
+
+    // Mortar (Low)
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, size, size);
+
+    const brickWidth = 64;
+    const brickHeight = 32;
+    const mortarWidth = 5;
+
+    for (let row = 0; row < size / brickHeight; row++) {
+        const offset = (row % 2) * (brickWidth / 2);
+        for (let col = -1; col < size / brickWidth + 1; col++) {
+            const x = col * brickWidth + offset;
+            const y = row * brickHeight;
+
+            // Random variation in height
+            const height = 200 + Math.random() * 55;
+            const color = Math.floor(height).toString(16).padStart(2, '0');
+            ctx.fillStyle = `#${color}${color}${color}`; // Gray scale height
+
+            ctx.fillRect(
+                x + mortarWidth / 2,
+                y + mortarWidth / 2,
+                brickWidth - mortarWidth,
+                brickHeight - mortarWidth
+            );
+        }
+    }
+
+    const texture = createNormalMapFromCanvas(canvas, 5.0);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    textureCache.set(cacheKey, texture);
+    return texture;
+}
+
 // Export texture cache for cleanup
 export function clearTextureCache(): void {
     textureCache.forEach(tex => tex.dispose());

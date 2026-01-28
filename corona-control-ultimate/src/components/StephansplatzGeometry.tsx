@@ -1,6 +1,7 @@
 import React, { useMemo, Suspense } from 'react';
 import * as THREE from 'three';
 import VienneseBuilding from './buildings/VienneseBuilding';
+import Stephansdom from './buildings/Stephansdom';
 import EnvironmentObjects from './environment/EnvironmentObjects';
 import { createCobblestoneTexture, createAsphaltTexture } from '@/utils/ProceduralTextures';
 
@@ -50,121 +51,8 @@ interface StephansplatzProps {
 }
 
 /**
- * Stephansdom - High-Poly Gotischer Dom
- * ~100.000 Polygone (vereinfachte Version)
+ * Stephansdom moved to ./buildings/Stephansdom.tsx
  */
-const StephansdomComponent: React.FC = () => {
-    // Materials
-    const stoneMaterial = useMemo(() => new THREE.MeshStandardMaterial({
-        color: 0x8B8B83,
-        roughness: 0.85,
-        metalness: 0.0,
-    }), []);
-
-    const roofMaterial = useMemo(() => new THREE.MeshStandardMaterial({
-        color: 0x1A4D2E, // Grüne Dachziegel
-        roughness: 0.6,
-        metalness: 0.1,
-    }), []);
-
-    const goldMaterial = useMemo(() => new THREE.MeshStandardMaterial({
-        color: 0xFFD700,
-        roughness: 0.2,
-        metalness: 0.9,
-    }), []);
-
-    // Geometries (High-Poly)
-    const towerGeo = useMemo(() => new THREE.BoxGeometry(12, 80, 15, 8, 24, 8), []);
-    const spireGeo = useMemo(() => new THREE.ConeGeometry(6, 50, 12, 8), []);
-    const shipGeo = useMemo(() => new THREE.BoxGeometry(28, 28, 65, 6, 6, 12), []);
-    const roofGeo = useMemo(() => {
-        const shape = new THREE.Shape();
-        shape.moveTo(0, 0);
-        shape.lineTo(16, 0);
-        shape.lineTo(8, 18);
-        shape.closePath();
-        const extrudeSettings = { depth: 65, bevelEnabled: false };
-        return new THREE.ExtrudeGeometry(shape, extrudeSettings);
-    }, []);
-
-    // Window geometry for gothic windows
-    const windowGeo = useMemo(() => new THREE.BoxGeometry(1.5, 4, 0.5, 4, 8, 1), []);
-
-    // Buttresses (Strebepfeiler)
-    const buttressGeo = useMemo(() => {
-        const shape = new THREE.Shape();
-        shape.moveTo(0, 0);
-        shape.lineTo(3, 0);
-        shape.lineTo(0.5, 25);
-        shape.lineTo(0, 25);
-        shape.closePath();
-        return new THREE.ExtrudeGeometry(shape, { depth: 2, bevelEnabled: false });
-    }, []);
-
-    return (
-        <group name="Stephansdom">
-            {/* Südturm (Steffl) - 136m */}
-            <mesh position={[0, 40, 0]} castShadow receiveShadow geometry={towerGeo} material={stoneMaterial} />
-
-            {/* Turmspitze */}
-            <mesh position={[0, 105, 0]} castShadow geometry={spireGeo} material={stoneMaterial} />
-
-            {/* Turmkreuz */}
-            <mesh position={[0, 132, 0]} castShadow>
-                <boxGeometry args={[0.3, 4, 0.3]} />
-                <primitive object={goldMaterial} attach="material" />
-            </mesh>
-            <mesh position={[0, 131, 0]} castShadow>
-                <boxGeometry args={[2, 0.3, 0.3]} />
-                <primitive object={goldMaterial} attach="material" />
-            </mesh>
-
-            {/* Hauptschiff */}
-            <mesh position={[0, 14, -35]} castShadow receiveShadow geometry={shipGeo} material={stoneMaterial} />
-
-            {/* Dach mit charakteristischem Muster */}
-            <mesh position={[-8, 28, -67]} rotation={[Math.PI / 2, 0, 0]} castShadow geometry={roofGeo} material={roofMaterial} />
-
-            {/* Gotische Fenster am Turm */}
-            {[-3, 0, 3].map((x, i) =>
-                [20, 35, 50, 65].map((y, j) => (
-                    <mesh key={`window-${i}-${j}`} position={[x, y, 8]} castShadow geometry={windowGeo}>
-                        <meshStandardMaterial color={0x1A1A2E} roughness={0.1} metalness={0.3} />
-                    </mesh>
-                ))
-            )}
-
-            {/* Strebepfeiler (8 Stück) */}
-            {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
-                const angle = (i / 8) * Math.PI * 2;
-                const x = Math.sin(angle) * 18;
-                const z = -35 + Math.cos(angle) * 35;
-                return (
-                    <mesh
-                        key={`buttress-${i}`}
-                        position={[x, 0, z]}
-                        rotation={[Math.PI / 2, angle, 0]}
-                        castShadow
-                        geometry={buttressGeo}
-                        material={stoneMaterial}
-                    />
-                );
-            })}
-
-            {/* Nordturm (unvollendet) */}
-            <mesh position={[0, 34, -55]} castShadow receiveShadow>
-                <boxGeometry args={[12, 68, 12, 6, 12, 6]} />
-                <primitive object={stoneMaterial} attach="material" />
-            </mesh>
-
-            {/* Renaissance-Kuppel auf Nordturm */}
-            <mesh position={[0, 72, -55]} castShadow>
-                <sphereGeometry args={[7, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
-                <meshStandardMaterial color={0x2D4356} roughness={0.4} metalness={0.3} />
-            </mesh>
-        </group>
-    );
-};
 
 /**
  * Pestsäule (Dreifaltigkeitssäule)
@@ -418,7 +306,7 @@ const StephansplatzGeometry: React.FC<StephansplatzProps> = ({
                 <Suspense fallback={null}>
                     {/* Stephansdom */}
                     <group position={[LANDMARKS.stephansdom.x, 0, LANDMARKS.stephansdom.z]}>
-                        <StephansdomComponent />
+                        <Stephansdom />
                     </group>
 
                     {/* Haas-Haus */}
@@ -437,6 +325,7 @@ const StephansplatzGeometry: React.FC<StephansplatzProps> = ({
                     </group>
 
                     {/* === GRÜNDERZEIT-GEBÄUDE (AAA) === */}
+                    {/* Building 1: Stuck (Ornate) */}
                     <VienneseBuilding
                         position={[LANDMARKS.building1.x, 0, LANDMARKS.building1.z]}
                         rotation={[0, LANDMARKS.building1.rotation, 0]}
@@ -445,21 +334,25 @@ const StephansplatzGeometry: React.FC<StephansplatzProps> = ({
                         depth={14}
                         style="ornate"
                     />
+
+                    {/* Building 2: Rustika (Stone Heavy) */}
                     <VienneseBuilding
                         position={[LANDMARKS.building2.x, 0, LANDMARKS.building2.z]}
                         rotation={[0, LANDMARKS.building2.rotation, 0]}
                         floors={4}
                         width={18}
                         depth={12}
-                        style="classic"
+                        style="rustika"
                     />
+
+                    {/* Building 3: Eckhaus (Corner Style) */}
                     <VienneseBuilding
                         position={[LANDMARKS.building3.x, 0, LANDMARKS.building3.z]}
                         rotation={[0, LANDMARKS.building3.rotation, 0]}
                         floors={6}
                         width={22}
                         depth={15}
-                        style="ornate"
+                        style="corner"
                     />
                 </Suspense>
             )}
@@ -468,12 +361,12 @@ const StephansplatzGeometry: React.FC<StephansplatzProps> = ({
             {showEnvironment && (
                 <Suspense fallback={null}>
                     {/* Straßenlaternen (mindestens 5) */}
-                    <StreetLamp position={[-30, 0, 20]} isLit={true} />
-                    <StreetLamp position={[-30, 0, -10]} isLit={true} />
-                    <StreetLamp position={[30, 0, 20]} isLit={true} />
-                    <StreetLamp position={[30, 0, -10]} isLit={true} />
-                    <StreetLamp position={[0, 0, 30]} isLit={true} />
-                    <StreetLamp position={[15, 0, -35]} isLit={true} />
+                    <StreetLamp position={[-30, 0, 20]} />
+                    <StreetLamp position={[-30, 0, -10]} />
+                    <StreetLamp position={[30, 0, 20]} />
+                    <StreetLamp position={[30, 0, -10]} />
+                    <StreetLamp position={[0, 0, 30]} />
+                    <StreetLamp position={[15, 0, -35]} />
 
                     {/* Parkbänke (mindestens 2) */}
                     <ParkBench position={[-20, 0, 15]} rotation={[0, Math.PI / 4, 0]} />
