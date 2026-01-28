@@ -1,0 +1,31 @@
+# 📊 Google Cloud Monitoring & Budget Alerts Template
+# Dieses Dokument dient als Vorlage für den Import in die Google Cloud Console.
+
+monitoring:
+  uptime_checks:
+    - name: "Corona Control Ultimate - Home"
+      url: "https://webgame-YOUR_PROJECT_HASH.a.run.app/health"
+      period: "60s"
+      timeout: "10s"
+  
+  alert_policies:
+    - name: "High CPU Usage Alert"
+      condition: "resource.type = \"cloud_run_revision\" AND metric.type = \"run.googleapis.com/container/cpu/utilization\" AND value > 0.8"
+      notification_channels: ["YOUR_EMAIL_NOTIFICATION_CHANNEL"]
+
+    - name: "Instance Limit Reached"
+      condition: "resource.type = \"cloud_run_revision\" AND metric.type = \"run.googleapis.com/container/instance_count\" AND value >= 10"
+
+cost_control:
+  budget_alerts:
+    - amount: 10.00
+      currency: "EUR"
+      thresholds:
+        - percentage: 0.50 # Alarmiere bei 5€
+        - percentage: 0.90 # Alarmiere bei 9€
+        - percentage: 1.00 # Alarmiere bei Budgetüberschreitung
+      notification_channels: ["YOUR_EMAIL_NOTIFICATION_CHANNEL"]
+
+  auto_shutdown_instructions:
+    - step: "Falls Budget 100% erreicht, setze 'max-instances' auf 0 via CLI:"
+    - command: "gcloud run services update webgame --max-instances 0 --region europe-west3"

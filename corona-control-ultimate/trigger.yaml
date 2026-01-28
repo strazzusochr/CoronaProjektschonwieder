@@ -3,8 +3,8 @@ description: "Build & Deploy React/Vite Webgame to Cloud Run (main branch)"
 filename: cloudbuild.yaml
 
 github:
-  owner: "YOUR_GITHUB_ORG"
-  name: "YOUR_REPO_NAME"
+  owner: "strazzusochr"
+  name: "CoronaControl"
   push:
     branch: '^main$'
 
