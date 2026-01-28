@@ -3,7 +3,7 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { Physics, RigidBody, CuboidCollider } from '@react-three/rapier';
 import { Html } from '@react-three/drei';
 import { EffectComposer as ThreeEffectComposer } from '@react-three/postprocessing';
-import { Bloom as PMBloom, ToneMapping as PMToneMapping, SMAA as PMSMAA, Vignette } from '@react-three/postprocessing';
+import { Bloom as PMBloom, ToneMapping as PMToneMapping, SMAA as PMSMAA, Vignette, SSAO, BrightnessContrast, HueSaturation } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
 import * as THREE from 'three';
 import { useGameStore } from '@/stores/gameStore';
@@ -42,11 +42,32 @@ const PostProcessingPipeline: React.FC<{ quality: string }> = ({ quality }) => {
     return (
         <ThreeEffectComposer multisampling={quality === 'HIGH' ? 8 : 4}>
             <PMSMAA />
+
+            {/* SSAO for depth (Only HIGH/MEDIUM) */}
+            {(quality === 'HIGH' || quality === 'MEDIUM') && (
+                <SSAO
+                    intensity={20}
+                    radius={0.3}
+                    luminanceInfluence={0.5}
+                />
+            )}
+
             <PMBloom
                 luminanceThreshold={0.85}
                 luminanceSmoothing={0.4}
                 intensity={quality === 'HIGH' ? 0.5 : 0.3}
             />
+
+            {/* Color Grading */}
+            <BrightnessContrast
+                brightness={-0.05}
+                contrast={0.15}
+            />
+            <HueSaturation
+                hue={0}
+                saturation={0.15}
+            />
+
             <PMToneMapping mode={ToneMappingMode.ACES_FILMIC} />
             <Vignette offset={0.3} darkness={quality === 'HIGH' ? 0.4 : 0.2} />
         </ThreeEffectComposer>
@@ -69,7 +90,7 @@ const GameCanvas: React.FC = () => {
                 powerPreference: 'high-performance',
                 antialias: quality !== 'LOW',
                 alpha: false,
-                stencil: false,
+                stencil: true,
             }}
         >
             {/* V6.0 Dynamic Sky & Lighting */}
