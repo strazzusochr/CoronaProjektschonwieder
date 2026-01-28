@@ -1,5 +1,5 @@
 import { Suspense, useEffect } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { Physics, RigidBody, CuboidCollider } from '@react-three/rapier';
 import { Html } from '@react-three/drei';
 import { EffectComposer as ThreeEffectComposer } from '@react-three/postprocessing';
@@ -74,6 +74,19 @@ const PostProcessingPipeline: React.FC<{ quality: string }> = ({ quality }) => {
     );
 };
 
+import { performanceProfiler } from '@/managers/PerformanceProfiler';
+
+/**
+ * PerformanceMonitor - Updates profiler with engine stats
+ */
+const PerformanceMonitor = () => {
+    const { gl } = useThree();
+    useFrame(() => {
+        performanceProfiler.updateDrawCalls(gl.info.render.calls);
+    });
+    return null;
+};
+
 const GameCanvas: React.FC = () => {
     const menuState = useGameStore(state => state.gameState.menuState);
     const settings = useGameStore(state => state.settings);
@@ -93,6 +106,7 @@ const GameCanvas: React.FC = () => {
                 stencil: true,
             }}
         >
+            <PerformanceMonitor />
             {/* V6.0 Dynamic Sky & Lighting */}
             <DynamicSky />
             <DynamicLighting quality={quality} castShadows={castShadows} />

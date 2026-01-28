@@ -3,8 +3,10 @@
 
 echo "🚀 Starting GCP Infrastructure Setup..."
 
-# 1. Projekt Configuration (Set manually if script fails)
-# gcloud config set project YOUR_PROJECT_ID
+# 1. Projekt Configuration
+PROJECT_ID="gen-lang-client-0857108312"
+PROJECT_NUMBER="115141732954171490356"
+gcloud config set project ${PROJECT_ID}
 
 # 2. APIs aktivieren
 echo "📦 Enabling APIs..."
@@ -22,8 +24,6 @@ gcloud artifacts repositories create webgame-repo \
 
 # 4. IAM Rollen für Cloud Build Service Account
 echo "🔑 Configuring IAM..."
-PROJECT_ID=$(gcloud config get-value project)
-PROJECT_NUMBER=$(gcloud projects describe ${PROJECT_ID} --format='value(projectNumber)')
 CLOUD_BUILD_SA="${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com"
 
 gcloud projects add-iam-policy-binding ${PROJECT_ID} \
@@ -50,11 +50,11 @@ gcloud builds triggers import --source=trigger.yaml || echo "Note: Trigger impor
 
 # 7. Cloud Run Ressourcen & Skalierung optimieren
 echo "⚙️ Tuning Cloud Run Resources..."
-gcloud run services update webgame \
+gcloud run services update corona-control-ultimate \
   --region=europe-west3 \
-  --memory=1Gi \
-  --cpu=2 \
-  --max-instances=20 \
+  --memory=512Mi \
+  --cpu=1 \
+  --max-instances=5 \
   --platform=managed || echo "Note: Service update might require a first deployment."
 
 echo "✅ Master Setup Script complete. Next step: Push to 'main' branch to trigger first production deploy."
