@@ -1,0 +1,34 @@
+stages:
+  - build
+  - test
+  - deploy
+
+variables:
+  NODE_ENV: "production"
+
+build_site:
+  stage: build
+  image: node:20
+  script:
+    - npm ci
+    - npm run build
+  artifacts:
+    paths:
+      - corona-control-ultimate/dist/
+
+test_site:
+  stage: test
+  image: node:20
+  script:
+    - npm test
+
+deploy_pages:
+  stage: deploy
+  image: node:20
+  script:
+    - npm install -g wrangler
+    - wrangler pages publish ./corona-control-ultimate/dist --project-name $CF_PAGES_PROJECT --branch $CI_COMMIT_REF_NAME
+  only:
+    - main
+    - develop
+    - feat/cloudflare-pages-deploy
