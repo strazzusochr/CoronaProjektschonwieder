@@ -84,6 +84,10 @@ class PerformanceProfiler {
         this.metrics.latency = Math.floor(Math.random() * 20) + 10; // Mock latency 10-30ms
     }
 
+    public updateDrawCalls(calls: number) {
+        this.metrics.drawCalls = calls;
+    }
+
     public getMetrics(): PerformanceMetrics {
         return this.metrics;
     }

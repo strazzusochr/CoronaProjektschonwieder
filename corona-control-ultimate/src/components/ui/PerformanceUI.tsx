@@ -7,7 +7,7 @@ import { useGameStore } from '@/stores/gameStore';
  * Phase 26: Performance-Profiling-Tools
  */
 const PerformanceUI: React.FC = () => {
-    const isDebug = useGameStore(state => state.gameState.debugMode);
+    const isDebug = useGameStore(state => state.debugMode.fps);
     const [metrics, setMetrics] = useState(performanceProfiler.getMetrics());
 
     useEffect(() => {
@@ -56,6 +56,11 @@ const PerformanceUI: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                 <span>Latency:</span>
                 <span style={{ color: '#60a5fa' }}>{metrics.latency}ms</span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <span>Draw Calls:</span>
+                <span style={{ color: '#fbbf24' }}>{metrics.drawCalls || 0}</span>
             </div>
 
             {metrics.memory && (
