@@ -17,3 +17,8 @@ Wir nutzen eine vereinfachte **Gitflow** Strategie:
 ## 🛡️ Security & Quality
 - Führe vor jedem PR `npm run build` und `npm run test` aus.
 - Achte auf die Einhaltung der CSP-Vorgaben in `server.cjs`.
+
+## 📐 Level of Detail (LOD)
+- Für jedes Modell > 50k Polygone ist die Erstellung von mindestens 3 LOD-Stufen Pflicht.
+- Benennungsschema: `/assets/lod/<model_name>/LOD0..3.glb`.
+- Distanzgrenzen: LOD1 (~15m), LOD2 (~40m), LOD3 (~80m+).

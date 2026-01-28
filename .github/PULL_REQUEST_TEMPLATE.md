@@ -20,3 +20,5 @@ Wie wurden die Änderungen getestet?
 - [ ] Code folgt dem Styleguide
 - [ ] Kommentare in Deutsch verfasst
 - [ ] Keine neuen Warnungen im Build
+- [ ] LOD-Assets für Modelle > 50k Poly vorhanden
+- [ ] LOD-Wechsel visuell verifiziert
