@@ -74,8 +74,9 @@ class ContextualHintsManager {
             {
                 id: 'HINT_OPEN_INVENTORY',
                 condition: () => {
-                    const items = useGameStore.getState().inventory?.items || [];
-                    return items.length > 0 && !useGameStore.getState().gameState.isInventoryOpen;
+                    const inventory = useGameStore.getState().inventory || [];
+                    const hasItems = inventory.some(slot => slot.item !== null);
+                    return hasItems && !useGameStore.getState().isInventoryOpen;
                 },
                 message: 'Tipp: Drücke TAB um dein Inventar zu öffnen.',
                 priority: 3,
@@ -88,7 +89,7 @@ class ContextualHintsManager {
                 id: 'HINT_COMBAT_CLICK',
                 condition: () => {
                     // Wenn Spannung hoch, aber Spieler nicht kämpft
-                    const tension = useGameStore.getState().gameState.tension ?? 0;
+                    const tension = useGameStore.getState().tensionLevel || 0;
                     return tension > 50;
                 },
                 message: 'Tipp: Linksklick wirft einen Molotow-Cocktail.',
@@ -101,9 +102,15 @@ class ContextualHintsManager {
             {
                 id: 'HINT_INTERACT_NPC',
                 condition: () => {
-                    // Wenn Spieler in der Nähe eines NPC ist (simplified check)
-                    const nearNPC = useGameStore.getState().gameState.nearbyInteractable;
-                    return nearNPC === 'NPC';
+                    // Checke Distanz zum nächsten NPC (einfache Prüfung)
+                    const npcs = useGameStore.getState().npcs;
+                    const playerPos = useGameStore.getState().player.position;
+                    // Wenn mind. ein NPC < 3 Meter entfernt ist
+                    return npcs.some(npc => {
+                        const dx = npc.position[0] - playerPos[0];
+                        const dz = npc.position[2] - playerPos[2];
+                        return (dx * dx + dz * dz) < 9; // 3m Radius
+                    });
                 },
                 message: 'Tipp: Drücke E um mit dem NPC zu sprechen.',
                 priority: 7,
@@ -164,13 +171,13 @@ class ContextualHintsManager {
         this.lastShownHints.set(hint.id, Date.now());
 
         // Use existing activePrompt system to display
-        useGameStore.getState().setActivePrompt(hint.message);
+        useGameStore.getState().setPrompt(hint.message);
 
         // Auto-clear after 5 seconds
         setTimeout(() => {
             const currentPrompt = useGameStore.getState().gameState.activePrompt;
             if (currentPrompt === hint.message) {
-                useGameStore.getState().setActivePrompt(null);
+                useGameStore.getState().setPrompt(null);
             }
         }, 5000);
     }

@@ -1,0 +1,11 @@
+--- PERFORMANCE & MOVEMENT TEST (The 20m Walk) ---
+Loading Game...
+Starting Game Session...
+>>> MOVING FORWARD (20m)
+>>> MOVING BACKWARD (20m)
+>>> MOVING RIGHT (20m)
+>>> MOVING LEFT (20m)
+--- RESULTS ---
+AVG FPS: 66.3
+MIN FPS: 0.1
+Proof saved: proof_performance_20m.png

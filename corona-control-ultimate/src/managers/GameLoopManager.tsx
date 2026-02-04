@@ -40,8 +40,11 @@ const GameLoopManager: React.FC = () => {
     useFrame((_, delta) => {
         if (gameState.isGameOver || gameState.isVictory || !isPlaying) return;
 
+        // Safety: Clamp delta to prevent "Spiral of Death" physics explosions
+        const clampedDelta = Math.min(delta, 0.1);
+
         // 1. Zeit & Events (Phase 10)
-        TimeManager.getInstance().update(delta);
+        TimeManager.getInstance().update(clampedDelta);
         EventManager.getInstance().update();
 
         // Synchronisiere Zeit mit UI
@@ -58,7 +61,7 @@ const GameLoopManager: React.FC = () => {
         npcControllers.current.forEach((tree) => tree.execute());
 
         // 3. Quest Logik (Phase 11)
-        AdvancedQuestManager.getInstance().update(delta);
+        AdvancedQuestManager.getInstance().update(clampedDelta);
 
         // 4. Missions-Fortschritt
         const currentMission = missions[gameState.currentMissionIndex];
@@ -68,7 +71,7 @@ const GameLoopManager: React.FC = () => {
                     nextMission();
                 }
             } else if (currentMission.type === 'SURVIVE') {
-                useGameStore.getState().updateMissionProgress(delta);
+                useGameStore.getState().updateMissionProgress(clampedDelta);
                 if (currentMission.currentAmount >= (currentMission.timeLimit || 60)) {
                     nextMission();
                 }
@@ -82,8 +85,8 @@ const GameLoopManager: React.FC = () => {
         }
 
         // 5. Spannung & Menschenmenge (Phase 6/7)
-        TensionManager.getInstance().update(delta, performance.now());
-        CrowdSystem.getInstance().update(delta);
+        TensionManager.getInstance().update(clampedDelta, performance.now());
+        CrowdSystem.getInstance().update(clampedDelta);
 
         // 6. Game Over Bedingung
         if (gameState.health <= 0 && !gameState.isGameOver) {

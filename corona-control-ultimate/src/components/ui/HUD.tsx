@@ -13,7 +13,7 @@ const HUD: React.FC = () => {
     const activeQuests = getActiveQuests();
 
     const activeCutscene = useGameStore(state => state.gameState.activeCutscene);
-    console.log('HUD: Rendering. Active Cutscene:', activeCutscene, 'Game Over:', gameState.isGameOver, 'Victory:', gameState.isVictory);
+
 
     // const activePrompt = useGameStore(state => state.gameState.activePrompt);
     const activePrompt = useGameStore(state => state.gameState.activePrompt);
@@ -42,7 +42,7 @@ const HUD: React.FC = () => {
     }, [currentMission?.id]);
 
     if (activeCutscene) {
-        console.log('HUD: Hidden due to active cutscene');
+
         return null;
     }
 

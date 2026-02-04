@@ -138,7 +138,7 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
 
     skipTutorial: () => {
         set({ isActive: false, currentStepIndex: 0 });
-        useGameStore.getState().setActivePrompt(null);
+        useGameStore.getState().setPrompt(null);
         console.log('Tutorial übersprungen');
     },
 

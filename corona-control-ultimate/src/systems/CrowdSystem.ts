@@ -24,37 +24,38 @@ class CrowdSystem {
         // Full grid rebuild every frame is O(N). N=500 is fast.
         // JS Map set/get is fast.
         // Let's do it every frame for accuracy, or throttle if heavy.
-        
+
         this.grid.clear();
-        
+
         const npcs = useGameStore.getState().npcs;
         // Optimization: Accessing array directly from store state might be slow if state is complex proxy.
         // Ideally we iterate a raw array.
-        
+
         const playerPos = useGameStore.getState().player.position;
         if (playerPos) {
-             // Calculate Flow Field towards player (or away?)
-             // Actually, for flow field, we usually want it to be static navigation map.
-             // But let's verify it works by having it point to player.
-             // Optimize: Check every 10 frames or so.
-             if (Math.random() < 0.1) {
-                 FlowFieldSystem.getInstance().calculateFlowField(playerPos[0], playerPos[2]);
-             }
+            // Optimize: Update FlowField only every ~100ms (accumulating delta would be better, but strict throttling works)
+            // Using Date.now() is safer than random.
+            const now = Date.now();
+            // Assuming explicit "lastUpdate" property on class for better persistence, 
+            // but here we can just check modulo of time for rough 10Hz.
+            if (Math.floor(now / 100) % 5 === 0) { // Approx every 500ms
+                FlowFieldSystem.getInstance().calculateFlowField(playerPos[0], playerPos[2]);
+            }
         }
 
         for (const npc of npcs) {
-             // Only add if active/close? Or all?
-             // Add all for global avoidance logic readiness
-             if (npc.position) {
-                 this.grid.insert(
-                     npc.id, 
-                     npc.position[0], 
-                     npc.position[2],
-                     npc.velocity ? npc.velocity[0] : 0,
-                     npc.velocity ? npc.velocity[2] : 0,
-                     npc.type
-                 );
-             }
+            // Only add if active/close? Or all?
+            // Add all for global avoidance logic readiness
+            if (npc.position) {
+                this.grid.insert(
+                    npc.id,
+                    npc.position[0],
+                    npc.position[2],
+                    npc.velocity ? npc.velocity[0] : 0,
+                    npc.velocity ? npc.velocity[2] : 0,
+                    npc.type
+                );
+            }
         }
     }
 
