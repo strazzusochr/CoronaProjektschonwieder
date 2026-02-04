@@ -1,215 +1,211 @@
-import React, { useRef, useEffect, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
-import { RigidBody, CapsuleCollider, RapierRigidBody } from '@react-three/rapier';
-import type { NPCData, NPCType } from '@/types/npc';
-
-import AISystem from '@/systems/AISystem';
-import { NPCAIController } from '@/ai/NPCAIController';
+import React, { useRef, useState, useMemo } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
+import { Html } from '@react-three/drei';
 import * as THREE from 'three';
-import { useGameStore } from '@/stores/gameStore';
-import CameraShakeSystem from '@/systems/CameraShake';
-import type { CollisionEnterPayload } from '@react-three/rapier';
-import { useParticleStore } from './Effects/ParticleSystem';
-import LODHumanCharacter from './characters/LODHumanCharacter';
-import NPCFactory from '@/utils/NPCFactory';
-import DeescalationManager from '@/systems/DeescalationManager';
+import { RigidBody, CapsuleCollider, RapierRigidBody } from '@react-three/rapier';
+import HumanCharacter from './characters/HumanCharacter';
+import { useGameStore } from '../stores/gameStore';
+import AudioManager from '../managers/AudioManager';
+
+// AI Behavior Trees
+import { Blackboard } from '../ai/BehaviorTree';
+import { CivilianBehaviorTree } from '../ai/trees/CivilianBehaviorTree';
+import { RioterBehaviorTree } from '../ai/trees/RioterBehaviorTree';
+import { PoliceBehaviorTree } from '../ai/trees/PoliceBehaviorTree';
+
+import { NPCType } from '../types/npc';
+
+// --- Types ---
+// Local state augmented with 'DEAD' which might not be in the global text status yet
+export type NPCState = 'IDLE' | 'WALK' | 'RUN' | 'TALK' | 'FLEE' | 'ATTACK' | 'DEAD';
 
 interface NPCProps {
-    id: number;
-    type?: string;
-    state?: string;
-    position?: [number, number, number];
+    id: string;
+    position: [number, number, number];
+    type: NPCType;
+    name?: string;
+    initialHealth?: number;
+    // AI Params
+    patrolPoints?: [number, number, number][];
+    behaviorType?: 'passive' | 'aggressive' | 'coward';
+    lodLevel?: number; // Override default LOD
 }
 
-const NPC: React.FC<NPCProps> = ({ id, type = 'TOURIST', state = 'IDLE', position }) => {
-    // Refs
-    const bodyRef = useRef<RapierRigidBody>(null);
-    const meshRef = useRef<THREE.Group>(null);
-    const controllerRef = useRef<NPCAIController | null>(null);
+export const NPC: React.FC<NPCProps> = ({
+    id,
+    position,
+    type,
+    name = `NPC-${Math.random().toString(36).substr(2, 5)}`,
+    initialHealth = 100,
+    patrolPoints = [],
+    behaviorType = 'passive',
+    lodLevel: overrideLod
+}) => {
+    const group = useRef<THREE.Group>(null);
+    const rigidBody = useRef<RapierRigidBody>(null);
+    const [health, setHealth] = useState(initialHealth);
+    const [state, setState] = useState<NPCState>('IDLE');
 
-    // Game Store
-    const addPoints = useGameStore(state => state.addPoints);
-    const updateMissionProgress = useGameStore(state => state.updateMissionProgress);
-    const spawnExplosion = useParticleStore(state => state.spawnExplosion);
-    const markedNpcIds = useGameStore(state => state.markedNpcIds);
+    // Systems Access
+    const { camera } = useThree();
+    const tensionLevel = useGameStore(state => state.tensionLevel);
 
-    // V6.0 Deterministic Attributes from Factory
-    const attributes = useMemo(() => NPCFactory.generateAttributes(id, type), [id, type]);
+    // Simple LOD Calculation
+    const getLOD = () => {
+        if (overrideLod !== undefined) return overrideLod;
+        const dist = camera.position.distanceTo(new THREE.Vector3(position[0], position[1], position[2]));
+        if (dist < 20) return 0;
+        if (dist < 50) return 1;
+        if (dist < 100) return 2;
+        return 3;
+    };
+    const effectiveLOD = getLOD();
+    const isHighQuality = effectiveLOD <= 1;
 
-    // Initial Data
-    const initialData = useMemo<NPCData>(() => {
-        return {
-            id: id,
-            position: position || [(Math.random() - 0.5) * 100, 1, (Math.random() - 0.5) * 100],
-            velocity: [0, 0, 0],
-            rotation: (id * 1.5) % (Math.PI * 2),
-            state: state as any,
-            type: type as NPCType,
-            faction: attributes.faction,
-            relationshipScore: attributes.behavior.relationshipScore,
-            aggression: attributes.behavior.aggression,
-        };
-    }, [id, type, state, position, attributes]);
+    // AI Blackboard & Tree
+    const blackboard = useMemo(() => new Blackboard(), []);
+    const behaviorTree = useMemo(() => {
+        // Basic setup for blackboard
+        blackboard.set('maxHealth', initialHealth);
+        blackboard.set('health', initialHealth);
+        blackboard.set('type', type);
+        blackboard.set('id', id);
 
-    const dataRef = useRef<NPCData>(initialData);
-
-    // Register with AI System on Mount
-    useEffect(() => {
-        const context = {
-            id: id,
-            type: initialData.type,
-            position: new THREE.Vector3(initialData.position[0], initialData.position[1], initialData.position[2]),
-            forward: new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), initialData.rotation),
-            move: (direction: THREE.Vector3, speed: number) => {
-                if (bodyRef.current) {
-                    const vel = direction.clone().multiplyScalar(speed * attributes.behavior.speed);
-                    bodyRef.current.setLinvel({ x: vel.x, y: bodyRef.current.linvel().y, z: vel.z }, true);
-                }
-            },
-            stop: () => {
-                if (bodyRef.current) {
-                    bodyRef.current.setLinvel({ x: 0, y: bodyRef.current.linvel().y, z: 0 }, true);
-                }
-            },
-            lookAt: (target: THREE.Vector3) => {
-                if (bodyRef.current && meshRef.current) {
-                    const myPos = bodyRef.current.translation();
-                    const angle = Math.atan2(target.x - myPos.x, target.z - myPos.z);
-                    dataRef.current.rotation = angle;
-                }
-            },
-            attack: () => {
-                if (attributes.faction === 'RIOTER') {
-                    const target = useGameStore.getState().player.position;
-                    const myPos = dataRef.current.position;
-                    const dir = new THREE.Vector3().subVectors(new THREE.Vector3(...target), new THREE.Vector3(...myPos)).normalize();
-                    const dist = new THREE.Vector3(...target).distanceTo(new THREE.Vector3(...myPos));
-                    const speed = Math.min(20, dist * 1.5 + 5);
-                    const velocity: [number, number, number] = [dir.x * speed, speed * 0.5, dir.z * speed];
-
-                    import('@/systems/CombatSystem').then(mod => {
-                        mod.default.spawnProjectile('MOLOTOV', myPos, velocity, 'NPC');
-                    });
-                }
+        // Callbacks for actions
+        blackboard.set('setVelocity', (x: number, y: number, z: number) => {
+            if (rigidBody.current) {
+                rigidBody.current.setLinvel({ x, y, z }, true);
             }
-        };
+        });
 
-        controllerRef.current = AISystem.registerNPC(context);
-        return () => AISystem.unregisterNPC(id);
-    }, [id, initialData, attributes]);
+        blackboard.set('setAnimation', (animName: string, loop: boolean) => {
+            // Mapping string name to State enum
+            let newState: NPCState = 'IDLE';
+            if (animName === 'Run') newState = 'RUN';
+            if (animName === 'Walk') newState = 'WALK';
+            if (animName === 'Punch') newState = 'ATTACK';
+            setState(newState);
+        });
 
-    useEffect(() => {
-        if (position) {
-            dataRef.current.position = position;
-            if (bodyRef.current) {
-                bodyRef.current.setTranslation({ x: position[0], y: position[1], z: position[2] }, true);
+        blackboard.set('getPosition', () => {
+            return group.current ? group.current.position : new THREE.Vector3(...position);
+        });
+
+        // Select Tree based on Type
+        if (type === 'RIOTER') return new RioterBehaviorTree(blackboard);
+        if (type === 'POLICE') return new PoliceBehaviorTree(blackboard);
+        return new CivilianBehaviorTree(blackboard);
+
+    }, [type, id, initialHealth, blackboard, position]);
+
+    // Blackboard updates per frame
+    useFrame((state, delta) => {
+        // Throttled AI verification (every 10 or so frames random)
+        if (Math.random() > 0.9) {
+
+            // Update Blackboard Data
+            if (group.current) {
+                blackboard.set('position', group.current.position);
             }
-        }
-    }, [position]);
 
-    useFrame((state) => {
-        if (bodyRef.current) {
-            const pos = bodyRef.current.translation();
-            dataRef.current.position = [pos.x, pos.y, pos.z];
-
-            if (controllerRef.current) {
-                const ctx = (controllerRef.current as any).context;
-                ctx.position.set(pos.x, pos.y, pos.z);
-                ctx.forward.set(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), dataRef.current.rotation);
-            }
-            bodyRef.current.setRotation(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), dataRef.current.rotation), true);
-
-            // V6.0 Social Interaction Check (Passive)
-            // If player is close and not attacking, relationship improves slightly
-            const playerPosVector = new THREE.Vector3(...useGameStore.getState().player.position);
-            const npcPosVector = new THREE.Vector3(pos.x, pos.y, pos.z);
-            if (playerPosVector.distanceTo(npcPosVector) < 3) {
-                // Interactive Deescalation (simulated via key or just automatic proximity for now)
-                // In a real UI, we would show "[E] To Talk"
-                // For autonomy, we increase the score slightly just by staying near peacefully
-                DeescalationManager.attemptDeescalation(id, 0.5);
-            }
-        }
-
-        if (meshRef.current) {
-            const vel = bodyRef.current?.linvel();
-            const speed = vel ? Math.sqrt(vel.x * vel.x + vel.z * vel.z) : 0;
-            if (speed > 0.1) {
-                meshRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 15) * 0.05;
+            // Mock Nearby Threats (Triggered by High Tension)
+            if (tensionLevel > 50 && Math.random() > 0.95) {
+                const threatPos = new THREE.Vector3(0, 0, 0); // Mock threat at center
+                blackboard.set('nearbyThreats', [threatPos]);
             } else {
-                meshRef.current.rotation.z = 0;
+                blackboard.set('nearbyThreats', []);
             }
+
+            // Execute Tree
+            behaviorTree.execute();
+        }
+
+        // Smooth Rotation handling
+        const desiredRot = blackboard.get('desiredRotation');
+        if (desiredRot !== undefined && group.current) {
+            group.current.rotation.y = THREE.MathUtils.lerp(group.current.rotation.y, desiredRot, 0.1);
         }
     });
 
-    const handleCollision = (e: CollisionEnterPayload) => {
-        if (e.other.rigidBodyObject?.name === 'projectile') {
-            const projectileData = e.other.rigidBodyObject.userData as any;
-            const damageType = projectileData?.damageType || 'PHYSICAL';
 
-            spawnExplosion(dataRef.current.position, damageType === 'FIRE' ? 'orange' : 'gray', 5);
-            CameraShakeSystem.getInstance().hitShake();
-
-            if (controllerRef.current) {
-                controllerRef.current.onSensoryInput('EXPLOSION', new THREE.Vector3(...dataRef.current.position));
-            }
-
-            if (attributes.faction === 'RIOTER') {
-                addPoints(50);
-                updateMissionProgress(1);
+    // --- Event Handling ---
+    const handleDamage = (amount: number) => {
+        setHealth(prev => {
+            const newHealth = Math.max(0, prev - amount);
+            blackboard.set('health', newHealth);
+            if (newHealth <= 0) {
+                setState('DEAD');
+                if (group.current) {
+                    AudioManager.getInstance().playSound3D('death_scream', [group.current.position.x, group.current.position.y, group.current.position.z]);
+                }
             } else {
-                addPoints(-10);
+                if (group.current) {
+                    AudioManager.getInstance().playSound3D('hurt_groan', [group.current.position.x, group.current.position.y, group.current.position.z]);
+                }
             }
-        }
+            return newHealth;
+        });
     };
 
+    if (state === 'DEAD') return null;
+
+    // Determines clothes based on type
+    const getClothesColor = () => {
+        if (type === 'POLICE') return '#000033'; // Dark Blue
+        if (type === 'RIOTER') return '#330000'; // Dark Red
+        return '#444444'; // Grey/Random
+    };
+
+    // Map NPC type to HumanCharacter type
+    const getCharacterType = (): 'civilian' | 'demonstrator' | 'police' => {
+        if (type === 'RIOTER') return 'demonstrator';
+        if (type === 'POLICE') return 'police';
+        return 'civilian';
+    };
+
+    // Convert LOD level to segmentMultiplier (LOD0=1.0, LOD1=0.5, LOD2=0.25)
+    const getSegmentMultiplier = () => {
+        if (effectiveLOD === 0) return 1.0;
+        if (effectiveLOD === 1) return 0.5;
+        if (effectiveLOD === 2) return 0.25;
+        return 0.1; // Billboard/Low
+    };
+
+    // Memoize clothing color to prevent HumanCharacter re-renders and material spam
+    const stableClothingColor = useMemo(() => {
+        const c = getClothesColor();
+        const hex = parseInt(c.replace('#', '0x'));
+        return [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255] as [number, number, number];
+    }, [type]); // Only change if type changes (or we could add id for variety if we randomize)
+
     return (
-        <RigidBody
-            ref={bodyRef}
-            colliders={false}
-            type="dynamic"
-            position={position ? [position[0], position[1], position[2]] : [0, 0, 0]}
-            enabledRotations={[false, true, false]}
-            userData={{ type: 'npc', id: id, faction: attributes.faction }}
-            onCollisionEnter={handleCollision}
-        >
-            <CapsuleCollider args={[0.5, 0.3]} position={[0, 0.8, 0]} />
+        <group ref={group} position={position} userData={{ id, type, isNPC: true }}>
+            <RigidBody
+                ref={rigidBody}
+                colliders={false}
+                lockRotations
+                enabledRotations={[false, false, false]}
+                linearDamping={0.5}
+            >
+                <CapsuleCollider args={[0.5, 0.3]} position={[0, 0.8, 0]} />
 
-            <group ref={meshRef}>
-                <LODHumanCharacter
-                    characterType={attributes.faction === 'POLICE' ? 'police' : (attributes.faction === 'RIOTER' ? 'demonstrator' : 'civilian')}
-                    clothingColor={attributes.visuals.clothingColor}
-                    skinTone={attributes.visuals.skinTone}
-                    animate={state !== 'ARRESTED'}
+                <HumanCharacter
+                    characterType={getCharacterType()}
+                    segmentMultiplier={getSegmentMultiplier()}
+                    animate={state !== 'DEAD'}
+                    clothingColor={stableClothingColor}
                 />
+            </RigidBody>
 
-                {/* --- Polizei Taschenlampe (Abends/Nachts) --- */}
-                {attributes.faction === 'POLICE' && (useGameStore.getState().gameState.dayTime >= 1080 || useGameStore.getState().gameState.dayTime < 360) && (
-                    <group position={[0.3, 1.2, 0.4]}>
-                        <pointLight
-                            color="#fff0dd"
-                            intensity={3}
-                            distance={8}
-                            decay={2}
-                        />
-                        <mesh rotation={[Math.PI / 2, 0, 0]}>
-                            <cylinderGeometry args={[0.02, 0.03, 0.15]} />
-                            <meshStandardMaterial color="#222" emissive="#fff" emissiveIntensity={2} />
-                        </mesh>
-                    </group>
-                )}
-
-                {markedNpcIds.includes(id) && (
-                    <group position={[0, 2, 0]}>
-                        <mesh>
-                            <sphereGeometry args={[0.15, 16, 16]} />
-                            <meshStandardMaterial color="red" emissive="red" emissiveIntensity={2} />
-                        </mesh>
-                        <pointLight color="red" intensity={0.5} distance={2} />
-                    </group>
-                )}
-            </group>
-        </RigidBody>
+            {/* Debug UI for High LOD */}
+            {isHighQuality && health < 100 && (
+                <Html position={[0, 2, 0]}>
+                    <div style={{ background: 'red', width: '30px', height: '4px' }}>
+                        <div style={{ background: 'green', width: `${health}%`, height: '100%' }} />
+                    </div>
+                </Html>
+            )}
+        </group>
     );
 };
 

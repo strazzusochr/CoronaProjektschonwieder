@@ -2,7 +2,7 @@ import { NPCAIController } from '../ai/NPCAIController';
 import type { NPCContext } from '../ai/NPCAIController';
 import { useGameStore } from '@/stores/gameStore';
 import * as THREE from 'three';
-import EngineLoop from '@/core/EngineLoop';
+// EngineLoop is imported lazily to avoid circular dependency
 // TacticsManager is imported dynamically below to avoid circular dependencies
 
 class AISystem {
@@ -10,9 +10,14 @@ class AISystem {
     private static instance: AISystem;
 
     private constructor() {
-        // Registriere Update Loop
-        EngineLoop.onAIUpdate(this.update.bind(this));
-        console.log("🧠 AI SYSTEM INITIALIZED");
+        // Defer registration to break circular dependency with EngineLoop
+        // EngineLoop -> DeescalationManager -> AISystem -> EngineLoop
+        // Use dynamic import instead of require for browser compatibility
+        import('@/core/EngineLoop').then(module => {
+            const EngineLoop = module.default;
+            EngineLoop.onAIUpdate(this.update.bind(this));
+            console.log("🧠 AI SYSTEM INITIALIZED (Lazy)");
+        });
     }
 
     public static getInstance(): AISystem {

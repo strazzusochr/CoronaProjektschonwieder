@@ -6,6 +6,7 @@ const SettingsMenu: React.FC = () => {
     const closeSettings = useGameStore(state => state.closeSettings);
     const settings = useGameStore(state => state.settings);
     const setVolume = useGameStore(state => state.setVolume);
+    const setGraphicsQuality = useGameStore(state => state.setGraphicsQuality);
     const setAccessibilitySetting = useGameStore(state => state.setAccessibilitySetting);
     const [activeTab, setActiveTab] = useState<'AUDIO' | 'GRAFIK' | 'ZUGÄNGLICHKEIT'>('AUDIO');
 
@@ -54,7 +55,7 @@ const SettingsMenu: React.FC = () => {
                         <div>
                             <div style={{ marginBottom: '20px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                                    <label>Master Volume</label>
+                                    <label>Gesamtlautstärke</label>
                                     <span>{Math.round(settings.masterVolume * 100)}%</span>
                                 </div>
                                 <input
@@ -66,7 +67,7 @@ const SettingsMenu: React.FC = () => {
                             </div>
                             <div style={{ marginBottom: '20px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                                    <label>Music Volume</label>
+                                    <label>Musik</label>
                                     <span>{Math.round(settings.musicVolume * 100)}%</span>
                                 </div>
                                 <input
@@ -78,7 +79,7 @@ const SettingsMenu: React.FC = () => {
                             </div>
                             <div style={{ marginBottom: '20px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                                    <label>SFX Volume</label>
+                                    <label>Effekte</label>
                                     <span>{Math.round(settings.sfxVolume * 100)}%</span>
                                 </div>
                                 <input
@@ -108,7 +109,7 @@ const SettingsMenu: React.FC = () => {
                                             fontWeight: 'bold', transition: 'all 0.2s'
                                         }}
                                     >
-                                        {quality}
+                                        {quality === 'LOW' ? 'NIEDRIG' : quality === 'MEDIUM' ? 'MITTEL' : 'HOCH'}
                                     </button>
                                 ))}
                             </div>

@@ -81,7 +81,7 @@ export const createGameSlice: StateCreator<GameStore, [], [], Pick<GameStore,
         npcs: [
             { id: 9999, type: 'KRAUSE', position: [45.0, 0.5, -30.0], velocity: [0, 0, 0] as [number, number, number], rotation: 0, state: 'IDLE' },
             ...Array.from({ length: 500 }, (_, i) => ({
-                id: i,
+                id: 2000 + i, // Start at 2000 to avoid collision with System IDs (100-999)
                 type: Math.random() > 0.8 ? 'RIOTER' : 'CIVILIAN',
                 position: [
                     (Math.random() - 0.5) * 150, // Größerer Bereich (150m) für LOD Test
@@ -195,9 +195,15 @@ export const createGameSlice: StateCreator<GameStore, [], [], Pick<GameStore,
         return { npcs: [...state.npcs, ...newNpcs] };
     }),
 
-    addNPC: (npc) => set((state) => ({
-        npcs: [...state.npcs, { ...npc, velocity: [0, 0, 0], rotation: 0, state: npc.state || 'IDLE' }]
-    })),
+    addNPC: (npc) => set((state) => {
+        if (state.npcs.some(n => n.id === npc.id)) {
+            console.warn(`[GameStore] Attempted to add duplicate NPC ID: ${npc.id}`);
+            return {};
+        }
+        return {
+            npcs: [...state.npcs, { ...npc, velocity: [0, 0, 0], rotation: 0, state: npc.state || 'IDLE' }]
+        };
+    }),
 
     markNpc: (id: number) => set((state) => ({
         markedNpcIds: [...state.markedNpcIds, id]

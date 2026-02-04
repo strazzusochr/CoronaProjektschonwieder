@@ -19,8 +19,8 @@ import puppeteer from 'puppeteer';
     try {
         // --- PHASE 1: BOOT & RENDER ---
         console.log('[PHASE 1] Loading Engine...');
-        await page.goto('http://localhost:3000', { waitUntil: 'networkidle0' });
-        await new Promise(r => setTimeout(r, 2000));
+        await page.goto('http://localhost:3000', { waitUntil: 'domcontentloaded' });
+        await new Promise(r => setTimeout(r, 5000)); // Wait for heavy assets
 
         // Check for Main Menu
         console.log('[PHASE 17] Checking Main Menu...');
@@ -137,7 +137,8 @@ import puppeteer from 'puppeteer';
 
         // --- PHASE 15: COMBAT ---
         console.log('[PHASE 15] Testing Combat (Click)...');
-        await page.mouse.click(window.innerWidth/2, window.innerHeight/2);
+        const dimensions = await page.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }));
+        await page.mouse.click(dimensions.w/2, dimensions.h/2);
         await new Promise(r => setTimeout(r, 2000)); // Watch molotov fly (if logic allows)
 
         // --- FINAL PROOF ---

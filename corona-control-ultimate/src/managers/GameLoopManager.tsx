@@ -12,7 +12,7 @@ import { TimeManager } from '@/managers/TimeManager';
 import { EventManager } from '@/managers/EventManager';
 
 const GameLoopManager: React.FC = () => {
-    // Selectors & State
+    // Selektoren & Zustand
     const gameState = useGameStore((state) => state.gameState);
     const missions = useGameStore((state) => state.missions);
     const nextMission = useGameStore((state) => state.nextMission);
@@ -21,12 +21,12 @@ const GameLoopManager: React.FC = () => {
     const setTime = useGameStore((state) => state.setTime);
     const isPlaying = useGameStore((state) => state.gameState.isPlaying);
 
-    // AI Controllers (Phase 9)
+    // AI-Controller (Phase 9)
     const npcControllers = React.useRef<Map<number, BehaviorTreeNode>>(new Map());
 
-    // Initialize AI & Systems
+    // Initialisierung von AI & Systemen
     useEffect(() => {
-        // Init Krause AI
+        // Initialisiere Krause AI
         const krauseId = 9999;
         const patrolPoints = [
             new THREE.Vector3(45, 0.5, -30),
@@ -40,27 +40,27 @@ const GameLoopManager: React.FC = () => {
     useFrame((_, delta) => {
         if (gameState.isGameOver || gameState.isVictory || !isPlaying) return;
 
-        // 1. Time & Events (Phase 10)
+        // 1. Zeit & Events (Phase 10)
         TimeManager.getInstance().update(delta);
         EventManager.getInstance().update();
 
-        // Sync Time with UI
+        // Synchronisiere Zeit mit UI
         const tm = TimeManager.getInstance();
         const rawSeconds = tm.getSeconds();
         const displayTime = Math.floor(rawSeconds / 3600) * 100 + Math.floor((rawSeconds % 3600) / 60);
 
-        // Update store occasionally to avoid React thrashing
+        // Store nur gelegentlich aktualisieren, um React-Thrashing zu vermeiden
         if (Math.abs(gameState.dayTime - displayTime) >= 1) {
             setTime(displayTime);
         }
 
-        // 2. AI Logic (Phase 9)
+        // 2. AI Logik (Phase 9)
         npcControllers.current.forEach((tree) => tree.execute());
 
-        // 3. Quest Logic (Phase 11)
+        // 3. Quest Logik (Phase 11)
         AdvancedQuestManager.getInstance().update(delta);
 
-        // 4. Mission Progression
+        // 4. Missions-Fortschritt
         const currentMission = missions[gameState.currentMissionIndex];
         if (currentMission) {
             if (currentMission.type === 'DISPERSE_RIOTERS') {
@@ -74,18 +74,18 @@ const GameLoopManager: React.FC = () => {
                 }
             }
         } else {
-            // Victory Condition
+            // Sieg-Bedingung
             if (!gameState.isVictory) {
                 setVictory(true);
                 AudioManager.getInstance().playMissionComplete();
             }
         }
 
-        // 5. Tension & Crowd (Phase 6/7)
+        // 5. Spannung & Menschenmenge (Phase 6/7)
         TensionManager.getInstance().update(delta, performance.now());
         CrowdSystem.getInstance().update(delta);
 
-        // 6. Game Over Condition
+        // 6. Game Over Bedingung
         if (gameState.health <= 0 && !gameState.isGameOver) {
             setGameOver(true);
         }

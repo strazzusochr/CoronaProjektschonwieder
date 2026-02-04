@@ -99,7 +99,7 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
 
         // Zeige ersten Schritt als Prompt
         const firstStep = TUTORIAL_STEPS[0];
-        useGameStore.getState().setActivePrompt(firstStep.description);
+        useGameStore.getState().setPrompt(firstStep.description);
     },
 
     advanceStep: () => {
@@ -109,7 +109,7 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
         if (nextIndex >= steps.length) {
             // Tutorial beendet
             set({ isActive: false });
-            useGameStore.getState().setActivePrompt(null);
+            useGameStore.getState().setPrompt(null);
             console.log('Tutorial abgeschlossen!');
             return;
         }
@@ -118,7 +118,7 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
 
         // Update Prompt
         const nextStep = steps[nextIndex];
-        useGameStore.getState().setActivePrompt(nextStep.description);
+        useGameStore.getState().setPrompt(nextStep.description);
     },
 
     completeStep: (stepId: string) => {
