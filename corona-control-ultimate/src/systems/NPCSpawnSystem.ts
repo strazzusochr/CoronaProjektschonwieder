@@ -65,15 +65,15 @@ class NPCSpawnSystem {
 
         // --- 07:00: BERUFSVERKEHR (Welle 1) ---
         this.checkSpawnEvent('WAVE_RUSH_HOUR', 7, 0, () => {
-            console.log("👥 V6.0 EVENT: Berufsverkehr beginnt (50 NPCs)");
-            useGameStore.getState().spawnWave(50, 'COMMUTER');
+            console.log("👥 V6.0 EVENT: Berufsverkehr beginnt (25 NPCs)");
+            useGameStore.getState().spawnWave(25, 'COMMUTER'); // Reduced from 50 for performance
         });
 
         // --- 09:00: TOURISTEN (Welle 2) ---
         this.checkSpawnEvent('WAVE_TOURISTS', 9, 0, () => {
-            console.log("📸 V6.0 EVENT: Touristen-Busse kommen an (30 NPCs)");
-            // Spawne nah beim Haas Haus/Dom
-            for (let i = 0; i < 30; i++) {
+            console.log("📸 V6.0 EVENT: Touristen-Busse kommen an (15 NPCs)");
+            // Spawne nah beim Haas Haus/Dom - Reduced from 30 for performance
+            for (let i = 0; i < 15; i++) {
                 const offset: [number, number, number] = [
                     (Math.random() - 0.5) * 20, 0, (Math.random() - 0.5) * 20
                 ];
@@ -88,8 +88,8 @@ class NPCSpawnSystem {
 
         // --- 18:00: RUSH HOUR HOME (Welle 3) ---
         this.checkSpawnEvent('WAVE_COMMUTER_HOME', 18, 0, () => {
-            console.log("🚇 V6.0 EVENT: Feierabendverkehr - U-Bahn füllt sich (60 NPCs)");
-            useGameStore.getState().spawnWave(60, 'COMMUTER');
+            console.log("🚇 V6.0 EVENT: Feierabendverkehr - U-Bahn füllt sich (30 NPCs)");
+            useGameStore.getState().spawnWave(30, 'COMMUTER'); // Reduced from 60 for performance
         });
 
         // --- 20:00: BLACK BLOCK ASSEMBLY (Vorbereitung) ---
@@ -99,7 +99,8 @@ class NPCSpawnSystem {
             store.setTension(50); // Erhöhe Spannung
             store.setPrompt("WARNUNG: Verdächtige Gruppenbildung gemeldet!");
 
-            for (let i = 0; i < 20; i++) {
+            // Reduced from 20 for performance
+            for (let i = 0; i < 10; i++) {
                 const pos: [number, number, number] = [
                     SPAWN_POINTS.UBAHN[0] + (Math.random() - 0.5) * 10,
                     0.5,

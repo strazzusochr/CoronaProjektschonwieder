@@ -1,16 +1,14 @@
 import React, { useRef, useEffect } from 'react';
-import { useFrame } from '@react-three/fiber';
-import { PerspectiveCamera } from '@react-three/drei';
+import { useFrame, useThree } from '@react-three/fiber';
 import { RigidBody, CapsuleCollider, RapierRigidBody } from '@react-three/rapier';
-import { PerspectiveCamera as ThreePerspectiveCamera } from 'three';
 import * as THREE from 'three';
 import { useGameStore } from '@/stores/gameStore';
 import AudioManager from '@/managers/AudioManager';
 import MeleeSystem from '@/components/combat/MeleeSystem';
 
 const Player: React.FC = () => {
-    // Referenzen (Refs)
-    const cameraRef = useRef<ThreePerspectiveCamera>(null);
+    // Get the default R3F camera directly - NO PerspectiveCamera component needed
+    const { camera } = useThree();
     const rigidBodyRef = useRef<RapierRigidBody>(null);
     const inputStateRef = useRef({
         forward: false,
@@ -84,7 +82,9 @@ const Player: React.FC = () => {
                 rotationRef.current.pitch -= e.movementY * sensitivity;
 
                 // Pitch begrenzen (nicht über Kopf drehen)
-                rotationRef.current.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, rotationRef.current.pitch));
+                const clampedPitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, rotationRef.current.pitch));
+                rotationRef.current.pitch = isNaN(clampedPitch) ? 0 : clampedPitch;
+                if (isNaN(rotationRef.current.yaw)) rotationRef.current.yaw = 0;
             }
         };
 
@@ -103,7 +103,15 @@ const Player: React.FC = () => {
     const lastStepTime = useRef(0);
 
     // Frame Loop (Wird jeden Frame ausgeführt)
+    // PRIORITY 100 = runs very late, after all other useFrames
     useFrame((state, delta) => {
+        const { camera } = state;
+
+        // DEBUG: Log camera state at start of frame to detect external tampering
+        if (Math.random() < 0.01) { // 1% of frames to avoid spam
+            console.log('[PLAYER START]', 'qw:', camera.quaternion.w.toFixed(3), 'qy:', camera.quaternion.y.toFixed(3));
+        }
+
         // useGameStore.getState() used mostly for reads, kept minimal for perf
 
         // --- Schießen / Markieren ---
@@ -214,6 +222,25 @@ const Player: React.FC = () => {
         if (rigidBodyRef.current) {
             const currentLinVel = rigidBodyRef.current.linvel();
 
+            // --- Stability Sentinel (Watchdog) ---
+            const pos = rigidBodyRef.current.translation();
+
+            // 1. Void Check (Fall through floor)
+            if (pos.y < -20 || isNaN(pos.y)) {
+                console.warn("⚠️ PLAYER FELL INTO VOID OR NAN - RESPAWNING");
+                rigidBodyRef.current.setTranslation({ x: 0, y: 5, z: 0 }, true);
+                rigidBodyRef.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
+                velocityRef.current.set(0, 0, 0);
+                return; // Skip rest of frame
+            }
+
+            // 2. Velocity Cap (Anti-Tunneling)
+            if (currentLinVel.x > 50 || currentLinVel.z > 50 || currentLinVel.y > 50) {
+                console.warn("⚠️ PLAYER VELOCITY EXCEEDED SAFETY LIMIT - RESETTING VELOCITY");
+                rigidBodyRef.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
+                return;
+            }
+
             const yaw = rotationRef.current.yaw;
             const worldMoveX = moveX * Math.cos(yaw) - moveZ * Math.sin(yaw);
             const worldMoveZ = moveX * Math.sin(yaw) + moveZ * Math.cos(yaw);
@@ -234,6 +261,11 @@ const Player: React.FC = () => {
                 inputStateRef.current.jump = false;
             }
 
+            // NaN Protection Final
+            if (isNaN(velocityRef.current.x) || isNaN(velocityRef.current.z)) {
+                velocityRef.current.set(0, 0, 0);
+            }
+
             rigidBodyRef.current.setLinvel({ x: velocityRef.current.x, y: finalVelY, z: velocityRef.current.z }, true);
 
             // --- Head Bobbing & Audio ---
@@ -251,25 +283,46 @@ const Player: React.FC = () => {
         }
 
         // --- Kamera Rotation & Position ---
-        if (cameraRef.current && rigidBodyRef.current) {
+        if (rigidBodyRef.current) {
             const playerPos = rigidBodyRef.current.translation();
 
             // Head Bob Offset applied here using bobAmp
             const bobY = Math.sin(bobTimer.current) * bobAmp * (length > 0 ? 1 : 0);
 
-            cameraRef.current.position.set(playerPos.x, playerPos.y + 1.7 + bobY, playerPos.z);
+            // NUCLEAR FIX: Disable R3F's automatic matrix updates to prevent interference
+            camera.matrixAutoUpdate = false;
 
-            cameraRef.current.rotation.set(rotationRef.current.pitch, rotationRef.current.yaw, 0, 'YXZ');
+            // Set camera position directly
+            camera.position.set(playerPos.x, playerPos.y + 1.7 + bobY, playerPos.z);
 
-            // FOV Anpassung für Fernglas
-            const isUsingBinoculars = useGameStore.getState().player.isUsingBinoculars;
-            const targetFOV = isUsingBinoculars ? 20 : 75;
-            cameraRef.current.fov = THREE.MathUtils.lerp(cameraRef.current.fov, targetFOV, 10 * delta);
+            // SIMPLE EULER ROTATION - rotation.order MUST be set correctly
+            camera.rotation.order = 'YXZ'; // Yaw first, then pitch - crucial for FPS camera
+            camera.rotation.x = rotationRef.current.pitch;
+            camera.rotation.y = rotationRef.current.yaw;
+            camera.rotation.z = 0; // No roll
 
-            cameraRef.current.updateProjectionMatrix();
-            cameraRef.current.updateMatrixWorld(true);
+            // Force camera up vector (redundant but safe)
+            camera.up.set(0, 1, 0);
+
+            // MANUALLY update matrix since we disabled auto-update
+            camera.updateMatrix();
+            camera.updateMatrixWorld(true);
+
+            // FOV Anpassung für Fernglas (only for PerspectiveCamera type)
+            if ((camera as THREE.PerspectiveCamera).isPerspectiveCamera) {
+                const perspCam = camera as THREE.PerspectiveCamera;
+                const isUsingBinoculars = useGameStore.getState().player.isUsingBinoculars;
+                const targetFOV = isUsingBinoculars ? 20 : 75;
+                perspCam.fov = THREE.MathUtils.lerp(perspCam.fov, targetFOV, 10 * delta);
+                perspCam.updateProjectionMatrix();
+            }
+
+            // DEBUG: Log camera state
+            if (Math.random() < 0.02) {
+                console.log('[CAM]', 'pitch:', rotationRef.current.pitch.toFixed(2), 'yaw:', rotationRef.current.yaw.toFixed(2), 'rotX:', camera.rotation.x.toFixed(2));
+            }
         }
-    });
+    }, 100); // Priority 100 = runs LAST
 
     return (
         <RigidBody
@@ -282,15 +335,6 @@ const Player: React.FC = () => {
             <CapsuleCollider args={[0.5, 0.3]} position={[0, 0.8, 0]} /> {/* Höhe (Halbhöhe), Radius */}
 
             <MeleeSystem />
-
-            {/* Kamera innerhalb der Spieler-Logik-Gruppe, aber physikalisch getrennt/manuell gesteuert */}
-            <PerspectiveCamera
-                ref={cameraRef}
-                makeDefault
-                fov={75}
-                near={0.1}
-                far={1000}
-            />
         </RigidBody>
     );
 };

@@ -1,5 +1,6 @@
 import React, { useMemo, Suspense } from 'react';
 import * as THREE from 'three';
+import { RigidBody, CuboidCollider } from '@react-three/rapier';
 import VienneseBuilding from './buildings/VienneseBuilding';
 import Stephansdom from './buildings/Stephansdom';
 import { createCobblestoneTexture, createAsphaltTexture } from '@/utils/ProceduralTextures';
@@ -255,13 +256,21 @@ const StephansplatzGeometry: React.FC<StephansplatzProps> = ({
             {showLandmarks && (
                 <Suspense fallback={null}>
                     <group position={[LANDMARKS.stephansdom.x, 0, LANDMARKS.stephansdom.z]}>
-                        <Stephansdom />
+                        <RigidBody type="fixed" colliders="cuboid">
+                            <CuboidCollider args={[15, 20, 25]} position={[0, 20, 0]} /> {/* Stephansdom Bounding Box */}
+                            <Stephansdom />
+                        </RigidBody>
                     </group>
                     <group position={[LANDMARKS.haasHaus.x, 0, LANDMARKS.haasHaus.z]} rotation={[0, LANDMARKS.haasHaus.rotation, 0]}>
-                        <HaasHaus />
+                        <RigidBody type="fixed" colliders="cuboid">
+                            <CuboidCollider args={[12, 12, 10]} position={[0, 12, 0]} />
+                            <HaasHaus />
+                        </RigidBody>
                     </group>
                     <group position={[LANDMARKS.pestSaeule.x, 0, LANDMARKS.pestSaeule.z]}>
-                        <PestColumn />
+                        <RigidBody type="fixed" colliders="hull">
+                            <PestColumn />
+                        </RigidBody>
                     </group>
                     <group position={[LANDMARKS.ubahn.x, 0, LANDMARKS.ubahn.z]}>
                         <UBahnEntrance />

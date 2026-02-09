@@ -142,7 +142,7 @@ function App() {
                 <MultiplayerUI />
                 <PerformanceUI />
             </Suspense>
-            <Stats />
+            {/* Stats moved inside GameCanvas or disabled - causes issues outside Canvas */}
         </div>
     );
 }

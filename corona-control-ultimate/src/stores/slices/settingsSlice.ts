@@ -6,7 +6,7 @@ export const createSettingsSlice: StateCreator<GameStore, [], [], Pick<GameStore
         masterVolume: 1.0,
         musicVolume: 0.5,
         sfxVolume: 1.0,
-        graphicsQuality: 'HIGH',
+        graphicsQuality: 'MEDIUM', // Default to MEDIUM for better performance
         colorblindMode: 'NONE',
         ttsEnabled: false,
         largeTextEnabled: false

@@ -1,4 +1,41 @@
 {
-  "users": [],
+  "users": [
+    {
+      "id": "Okz6dvvTK41Br2mjAAAB",
+      "online": false,
+      "joinedAt": 1770199772610,
+      "lastSeen": 1770199799081
+    },
+    {
+      "id": "oq6AK-zrRmPan3b6AAAD",
+      "online": false,
+      "joinedAt": 1770199917441,
+      "lastSeen": 1770200028716
+    },
+    {
+      "id": "JM18-Lc1spzD91FdAAAF",
+      "online": false,
+      "joinedAt": 1770200045468,
+      "lastSeen": 1770200071604
+    },
+    {
+      "id": "LnX2OJ7LPTmAD5f1AAAH",
+      "online": false,
+      "joinedAt": 1770200292267,
+      "lastSeen": 1770200532713
+    },
+    {
+      "id": "1n4fxGrZtHTAhBwsAAAJ",
+      "online": false,
+      "joinedAt": 1770200551891,
+      "lastSeen": 1770200636210
+    },
+    {
+      "id": "Eb1C6CrDgqoYddzuAAAB",
+      "online": false,
+      "joinedAt": 1770200886836,
+      "lastSeen": 1770200917928
+    }
+  ],
   "highscores": []
 }

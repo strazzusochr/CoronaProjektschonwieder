@@ -8,6 +8,8 @@ import * as THREE from 'three';
 class AISystem {
     private controllers: NPCAIController[] = [];
     private static instance: AISystem;
+    // Cache last state to avoid unnecessary store updates
+    private lastStates: Map<number, string> = new Map();
 
     private constructor() {
         // Defer registration to break circular dependency with EngineLoop
@@ -63,14 +65,16 @@ class AISystem {
             const ctx = (controller as any).context;
             controller.update(delta, ctx.position, ctx.forward);
 
-            // Sync State to Store (Visuals)
-            // Optimization: Only update if changed or throttled? For prototype, every frame is okay for < 500 NPCs
+            // Sync State to Store (Visuals) - ONLY IF CHANGED (Performance Fix)
             const currentState = controller.getCurrentState();
-            // Direct Store Access (Performance Warning: In production, batch this!)
-            useGameStore.getState().updateNpc(ctx.id, {
-                state: currentState as any,
-                // Color is not in NPCData standard, but handled as partial update
-            });
+            const lastState = this.lastStates.get(ctx.id);
+
+            if (currentState !== lastState) {
+                this.lastStates.set(ctx.id, currentState);
+                useGameStore.getState().updateNpc(ctx.id, {
+                    state: currentState as any,
+                });
+            }
         });
 
         const perfEnd = performance.now();

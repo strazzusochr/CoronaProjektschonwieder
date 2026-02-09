@@ -41,7 +41,7 @@ export const NPC: React.FC<NPCProps> = ({
     behaviorType = 'passive',
     lodLevel: overrideLod
 }) => {
-    const group = useRef<THREE.Group>(null);
+    // rigidBody used for physics-based position reading
     const rigidBody = useRef<RapierRigidBody>(null);
     const [health, setHealth] = useState(initialHealth);
     const [state, setState] = useState<NPCState>('IDLE');
@@ -70,6 +70,8 @@ export const NPC: React.FC<NPCProps> = ({
         blackboard.set('health', initialHealth);
         blackboard.set('type', type);
         blackboard.set('id', id);
+        // CRITICAL: Initialize position immediately to prevent undefined errors
+        blackboard.set('position', new THREE.Vector3(position[0], position[1], position[2]));
 
         // Callbacks for actions
         blackboard.set('setVelocity', (x: number, y: number, z: number) => {
@@ -88,7 +90,12 @@ export const NPC: React.FC<NPCProps> = ({
         });
 
         blackboard.set('getPosition', () => {
-            return group.current ? group.current.position : new THREE.Vector3(...position);
+            // Use rigidBody if available, otherwise fallback to initial position
+            if (rigidBody.current) {
+                const pos = rigidBody.current.translation();
+                return new THREE.Vector3(pos.x, pos.y, pos.z);
+            }
+            return new THREE.Vector3(position[0], position[1], position[2]);
         });
 
         // Select Tree based on Type
@@ -98,14 +105,18 @@ export const NPC: React.FC<NPCProps> = ({
 
     }, [type, id, initialHealth, blackboard, position]);
 
+    // Fix: We rotate a visual group INSIDE the RigidBody, not the parent group.
+    const visualRef = useRef<THREE.Group>(null);
+
     // Blackboard updates per frame
     useFrame((state, delta) => {
         // Throttled AI verification (every 10 or so frames random)
         if (Math.random() > 0.9) {
 
             // Update Blackboard Data
-            if (group.current) {
-                blackboard.set('position', group.current.position);
+            if (rigidBody.current) {
+                const pos = rigidBody.current.translation();
+                blackboard.set('position', new THREE.Vector3(pos.x, pos.y, pos.z));
             }
 
             // Mock Nearby Threats (Triggered by High Tension)
@@ -120,10 +131,10 @@ export const NPC: React.FC<NPCProps> = ({
             behaviorTree.execute();
         }
 
-        // Smooth Rotation handling
+        // Smooth Rotation handling applied to VISUAL mesh
         const desiredRot = blackboard.get('desiredRotation');
-        if (desiredRot !== undefined && group.current) {
-            group.current.rotation.y = THREE.MathUtils.lerp(group.current.rotation.y, desiredRot, 0.1);
+        if (desiredRot !== undefined && visualRef.current) {
+            visualRef.current.rotation.y = THREE.MathUtils.lerp(visualRef.current.rotation.y, desiredRot, 0.1);
         }
     });
 
@@ -135,12 +146,14 @@ export const NPC: React.FC<NPCProps> = ({
             blackboard.set('health', newHealth);
             if (newHealth <= 0) {
                 setState('DEAD');
-                if (group.current) {
-                    AudioManager.getInstance().playSound3D('death_scream', [group.current.position.x, group.current.position.y, group.current.position.z]);
+                if (rigidBody.current) {
+                    const pos = rigidBody.current.translation();
+                    AudioManager.getInstance().playSound3D('death_scream', [pos.x, pos.y, pos.z]);
                 }
             } else {
-                if (group.current) {
-                    AudioManager.getInstance().playSound3D('hurt_groan', [group.current.position.x, group.current.position.y, group.current.position.z]);
+                if (rigidBody.current) {
+                    const pos = rigidBody.current.translation();
+                    AudioManager.getInstance().playSound3D('hurt_groan', [pos.x, pos.y, pos.z]);
                 }
             }
             return newHealth;
@@ -179,7 +192,7 @@ export const NPC: React.FC<NPCProps> = ({
     }, [type]); // Only change if type changes (or we could add id for variety if we randomize)
 
     return (
-        <group ref={group} position={position} userData={{ id, type, isNPC: true }}>
+        <group position={position} userData={{ id, type, isNPC: true }}>
             <RigidBody
                 ref={rigidBody}
                 colliders={false}
@@ -189,12 +202,15 @@ export const NPC: React.FC<NPCProps> = ({
             >
                 <CapsuleCollider args={[0.5, 0.3]} position={[0, 0.8, 0]} />
 
-                <HumanCharacter
-                    characterType={getCharacterType()}
-                    segmentMultiplier={getSegmentMultiplier()}
-                    animate={state !== 'DEAD'}
-                    clothingColor={stableClothingColor}
-                />
+                {/* VISUALS GROUP - Rotates independently */}
+                <group ref={visualRef}>
+                    <HumanCharacter
+                        characterType={getCharacterType()}
+                        segmentMultiplier={getSegmentMultiplier()}
+                        animate={true}
+                        clothingColor={stableClothingColor}
+                    />
+                </group>
             </RigidBody>
 
             {/* Debug UI for High LOD */}

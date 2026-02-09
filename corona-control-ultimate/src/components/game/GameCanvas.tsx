@@ -1,11 +1,10 @@
-import { Suspense, useEffect } from 'react';
+import { Suspense } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { Physics, RigidBody, CuboidCollider } from '@react-three/rapier';
 import { Html } from '@react-three/drei';
 import { EffectComposer as ThreeEffectComposer } from '@react-three/postprocessing';
 import { Bloom as PMBloom, ToneMapping as PMToneMapping, SMAA as PMSMAA, Vignette, SSAO, BrightnessContrast, HueSaturation } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
-import * as THREE from 'three';
 import { useGameStore } from '@/stores/gameStore';
 
 import Barricade from '@/components/environment/Barricade';
@@ -21,33 +20,30 @@ import LoadingScreen from '@/components/ui/LoadingScreen';
 import DynamicLighting, { DynamicSky } from '@/rendering/DynamicLighting';
 import WorldStreamingRenderer from '@/world/WorldStreamingRenderer';
 import StephansplatzGeometry from '@/components/StephansplatzGeometry';
+import GraphicsErrorBoundary from '@/components/utility/GraphicsErrorBoundary';
 
 /**
  * AAA Post-Processing Pipeline
  * Gemäß AAA Grafik V4.0 Spezifikation Teil 10
  */
 const PostProcessingPipeline: React.FC<{ quality: string }> = ({ quality }) => {
-    const { gl } = useThree();
+    // Color space is configured in Canvas props
 
-    useEffect(() => {
-        gl.toneMapping = THREE.NoToneMapping;
-        gl.toneMappingExposure = 1.0;
-        gl.outputColorSpace = THREE.SRGBColorSpace;
-    }, [gl]);
+    // Note: Color space is configured in Canvas props instead of here
 
     if (quality === 'LOW') {
         return null;
     }
 
     return (
-        <ThreeEffectComposer multisampling={quality === 'HIGH' ? 8 : 4}>
+        <ThreeEffectComposer multisampling={quality === 'HIGH' ? 4 : 2}>
             <PMSMAA />
 
-            {/* SSAO for depth (Only HIGH/MEDIUM) */}
-            {(quality === 'HIGH' || quality === 'MEDIUM') && (
+            {/* SSAO for depth (Only HIGH - very GPU intensive) */}
+            {quality === 'HIGH' && (
                 <SSAO
-                    intensity={20}
-                    radius={0.3}
+                    intensity={15}
+                    radius={0.2}
                     luminanceInfluence={0.5}
                 />
             )}
@@ -96,61 +92,63 @@ const GameCanvas: React.FC = () => {
     const castShadows = true;
 
     return (
-        <Canvas
-            shadows={castShadows}
-            dpr={dpr as any}
-            gl={{
-                powerPreference: 'high-performance',
-                antialias: quality !== 'LOW',
-                alpha: false,
-                stencil: true,
-            }}
-        >
-            <PerformanceMonitor />
-            {/* V6.0 Dynamic Sky & Lighting */}
-            <DynamicSky />
-            <DynamicLighting quality={quality} castShadows={castShadows} />
+        <GraphicsErrorBoundary>
+            <Canvas
+                shadows={castShadows}
+                dpr={dpr as any}
+                gl={{
+                    powerPreference: 'high-performance',
+                    antialias: quality !== 'LOW',
+                    alpha: false,
+                    stencil: true,
+                }}
+            >
+                <PerformanceMonitor />
+                {/* V6.0 Dynamic Sky & Lighting */}
+                <DynamicSky />
+                <DynamicLighting quality={quality} castShadows={castShadows} />
 
-            {/* === POST-PROCESSING === */}
+                {/* === POST-PROCESSING === */}
 
-            {/* === POST-PROCESSING === */}
-            <PostProcessingPipeline quality={quality} />
+                {/* === POST-PROCESSING === */}
+                <PostProcessingPipeline quality={quality} />
 
-            {/* === GAME CONTENT === */}
-            <Suspense fallback={<Html><LoadingScreen /></Html>}>
-                <Physics
-                    gravity={[0, -9.81, 0]}
-                    paused={menuState !== 'PLAYING'}
-                    timeStep={1 / 120}
-                >
-                    <Player />
-                    <CombatRenderer />
-                    <CrowdRenderer />
+                {/* === GAME CONTENT === */}
+                <Suspense fallback={<Html><LoadingScreen /></Html>}>
+                    <Physics
+                        gravity={[0, -9.81, 0]}
+                        paused={menuState !== 'PLAYING'}
+                        timeStep={1 / 120}
+                    >
+                        <Player />
+                        <CombatRenderer />
+                        <CrowdRenderer />
 
-                    {/* AAA Stephansplatz (Zentrum) */}
-                    <StephansplatzGeometry showGrid={false} showLandmarks={true} showEnvironment={true} />
+                        {/* AAA Stephansplatz (Zentrum) */}
+                        <StephansplatzGeometry showGrid={false} showLandmarks={true} showEnvironment={true} />
 
-                    {/* V6.0 Chaos Elements (Barrikaden) */}
-                    <Barricade position={[5, 0.5, 5]} type="WOOD_BARRIER" rotation={[0, 0.5, 0]} />
-                    <Barricade position={[-5, 0.5, 8]} type="MOLOTOV_PILE" rotation={[0, -0.2, 0]} />
-                    <Barricade position={[0, 0.5, 15]} type="BURNING_TIRE" />
+                        {/* V6.0 Chaos Elements (Barrikaden) */}
+                        <Barricade position={[5, 0.5, 5]} type="WOOD_BARRIER" rotation={[0, 0.5, 0]} />
+                        <Barricade position={[-5, 0.5, 8]} type="MOLOTOV_PILE" rotation={[0, -0.2, 0]} />
+                        <Barricade position={[0, 0.5, 15]} type="BURNING_TIRE" />
 
-                    {/* PHASE 5: WATER CANNON TEST */}
-                    <WaterCannonVehicle position={[-10, 0.5, 20]} rotation={[0, Math.PI, 0]} />
+                        {/* PHASE 5: WATER CANNON TEST */}
+                        <WaterCannonVehicle position={[-10, 0.5, 20]} rotation={[0, Math.PI, 0]} />
 
-                    {/* V6.0 World Streaming (Umland) */}
-                    <WorldStreamingRenderer />
+                        {/* V6.0 World Streaming (Umland) */}
+                        <WorldStreamingRenderer />
 
-                    {/* Ground Plane */}
-                    <RigidBody type="fixed" position={[0, -0.5, 0]}>
-                        <CuboidCollider args={[80, 0.5, 80]} />
-                    </RigidBody>
-                </Physics>
+                        {/* Ground Plane */}
+                        <RigidBody type="fixed" position={[0, -0.5, 0]}>
+                            <CuboidCollider args={[80, 0.5, 80]} />
+                        </RigidBody>
+                    </Physics>
 
-                <GameSystem />
-                <WorldUI />
-            </Suspense>
-        </Canvas>
+                    <GameSystem />
+                    <WorldUI />
+                </Suspense>
+            </Canvas>
+        </GraphicsErrorBoundary>
     );
 };
 
