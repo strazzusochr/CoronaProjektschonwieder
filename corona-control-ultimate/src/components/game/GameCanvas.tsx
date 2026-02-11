@@ -4,7 +4,7 @@ import { OrbitControls, Environment } from '@react-three/drei';
 import { WebGPURenderer } from 'three/webgpu';
 import { useEngineLoop } from '@/core/EngineLoopManager';
 import DynamicLighting from '@/rendering/DynamicLighting';
-import { StephansplatzWorld } from '@/world/WienGenerator';
+import { StephansplatzWorld } from '@/world/WienScene';
 import { InteractionDetector } from './InteractionDetector';
 import { InstancedCrowd } from '@/components/characters/InstancedCrowd';
 import { PlayerCharacter } from './entities/PlayerCharacter';

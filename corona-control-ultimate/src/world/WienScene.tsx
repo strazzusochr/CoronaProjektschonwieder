@@ -1,17 +1,19 @@
-import { WaterCannonSystem } from '@/systems/WaterCannonSystem';
-import { VehicleBase } from '@/components/game/entities/VehicleBase';
-import { BuildingFloor } from '@/components/buildings/BuildingComponents';
-import { ProceduralTextures } from '@/utils/ProceduralTextures';
+import React from 'react';
+import * as THREE from 'three';
+import { createAsphaltTexture } from '@/utils/ProceduralTextures';
 
 /**
- * V7.0 WIEN WORLD GENERATOR
- * Erweitert um prozedurale Altbau-Fassaden und Aktive Systeme.
+ * V7.0 WIEN WORLD GENERATOR (Scene Components)
+ * Prozedurale Stadtszene: Stephansplatz & Umgebung
  */
 
 export const StephansplatzGround = (): React.ReactElement => {
-    const texture = ProceduralTextures.getAsphalt();
-    texture.repeat.set(40, 40);
-    texture.wrapS = texture.wrapT = 1000;
+    const texture = React.useMemo(() => {
+        const tex = createAsphaltTexture();
+        tex.repeat.set(40, 40);
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+        return tex;
+    }, []);
 
     return (
         <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
@@ -25,16 +27,24 @@ export const StephansplatzGround = (): React.ReactElement => {
     );
 };
 
+/** Einfacher Gebäude-Stock als Box-Geometrie */
+const BuildingFloorSimple = ({ segments = 8, height = 3.5 }: { segments?: number; height?: number }) => (
+    <mesh castShadow receiveShadow>
+        <boxGeometry args={[segments * 1.2, height, 10]} />
+        <meshStandardMaterial color="#C8B896" roughness={0.85} />
+    </mesh>
+);
+
 export const StephansplatzWorld = (): React.ReactElement => {
     return (
         <group name="Stephansplatz">
             <StephansplatzGround />
 
-            {/* Gebäude-Block A: Karntner Straße Ecke */}
+            {/* Gebäude-Block A: Kärntner Straße Ecke */}
             <group position={[-50, 0, -30]}>
                 {[0, 3.5, 7, 10.5].map(h => (
                     <group key={h} position={[0, h, 0]}>
-                        <BuildingFloor segments={12} height={3.5} />
+                        <BuildingFloorSimple segments={12} height={3.5} />
                     </group>
                 ))}
             </group>
@@ -43,24 +53,17 @@ export const StephansplatzWorld = (): React.ReactElement => {
             <group position={[30, 0, -40]} rotation={[0, -Math.PI / 6, 0]}>
                 {[0, 3.5, 7].map(h => (
                     <group key={h} position={[0, h, 0]}>
-                        <BuildingFloor segments={8} height={4} />
+                        <BuildingFloorSimple segments={8} height={4} />
                     </group>
                 ))}
             </group>
 
-            {/* AKTIVE SYSTEME: Wasserwerfer-Stationierung */}
+            {/* Wasserwerfer-Stationierung (Placeholder) */}
             <group position={[10, 0, 20]}>
-                <VehicleBase
-                    type="WATER_CANNON"
-                    position={[0, 0.6, 0]}
-                    rotation={[0, Math.PI, 0]}
-                    color="#003366"
-                />
-                <WaterCannonSystem
-                    active={true}
-                    position={[10, 0, 20]}
-                    rotation={Math.PI}
-                />
+                <mesh position={[0, 0.6, 0]} castShadow>
+                    <boxGeometry args={[3, 1.8, 6]} />
+                    <meshStandardMaterial color="#003366" metalness={0.4} roughness={0.6} />
+                </mesh>
             </group>
 
             {/* Dynamische Props: Barrikaden Placeholder */}
