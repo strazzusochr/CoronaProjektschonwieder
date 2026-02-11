@@ -56,12 +56,25 @@ export const GameCanvas = () => {
             gl={{
                 powerPreference: 'high-performance',
                 antialias: true,
-                preserveDrawingBuffer: false,
+                preserveDrawingBuffer: true,
                 alpha: false
             }}
-            // V6 Hybrid: Robust Initialization Gate
+            // V7 Hybrid: Robust Initialization Gate
             onCreated={({ gl }) => {
                 const renderer = gl as any;
+
+                // WebGL Context Loss Handling
+                const canvas = renderer.domElement;
+                canvas.addEventListener('webglcontextlost', (e: any) => {
+                    e.preventDefault();
+                    console.error('[Build 55] WebGL Context Lost! Rebuilding scene...');
+                }, false);
+
+                canvas.addEventListener('webglcontextrestored', () => {
+                    console.log('[Build 55] WebGL Context Restored.');
+                    window.location.reload();
+                }, false);
+
                 const finishInit = () => {
                     console.log('[Build 55] Renderer Ready.');
                     setIsInitialized(true);

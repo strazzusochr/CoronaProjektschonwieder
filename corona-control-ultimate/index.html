@@ -35,6 +35,16 @@
         window.onerror('Unhandled Promise Rejection: ' + event.reason);
       };
     </script>
+    <style>
+      /* V7 Hybrid: Local Font Definition */
+      @font-face {
+        font-family: 'Outfit';
+        src: url('/fonts/Outfit-VariableFont_wght.ttf') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+      }
+      body { font-family: 'Outfit', sans-serif; }
+    </style>
   </head>
   <body>
     <div id="error-overlay"><h1>⚠️ CRITICAL JS ERROR DETECTED</h1></div>

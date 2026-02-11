@@ -13,6 +13,7 @@ import { useFrame } from '@react-three/fiber';
 import { Sky, Stars, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import TimeSystem from '@/core/TimeSystem';
+import { useTimeEngine } from '@/core/TimeEngine';
 
 
 interface DynamicLightingProps {
