@@ -27,35 +27,45 @@ app.set('trust proxy', 1);
 
 // --- SECURITY HEADERS ---
 app.use((req, res, next) => {
-    // Content Security Policy (Relaxed for HF Spaces)
+    // TEMPORARY: Extremely permissive CSP for deep-dive debugging
     res.setHeader(
         "Content-Security-Policy",
-        "default-src 'self' https://*.hf.space https://huggingface.co; " +
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.hf.space https://huggingface.co https://www.gstatic.com; " +
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.hf.space; " +
-        "font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com https://*.hf.space; " +
-        "img-src 'self' data: blob: https://*.hf.space https://huggingface.co https://*.googleusercontent.com; " +
-        "connect-src 'self' https://*.hf.space https://huggingface.co https://*.googleapis.com https://*.run.app https://raw.githack.com wss://*; " +
-        "worker-src 'self' blob:; " +
-        "frame-src 'self' https://*.hf.space https://huggingface.co; " +
+        "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; " +
+        "script-src * 'unsafe-inline' 'unsafe-eval' data: blob:; " +
+        "connect-src * 'unsafe-inline' 'unsafe-eval' data: blob: wss:; " +
+        "img-src * data: blob:; " +
+        "style-src * 'unsafe-inline'; " +
+        "font-src * data:; " +
+        "frame-src *; " +
+        "worker-src * blob:; " +
         "object-src 'none';"
     );
     
-    // Cross-Origin Isolation (Disabled for now to prevent White Screens in Iframes)
-    // res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-    // res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
-    // res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+    // Enforce Cross-Origin Isolation (Needed for SharedArrayBuffer/Rapier/WebGPU)
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
 
     // Headers
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Referrer-Policy', 'no-referrer-when-downgrade');
 
-    // Ensure .wasm correct MIME
+    // Ensure .wasm and .js correct MIME
     if (req.path.endsWith('.wasm')) {
         res.type('application/wasm');
+    } else if (req.path.endsWith('.js') || req.path.endsWith('.mjs')) {
+        res.type('application/javascript');
     }
+    next();
+});
+
+// Robust Asset Routing: BEFORE static/spa fallback
+// If an asset is requested but doesn't exist, return 404, NOT index.html
+app.use(['/assets', '/src', '/node_modules'], (req, res, next) => {
+    const fullPath = path.join(distPath, req.baseUrl, req.path);
+    // Note: Simple check, express.static is better but this is for the "index.html fallback" trap
     next();
 });
 
@@ -66,13 +76,18 @@ app.use(express.static(distPath, {
       res.setHeader('Cache-Control', `public, max-age=${ONE_YEAR}, immutable`);
     } else if (filePath.endsWith('.html')) {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    } else if (filePath.endsWith('.js')) {
+      res.type('application/javascript');
     }
   }
 }));
 
-// SPA-Fallback (React Router)
+// SPA-Fallback (React Router) - ONLY for non-file requests
 app.get('*', (req, res) => {
-  // Verhindere Fallback für API/Socket-Anfragen falls vorhanden
+  // Prevent fallback for files (anything with a dot in the last segment)
+  if (req.path.includes('.') && !req.path.endsWith('.html')) {
+    return res.status(404).send('Not Found');
+  }
   if (req.path.startsWith('/socket.io')) return;
   res.sendFile(path.join(distPath, 'index.html'));
 });
