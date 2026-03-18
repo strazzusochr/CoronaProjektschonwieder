@@ -7,6 +7,7 @@ import { GameCanvas } from '@/components/game/GameCanvas';
 import { DebugOverlay } from '@/components/debug/DebugOverlay';
 import { useGameStore } from '@/stores/gameStore';
 import { GraphicsErrorBoundary } from '@/components/utility/GraphicsErrorBoundary';
+import LoginScreen from '@/components/ui/LoginScreen';
 
 import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
 import DialogUI from '@/components/ui/DialogUI';
@@ -63,13 +64,15 @@ export default function App(): React.ReactElement {
           <GameCanvas />
         </div>
 
+        {menuState === 'LOGIN' && <LoginScreen />}
+
         {menuState === 'MAIN' && (
           <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1000 }}>
             <MainMenu onStart={() => startGame()} />
           </div>
         )}
 
-        {menuState !== 'MAIN' && (
+        {menuState !== 'MAIN' && menuState !== 'LOGIN' && (
           <Suspense fallback={<LoadingOverlay message="Initialisiere Wien (Build 55)..." />}>
             <HUD />
             <MiniMap />

@@ -128,7 +128,7 @@ export interface GameState {
   isVictory: boolean;
   dayTime: number;
   currentMissionIndex: number;
-  menuState: 'MAIN' | 'PLAYING' | 'PAUSED' | 'SETTINGS';
+  menuState: 'LOGIN' | 'MAIN' | 'PLAYING' | 'PAUSED' | 'SETTINGS';
   previousMenuState?: 'MAIN' | 'PLAYING' | 'PAUSED';
   isPlaying: boolean;
   activeCutscene: CutsceneId | null;
