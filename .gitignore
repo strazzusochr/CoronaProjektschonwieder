@@ -1,0 +1,30 @@
+# V4 Pro: Global Gitignore
+node_modules/
+dist/
+.env
+.DS_Store
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+
+# Backend
+backend/node_modules/
+backend/dist/
+backend/*.log
+
+# AI Engine (Python)
+ai_engine/venv/
+ai_engine/.venv/
+ai_engine/__pycache__/
+ai_engine/*.pyc
+ai_engine/data/lancedb/
+
+# Gemini / Antigravity
+.gemini/
+brain/
+tmp/
+*.webp
+*.mp4
+*.heapsnapshot
