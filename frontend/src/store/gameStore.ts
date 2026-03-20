@@ -24,9 +24,11 @@ export const useGameStore = create<GameState>((set) => ({
     set((state) => {
       const newNpcs = { ...state.npcs };
       Object.entries(npcUpdates).forEach(([id, update]) => {
-        if (newNpcs[id]) {
-          newNpcs[id] = { ...newNpcs[id], ...update };
-        }
+        // Upsert logic: Update existing or create new
+        newNpcs[id] = { 
+          ...(newNpcs[id] || { id, position: [0,0,0], action: 'IDLE', mood: 'NEUTRAL', type: 'civilian' }), 
+          ...update 
+        } as NPCData;
       });
       return { npcs: newNpcs };
     }),

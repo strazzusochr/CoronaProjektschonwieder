@@ -11,7 +11,7 @@ const NPCManager: React.FC = () => {
       {npcList.map((npc) => (
         <group key={npc.id} position={npc.position}>
           {/* NPC Visual Body */}
-          <Sphere args={[0.4, 16, 16]}>
+          <Sphere args={[0.8, 32, 32]}>
             <meshStandardMaterial 
               color={npc.type === 'demonstrator' ? '#ff4081' : npc.type === 'official' ? '#3f51b5' : '#8bc34a'} 
               emissive={npc.type === 'demonstrator' ? '#ff4081' : '#000000'}
