@@ -239,15 +239,25 @@ KONSEQUENZ: KEINE LOKALE ENTWICKLUNG ERLAUBT
 **Lösung:** Direkter Zugriff über die IDE-Ports-View.
 **Status:** 🔄 In Arbeit
 
-**Status:** 🔄 In Arbeit (Warte auf Cloud-Preview Freigabe)
+**Status:** 🔄 In Arbeit (Browser-Verbindungsfehler - Recovery läuft)
 
-#### [2026-03-20 08:55] [CLOUD_STATUS] — Services gestartet, Preview im Bootstrap
+#### [2026-03-20 08:58] [CONNECTION_ERROR] — Chrome-DevTools Reset
 **Kontext:** Phase 4 Live-Check.
 **Details:**
-- AI Engine, Backend & Frontend im Hintergrund-Terminal aktiv.
-- Preview-URL 5173 liefert noch 403 (Normal während Setup).
-**Nächster Schritt:** Finaler Beweis-Log sobald die Cloud den Port öffnet.
+- Browser-Subagent meldet: "Could not connect to Chrome".
+- Ursache: Wahrscheinlich Timeout der Cloud-Sitzung während des Dienst-Starts.
+- Lösung: Seite neu laden und Re-Attach der DevTools.
 **Status:** 🔄 In Arbeit
+
+---
+
+#### [2026-03-20 09:12] [VERSION_ALIGNMENT] — Node.js 24 Industriestandard
+**Kontext:** Phase 4.7 Stabilisierung.
+**Details:**
+- Korrektur der Node-Version von 20/22 auf 24 (User-Vorgabe).
+- Update der `devcontainer.json` auf Tag `:24`.
+- Konsistenzprüfung im `implementation_plan.md` erfolgt.
+**Status:** ✅ Dokumentation & Config synchron
 
 ---
 
@@ -905,5 +915,5 @@ git push origin main --force
 
 **Aktuelle Phase:** 0.0 — Projekt-Reset & Gedächtnis-Initialisierung  
 **Nächster Schritt:** Phase 1.1 — CodeAnywhere Setup & Repository Klonen  
-**Home-PC Status:** ⚠️ KRITISCH (94°C) — Nur Cloud-Zugriff erlaubt  
+**Home-PC Status:** ✅ SICHER (Keine node/npm Prozesse gefunden) — Monitoring aktiv.
 **Letzte Aktualisierung:** 2025-03-19 10:00 UTC
