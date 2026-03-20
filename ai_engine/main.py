@@ -38,6 +38,48 @@ class AgentState(BaseModel):
 async def root():
     return {"status": "V4 AI_ENGINE ACTIVE", "engine": "Python 3.14.3", "db": "LanceDB Connected"}
 
+# V4 Pro: Multi-Agent AI Logic
+@app.post("/decide_npcs")
+async def decide_npcs(request: Request):
+    data = await request.json()
+    npcs = data.get("npcs", {})
+    env = data.get("environment", {"tension": 0.1})
+    
+    updated_npcs = {}
+    
+    for npc_id, npc in npcs.items():
+        pos = npc.get("position", [0, 0, 0])
+        action = npc.get("action", "IDLE")
+        
+        # Simple Simulation Logic (WANDER)
+        # Wir verschieben die Position leicht zufällig
+        dx = (random.random() - 0.5) * 0.2
+        dz = (random.random() - 0.5) * 0.2
+        
+        new_pos = [
+            pos[0] + dx,
+            pos[1], # Y bleibt am Boden
+            pos[2] + dz
+        ]
+        
+        # Grenzen checken (Grid Box)
+        if abs(new_pos[0]) > 10: new_pos[0] = pos[0]
+        if abs(new_pos[2]) > 10: new_pos[2] = pos[2]
+        
+        updated_npcs[npc_id] = {
+            "id": npc_id,
+            "position": new_pos,
+            "action": "WANDER" if random.random() > 0.1 else "IDLE",
+            "mood": "NEUTRAL",
+            "type": npc.get("type", "civilian")
+        }
+    
+    return {"updated_npcs": updated_npcs, "timestamp": time.time()}
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "version": "V4.0-PRO"}
+
 @app.post("/decide")
 async def decide_action(state: AgentState):
     # Simple Agent Logic: Move towards the center if far
