@@ -8,6 +8,8 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
     origin: "*",
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
@@ -64,7 +66,7 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => {
-  console.log(`V4 Backend running on port ${PORT}`);
+const PORT = 3001;
+httpServer.listen(PORT, '0.0.0.0', () => {
+  console.log(`V4 Backend running on port ${PORT} [CLOUD SYNC ACTIVE]`);
 });
