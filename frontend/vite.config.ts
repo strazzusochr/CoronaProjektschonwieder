@@ -13,6 +13,7 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true, // Allow cloud preview
+    allowedHosts: true, // Vite 5+ Security Bypass for Localtunnel
   },
   build: {
     target: 'esnext',

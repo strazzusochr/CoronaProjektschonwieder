@@ -11,14 +11,23 @@ export interface NPCData {
 interface GameStore {
   npcs: Record<string, NPCData>;
   connectionStatus: 'connected' | 'disconnected' | 'connecting';
+  worldTime: string;
+  worldPhase: string;
+  worldAmbient: number;
+  bakeryState: string;
   setNPCs: (npcs: Record<string, NPCData>) => void;
   updateNPCs: (npcUpdates: Record<string, Partial<NPCData>>) => void;
+  setWorldState: (time: string, phase: string, ambient: number, bakery?: string) => void;
   setConnectionStatus: (status: 'connected' | 'disconnected' | 'connecting') => void;
 }
 
 export const useGameStore = create<GameStore>((set) => ({
   npcs: {},
   connectionStatus: 'disconnected',
+  worldTime: '00:00',
+  worldPhase: 'Initialisierung',
+  worldAmbient: 0.5,
+  bakeryState: 'CLOSED',
 
   setNPCs: (npcs) => set({ npcs }),
 
@@ -26,7 +35,6 @@ export const useGameStore = create<GameStore>((set) => ({
     set((state) => {
       const newNpcs = { ...state.npcs };
       Object.entries(npcUpdates).forEach(([id, update]) => {
-        // Upsert logic: Update existing or create new with defaults
         newNpcs[id] = { 
           ...(newNpcs[id] || { id, position: [0, 0, 0], action: 'IDLE', mood: 'NEUTRAL', type: 'civilian' }), 
           ...update 
@@ -34,6 +42,9 @@ export const useGameStore = create<GameStore>((set) => ({
       });
       return { npcs: newNpcs };
     }),
+
+  setWorldState: (time, phase, ambient, bakery) => 
+    set({ worldTime: time, worldPhase: phase, worldAmbient: ambient, bakeryState: bakery || 'CLOSED' }),
 
   setConnectionStatus: (status) => set({ connectionStatus: status }),
 }));
