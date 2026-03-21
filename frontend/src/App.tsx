@@ -86,14 +86,38 @@ function DemoStage() {
   const currentHour = parseInt(worldTime.split(':')[0], 10) || 0;
   if (currentHour < 8) return null;
   return (
-    <group position={[0, 0, -8]}>
-      <mesh position={[0, 0.4, 0]} castShadow receiveShadow><boxGeometry args={[8, 0.8, 4, 100, 100, 20]} /><meshStandardMaterial color="#212121" metalness={0.8} roughness={0.2} /></mesh>
-      <mesh position={[0, 1.2, 1]} castShadow><boxGeometry args={[1.5, 1, 0.8, 50, 50, 50]} /><meshStandardMaterial color="#111" /></mesh>
-      <group position={[-3.5, 2.3, -1]}><mesh castShadow><boxGeometry args={[1, 3, 1, 60, 60, 60]} /><meshStandardMaterial color="#0a0a0a" /></mesh></group>
-      <group position={[3.5, 2.3, -1]}><mesh castShadow><boxGeometry args={[1, 3, 1, 60, 60, 60]} /><meshStandardMaterial color="#0a0a0a" /></mesh></group>
-      <mesh position={[0, 3.5, -1.8]} receiveShadow>
-        <planeGeometry args={[7, 3, 316, 200]} />
-        <meshStandardMaterial color="#ff0000" emissive="#d32f2f" emissiveIntensity={currentHour >= 11 ? 1.0 : 0.2} />
+    <group position={[0, 0, -15]}>
+      {/* Massive Main Platform - 200k Polys */}
+      <mesh position={[0, 0.5, 0]} castShadow receiveShadow>
+        <boxGeometry args={[20, 1.0, 8, 200, 100, 100]} />
+        <meshStandardMaterial color="#212121" metalness={0.9} roughness={0.1} />
+      </mesh>
+
+      {/* Scaffolding / Truss Structure (Left & Right) */}
+      <group position={[-9, 5, 0]}>
+        <mesh castShadow><boxGeometry args={[0.5, 10, 0.5, 40, 200, 40]} /><meshStandardMaterial color="#555" metalness={1} /></mesh>
+      </group>
+      <group position={[9, 5, 0]}>
+        <mesh castShadow><boxGeometry args={[0.5, 10, 0.5, 40, 200, 40]} /><meshStandardMaterial color="#555" metalness={1} /></mesh>
+      </group>
+
+      {/* Speaker Arrays - Massive Stack 6x10m */}
+      <group position={[-7.5, 3.5, 1]}>
+         <mesh castShadow><boxGeometry args={[2, 6, 1.5, 100, 200, 100]} /><meshStandardMaterial color="#050505" /></mesh>
+      </group>
+      <group position={[7.5, 3.5, 1]}>
+         <mesh castShadow><boxGeometry args={[2, 6, 1.5, 100, 200, 100]} /><meshStandardMaterial color="#050505" /></mesh>
+      </group>
+
+      {/* Giant LED Backdrop - 100k Poly Surface */}
+      <mesh position={[0, 5, -3.8]} receiveShadow>
+        <planeGeometry args={[18, 9, 316, 200]} />
+        <meshStandardMaterial 
+          color="#ff0000" 
+          emissive="#ff0000" 
+          emissiveIntensity={currentHour >= 11 ? 2.5 : 0.5} 
+        />
+        <Text position={[0, 0, 0.1]} fontSize={1.2} color="white" fontStyle="italic">DEMO 2026: FREIHEIT</Text>
       </mesh>
     </group>
   );

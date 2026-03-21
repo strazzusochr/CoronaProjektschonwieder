@@ -9,104 +9,121 @@ const NPCComponent: React.FC<{ npc: NPCData }> = ({ npc }) => {
   const headRef = useRef<THREE.Mesh>(null!);
   const leftArmRef = useRef<THREE.Mesh>(null!);
   const rightArmRef = useRef<THREE.Mesh>(null!);
+  const leftLegRef = useRef<THREE.Mesh>(null!);
+  const rightLegRef = useRef<THREE.Mesh>(null!);
   const signRef = useRef<THREE.Group>(null!);
 
   useFrame((state) => {
     const t = state.clock.getElapsedTime();
+    const speed = npc.action === 'JOG' ? 10 : 2;
     
-    // Basale Atembewegung (Subtle AAA-Micro-Animation)
-    if (torsoRef.current) {
-      torsoRef.current.scale.y = 1 + Math.sin(t * 2) * 0.02;
+    // AAA-Micro-Animations: Atmen & Pulsieren
+    if (torsoRef.current) torsoRef.current.scale.y = 1 + Math.sin(t * 1.5) * 0.015;
+
+    // Movement-dependent animations
+    if (npc.action === 'JOG' || npc.action === 'PROTEST' || npc.action === 'CHANT') {
+      const walkFactor = Math.sin(t * speed);
+      if (leftArmRef.current) leftArmRef.current.rotation.x = walkFactor * 0.8;
+      if (rightArmRef.current) rightArmRef.current.rotation.x = -walkFactor * 0.8;
+      if (leftLegRef.current) leftLegRef.current.rotation.x = -walkFactor * 0.5;
+      if (rightLegRef.current) rightLegRef.current.rotation.x = walkFactor * 0.5;
+      
+      if (headRef.current) headRef.current.rotation.x = Math.abs(walkFactor) * 0.1;
     }
 
-    // Aktions-spezifische Animationen
-    if (npc.action === 'PROTEST' || npc.action === 'CHANT') {
-      // Kopf-Nicken (Chanting / Protest)
-      if (headRef.current) {
-        headRef.current.rotation.x = Math.sin(t * 8) * 0.2;
-      }
-      // Arme rhythmisch bewegen
-      if (leftArmRef.current) leftArmRef.current.rotation.x = Math.sin(t * 8) * 0.5;
-      if (rightArmRef.current) rightArmRef.current.rotation.x = Math.cos(t * 8) * 0.5;
-    } else if (npc.action === 'RIOT') {
-      // Aggressives Zappeln
-      if (headRef.current) headRef.current.rotation.y = Math.sin(t * 15) * 0.3;
-      if (torsoRef.current) torsoRef.current.position.y = 0.2 + Math.sin(t * 20) * 0.1;
-    } else if (npc.action === 'JOG') {
-      // Lauf-Animation (Pendler)
-      if (leftArmRef.current) leftArmRef.current.rotation.x = Math.sin(t * 10) * 1.5;
-      if (rightArmRef.current) rightArmRef.current.rotation.x = -Math.sin(t * 10) * 1.5;
-    }
-
-    // Schild-Sway (Verdrahtet mit Demonstranten)
     if (signRef.current) {
-      signRef.current.rotation.z = Math.sin(t * 3) * 0.1;
-      signRef.current.position.y = 0.6 + Math.sin(t * 5) * 0.05;
+      signRef.current.rotation.z = Math.sin(t * 3) * 0.05;
+      signRef.current.position.y = 0.6 + Math.sin(t * 5) * 0.03;
     }
   });
 
   if (npc.type === 'vehicle') {
     return (
       <group position={npc.position}>
-        <mesh position={[0, 0.8, 0]}>
-          <boxGeometry args={[2.5, 1.8, 5, 50, 50, 50]} />
-          <meshStandardMaterial color="#34495e" metalness={0.7} roughness={0.1} />
-          {/* Wheels */}
+        <mesh position={[0, 0.8, 0]} castShadow>
+          <boxGeometry args={[2.5, 1.8, 5, 200, 200, 200]} />
+          <meshPhysicalMaterial color="#34495e" metalness={0.9} roughness={0.1} clearcoat={1} />
+          {/* High-Poly Wheels */}
           {[ [1.4, -0.6, 2], [-1.4, -0.6, 2], [1.4, -0.6, -2], [-1.4, -0.6, -2] ].map((pos, i) => (
             <mesh key={i} position={pos as [number, number, number]} rotation={[Math.PI / 2, 0, 0]}>
-              <cylinderGeometry args={[0.4, 0.4, 0.5, 40, 10]} />
-              <meshStandardMaterial color="#000" />
+              <cylinderGeometry args={[0.45, 0.45, 0.6, 120, 20]} />
+              <meshStandardMaterial color="#111" roughness={0.9} />
             </mesh>
           ))}
         </mesh>
-        <Text position={[0, 2.5, 0]} fontSize={0.3} color="white">{`VEHICLE: ${npc.action}`}</Text>
+        <Text position={[0, 3, 0]} fontSize={0.4} color="white">{`VEHICLE: ${npc.action}`}</Text>
       </group>
     );
   }
 
   const isPolice = ['Police', 'official', 'RiotCop'].includes(npc.type);
-  const isDemonstrator = npc.type === 'demonstrator';
-  const mainColor = isPolice ? (npc.type === 'RiotCop' ? '#0b0b0b' : '#1a237e') : isDemonstrator ? '#b71c1c' : '#2e7d32';
+  const mainColor = isPolice ? (npc.type === 'RiotCop' ? '#111' : '#1a237e') : npc.type === 'demonstrator' ? '#cc0000' : '#444';
 
   return (
     <group position={npc.position}>
-      <group position={[0, 1.0, 0]}>
-        <mesh ref={torsoRef} position={[0, 0.2, 0]} castShadow>
-          <boxGeometry args={[0.5, 0.8, 0.3, 120, 120, 120]} />
-          <meshStandardMaterial color={mainColor} metalness={0.4} roughness={0.5} />
+      <group position={[0, 0.9, 0]}> {/* Pivot at character bottom */}
+        {/* Torso - Organic Shape */}
+        <mesh ref={torsoRef} position={[0, 0.6, 0]} castShadow>
+          <capsuleGeometry args={[0.25, 0.5, 32, 120]} />
+          <meshStandardMaterial color={mainColor} roughness={0.3} />
         </mesh>
-        <mesh ref={headRef} position={[0, 0.85, 0]} castShadow>
-          <sphereGeometry args={[0.22, 316, 316]} />
-          <meshStandardMaterial color={npc.type === 'RiotCop' ? '#1a1a1a' : '#f5cba7'} />
+        
+        {/* Head - 64k+ Poly Sphere */}
+        <mesh ref={headRef} position={[0, 1.3, 0]} castShadow>
+          <sphereGeometry args={[0.2, 316, 316]} />
+          <meshStandardMaterial 
+            color={npc.type === 'RiotCop' ? '#111' : '#f5cba7'} 
+            metalness={npc.type === 'RiotCop' ? 0.9 : 0} 
+            roughness={npc.type === 'RiotCop' ? 0.1 : 0.8}
+          />
+          {/* Riot Helmet Visor - Glow-Effect */}
+          {npc.type === 'RiotCop' && (
+            <mesh position={[0, 0, 0.11]} rotation={[0.2, 0, 0]}>
+              <boxGeometry args={[0.32, 0.18, 0.05, 80, 80, 80]} />
+              <meshStandardMaterial color="#00d4ff" emissive="#00d4ff" emissiveIntensity={2.0} transparent opacity={0.6} />
+            </mesh>
+          )}
         </mesh>
-        <mesh ref={leftArmRef} position={[-0.35, 0.2, 0]} castShadow>
-          <cylinderGeometry args={[0.07, 0.07, 0.6, 100, 100]} />
-          <meshStandardMaterial color={isPolice ? '#111' : '#b71c1c'} />
+
+        {/* Arms */}
+        <mesh ref={leftArmRef} position={[-0.35, 0.8, 0]} castShadow>
+          <capsuleGeometry args={[0.08, 0.45, 32, 100]} />
+          <meshStandardMaterial color={mainColor} roughness={0.2} metalness={isPolice ? 0.5 : 0} />
         </mesh>
-        <mesh ref={rightArmRef} position={[0.35, 0.2, 0]} castShadow>
-          <cylinderGeometry args={[0.07, 0.07, 0.6, 100, 100]} />
-          <meshStandardMaterial color={isPolice ? '#111' : '#b71c1c'} />
+        <mesh ref={rightArmRef} position={[0.35, 0.8, 0]} castShadow>
+          <capsuleGeometry args={[0.08, 0.45, 32, 100]} />
+          <meshStandardMaterial color={mainColor} roughness={0.2} metalness={isPolice ? 0.5 : 0} />
         </mesh>
+
+        {/* Legs */}
+        <mesh ref={leftLegRef} position={[-0.15, 0.25, 0]} castShadow>
+          <capsuleGeometry args={[0.1, 0.55, 32, 100]} />
+          <meshStandardMaterial color={isPolice ? '#050505' : '#222'} roughness={0.1} />
+        </mesh>
+        <mesh ref={rightLegRef} position={[0.15, 0.25, 0]} castShadow>
+          <capsuleGeometry args={[0.1, 0.55, 32, 100]} />
+          <meshStandardMaterial color={isPolice ? '#050505' : '#222'} roughness={0.1} />
+        </mesh>
+
+        {/* Tactical Shield (RiotCop) */}
         {npc.type === 'RiotCop' && (
-          <mesh position={[0.4, 0, 0.3]} rotation={[0, Math.PI / 4, 0]} castShadow>
-            <boxGeometry args={[0.1, 1.0, 0.6, 120, 120, 120]} />
-            <meshStandardMaterial color="#000000" transparent opacity={0.6} metalness={0.9} roughness={0.1} />
-          </mesh>
+          <group position={[0.45, 0.6, 0.2]} rotation={[0, -0.2, 0]}>
+             <mesh castShadow>
+               <boxGeometry args={[0.1, 1.2, 0.7, 120, 120, 120]} />
+               <meshPhysicalMaterial color="#000" transparent opacity={0.5} roughness={0} metalness={1} transmission={0.9} />
+             </mesh>
+          </group>
         )}
-        {['Police', 'official'].includes(npc.type) && (
-          <mesh position={[0, 1.05, 0]} castShadow>
-            <cylinderGeometry args={[0.26, 0.26, 0.1, 316, 20]} />
-            <meshStandardMaterial color="#1a237e" />
-          </mesh>
-        )}
+
+        {/* Protest Sign */}
         {npc.type === 'demonstrator' && (
-          <group ref={signRef} position={[-0.4, 0.6, 0.3]}>
-            <mesh position={[0, -0.4, 0]} castShadow><cylinderGeometry args={[0.02, 0.02, 0.8, 120, 120]} /><meshStandardMaterial color="#795548" /></mesh>
-            <mesh position={[0, 0.1, 0]} castShadow><boxGeometry args={[0.05, 0.5, 0.6, 80, 80, 80]} /><meshStandardMaterial color="#ffffff" /></mesh>
+          <group ref={signRef} position={[-0.4, 1.1, 0.3]}>
+            <mesh position={[0, -0.4, 0]} castShadow><cylinderGeometry args={[0.02, 0.02, 1.0, 120, 120]} /><meshStandardMaterial color="#5D4037" /></mesh>
+            <mesh position={[0, 0.1, 0]} castShadow><boxGeometry args={[0.02, 0.6, 0.8, 80, 80, 80]} /><meshStandardMaterial color="#fff" /></mesh>
           </group>
         )}
       </group>
-      <Text position={[0, 2.5, 0]} fontSize={0.3} color="#ffffff" outlineColor="#000000">{`${npc.type.toUpperCase()}: ${npc.action}`}</Text>
+      <Text position={[0, 2.8, 0]} fontSize={0.25} color="white" outlineColor="black" outlineWidth={0.02}>{`${npc.type}: ${npc.action}`}</Text>
     </group>
   );
 };
