@@ -1,21 +1,31 @@
----
-title: "JETBRAIN V4 — Corona Control Ultimate"
-emoji: 🎮
-colorFrom: indigo
-colorTo: purple
-sdk: docker
-pinned: true
-app_port: 7860
----
+# JETBRAIN V5.3 — Cloud Backend (Google Colab + Cloudflare)
 
-# JETBRAIN V4 — Zero-Load Cloud Renderer
+> **ACHTUNG**: Dies ist das EINZIGE korrekte Cloud-System.
+> Alle alten Systeme (HuggingFace, ngrok, Oracle ARM64) wurden entfernt.
 
-Hyper-AAA Pandemic Simulation with Cloud-Based Headless 3D Rendering.
+## Aktuelle Architektur
 
-- **Backend**: Node.js + Socket.IO (24h Simulation Engine)
-- **Renderer**: Headless Chromium + SwiftShader (WebGL Software GPU)
-- **Stream**: MJPEG Pixel Streaming to Thin Clients
-- **Frontend**: React + Vite (Static Build)
+```
+Google Colab (T4 GPU) → Node.js Server → Cloudflare Quick Tunnel → Home-PC Browser
+```
 
-Visit this Space to see the live simulation HUD. 
-For full 3D rendering, the headless Chrome renders the scene server-side.
+## Dateien in diesem Ordner
+
+| Datei | Status | Beschreibung |
+|-------|--------|-------------|
+| `colab_server.js` | ✅ AKTIV | NVENC H.264 Cloud Renderer (Port 7860) |
+| `package_colab.json` | ✅ AKTIV | Dependencies für Colab Server |
+
+## Deployment
+
+1. Öffne Google Colab → GPU Runtime (T4)
+2. Führe `AAA_COLAB_V5_STATION.py` aus (liegt im Brain-Artifact-Ordner)
+3. Kopiere die Cloudflare-URL
+4. Öffne: `http://localhost:5173/?backend=https://xxx.trycloudflare.com`
+
+## Gelöschte veraltete Dateien (26.03.2026)
+
+- ~~`server.js`~~ → War HuggingFace V4 (Port 7860, SwiftShader)
+- ~~`colab_setup.py`~~ → Nutzte ngrok (Token gesperrt seit März 2026)
+- ~~`scene3d.html`~~ → Alte Standalone-3D-Szene
+- ~~`package.json`~~ → Alte HuggingFace Dependencies

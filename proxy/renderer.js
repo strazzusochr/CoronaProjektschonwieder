@@ -58,22 +58,27 @@ async function launchRenderer() {
   });
 
   const page = await browser.newPage();
-  await page.setViewport({ width: 1280, height: 720 });
+  await page.setViewport({ width: 1920, height: 1080 }); // AAA 1080p Resolution
 
-  console.log('V4 PRO: Initializing Heavy Cloud Rendering Scene...');
+  console.log('V4 PRO: Initializing Heavy Cloud Rendering Scene (1080p, 60fps)...');
   await page.goto('http://localhost:5173/?renderer=true', { waitUntil: 'load' });
 
-  console.log('V4 PRO: Headless Renderer Active - Streaming Video to Thin Clients');
+  console.log('V4 PRO: Headless Renderer Active - Streaming High-Poly Scene at 60 FPS');
 
-  // MJPEG Screenshot Loop (~15 FPS)
+  // AAA Screenshot Loop (60 FPS Target)
+  // NOTE: On Colab, x11grab is preferred for true 60fps.
   setInterval(async () => {
     try {
-      const buffer = await page.screenshot({ type: 'jpeg', quality: 50 });
+      const buffer = await page.screenshot({ 
+        type: 'jpeg', 
+        quality: 75, // Higher quality for AAA
+        optimizeForSpeed: true 
+      });
       socket.emit('frame', buffer.toString('base64'));
     } catch(e) {
-      // Ignore context-destroyed errors during hot-reload
+      // Ignore
     }
-  }, 1000 / 15);
+  }, 1000 / 60);
 }
 
 launchRenderer().catch(console.error);

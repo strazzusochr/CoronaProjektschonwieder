@@ -1017,16 +1017,16 @@ Diese Liste ist **vollständig abzuarbeiten** — jeder Punkt mit einem Commit z
 
 ## ABSCHNITT 10 — KRITISCHE CONSTRAINTS (NICHT VERHANDELBAR)
 
-1. **Stack ist unveränderlich:** React Native (Expo) + React 19 + R3F + Three.js + Expo Router. Kein Webpack. Kein Vite. Kein Next.js. Nur Expo.
-2. **Cloud-Rendering:** Alle schweren Berechnungen laufen in Web Workers oder auf der GPU. Kein Main-Thread-Blocking.
-3. **Zero Local GPU-Load** für Deployment auf Hugging Face Spaces — SSR für initiales HTML, WebGL läuft client-side.
+1. **Stack ist unveränderlich:** React 18 + Vite + R3F + Three.js + Zustand. Kein Webpack. Kein Next.js. Kein Expo. Compiler: SWC (via @vitejs/plugin-react-swc).
+2. **Cloud-Rendering:** Alle schweren Berechnungen laufen in Web Workers, auf der GPU, oder via Google Colab T4 Cloud-Stream. Kein Main-Thread-Blocking.
+3. **Zero Local GPU-Load** via Hybrid Render Engine (V5.3): Lokales Three.js/R3F als Fallback, Cloud H.264/NVENC als Primär-Stream via Cloudflare Tunnel. Kein HuggingFace, kein ngrok, kein Oracle ARM64.
 4. **GLTF-only** für alle 3D-Assets — kein FBX, kein OBJ im Production Build.
 5. **KTX2-only** für alle Texturen im Production Build — PNG/JPEG nur als Fallback.
-6. **Three.js Version 0.170.0** — keine Version-Änderung ohne explizite Freigabe.
-7. **Ports:** Backend 3005, WebSocket 8005, Debug 3001 — nicht ändern.
-8. **Dokumentation:** Jedes neue System erhält eine `SYSTEM_NAME.md` in `/docs/`.
-9. **Vor jeder Implementierung:** Vollständige Projektstruktur-Analyse unter `C:\Users\immer\Desktop\corona-control-project\`. Keine Annahmen treffen — Fakten aus dem Code lesen.
-10. **Polygonzählung verifizieren:** Jeden NPC und jedes Hero-Asset nach Import mit `scene.traverse()` zählen und in `/docs/POLYGON_REPORT.md` dokumentieren.
+6. **Three.js Version:** Aktuelle stabile Version — Updates nach Kompatibilitätstest.
+7. **Ports:** Frontend 5173 (Vite), Cloud Backend 7860 (Colab), Tunnel via Cloudflare.
+8. **Dokumentation:** Jedes neue System erhält eine `.md` in `/doc/Prompts/`.
+9. **Vor jeder Implementierung:** Vollständige Projektstruktur-Analyse unter `d:\PandemieSARScov\PandemieSARScov\`. Keine Annahmen — Fakten aus dem Code lesen.
+10. **Cloud-System-Schutz:** Nur das V5.3 Hybrid-System ist autorisiert. Siehe `doc/Prompts/Gedächtnis.md` für die vollständige Liste verbotener Aktionen.
 
 ---
 

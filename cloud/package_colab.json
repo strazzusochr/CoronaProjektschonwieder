@@ -1,12 +1,11 @@
 {
-  "name": "jetbrain-v4-cloud",
+  "name": "jetbrain-v4-colab-3d",
   "version": "1.0.0",
   "type": "module",
   "dependencies": {
     "express": "^4.21.1",
     "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.3",
-    "puppeteer-core": "^24.0.0",
-    "tsx": "^4.21.0"
+    "puppeteer": "^23.0.0",
+    "canvas": "^2.11.2"
   }
 }

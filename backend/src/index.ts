@@ -93,6 +93,13 @@ setInterval(() => {
       console.log(`[SHIFT LOG] ${time}:`, shiftResult.actions.join(' | '));
   }
 
+  // Calculate Detailed Telemetry for HUD (using the LATEST pool)
+  const currentNpcArray = Object.values(npcPool);
+  const npcTypeCount = currentNpcArray.reduce((acc, npc) => {
+    acc[npc.type] = (acc[npc.type] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
   io.emit('world_update', {
     time: time,
     phase: phase,
@@ -100,7 +107,10 @@ setInterval(() => {
     bakeryState: bakeryState,
     shiftActions: shiftResult.actions,
     tension: tensionResult.tensionLevel,
-    emergencyLevel: peakActive ? 'CRITICAL' : 'NORMAL'
+    emergencyLevel: peakActive ? 'CRITICAL' : 'NORMAL',
+    npcTypeCount: npcTypeCount,
+    simSpeed: scheduler.getSpeed(),
+    isPaused: scheduler.getIsPaused()
   });
 }, 2000);
 
@@ -108,7 +118,13 @@ setInterval(() => {
 
 io.on('connection', (socket) => {
   console.log('--- V4 PRO CLIENT CONNECTED:', socket.id);
-  socket.emit('initial_sync', { npcs: npcPool, time: scheduler.getTimeString() });
+  socket.emit('initial_sync', { 
+    npcs: npcPool, 
+    time: scheduler.getTimeString(),
+    phase: scheduler.getCurrentPhase(),
+    bakeryState: bakeryState
+  });
+
 
   socket.on('request_ai_action', async () => {
     // [V4 PRO] Hard-Wired AI Physics & Navigation
@@ -168,6 +184,22 @@ io.on('connection', (socket) => {
     });
     
     io.emit('npc_update', npcPool);
+  });
+
+  socket.on('set_sim_speed', (speed: number) => {
+    console.log(`[SIM-CONTROL] Speed set to ${speed}x by ${socket.id}`);
+    scheduler.setSpeed(speed);
+  });
+
+  socket.on('toggle_sim_pause', () => {
+    const newState = !scheduler.getIsPaused();
+    console.log(`[SIM-CONTROL] Simulation ${newState ? 'PAUSED' : 'RESUMED'} by ${socket.id}`);
+    scheduler.setPaused(newState);
+  });
+
+  socket.on('set_game_time', (data: { h: number, m: number, s?: number }) => {
+    console.log(`[SIM-CONTROL] Manual Time Adjustment to ${data.h}:${data.m}:${data.s || 0} by ${socket.id}`);
+    scheduler.setGameTime(data.h, data.m, data.s || 0);
   });
 
   socket.on('npc_interact', (data: { npcId: string, playerPos: [number, number, number] }) => {

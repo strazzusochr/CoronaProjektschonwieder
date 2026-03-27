@@ -1,4 +1,4 @@
-FROM node:22-slim
+FROM node:22-bookworm-slim
 
 # Install Chromium and dependencies for headless rendering
 RUN apt-get update && apt-get install -y \
@@ -45,13 +45,11 @@ COPY frontend/ ./frontend/
 COPY proxy/ ./proxy/
 COPY cloud/ ./cloud/
 
-# Build frontend (static files)
-RUN cd frontend && npm run build 2>/dev/null || echo "Build completed with warnings"
+# Frontend dist/ is pre-built and included in the repo
+# No build step needed — reduces Docker build time significantly
 
 # Expose the unified port
 EXPOSE 7860
 
 # Start: Xvfb + unified cloud server
-CMD Xvfb :99 -screen 0 1280x720x24 -nolisten tcp & \
-    sleep 1 && \
-    node cloud/server.js
+CMD ["sh", "-c", "Xvfb :99 -screen 0 1280x720x24 -nolisten tcp & sleep 1 && node cloud/server.js"]
