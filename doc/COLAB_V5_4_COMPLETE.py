@@ -273,7 +273,7 @@ async function run() {
 
   console.log('[RENDERER V3] Lade 3D-Welt (timeout 120s)...');
   try {
-    await page.goto('http://127.0.0.1:5173/?streaming=true', {
+    await page.goto('http://127.0.0.1:5173/', {
       waitUntil: 'domcontentloaded',
       timeout:   120000
     });
