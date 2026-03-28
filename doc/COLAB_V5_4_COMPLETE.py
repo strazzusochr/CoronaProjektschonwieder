@@ -245,22 +245,9 @@ async function run() {
   socket.on('connect',       () => console.log('[RENDERER V3] Proxy verbunden'));
   socket.on('connect_error', (e) => console.log('[RENDERER V3] Proxy-Fehler:', e.message));
 
-  // [DEEP-DIVE] GPU-Modus: Vulkan wenn T4 verfügbar, SwiftShader als Fallback
-  const hasGPU = require('fs').existsSync('/dev/nvidia0');
-  const gpuArgs = hasGPU ? [
-    '--use-angle=vulkan',
-    '--enable-features=Vulkan',
-    '--disable-vulkan-surface',
-    '--enable-unsafe-webgpu',
-    '--ignore-gpu-blocklist',
-    '--enable-gpu-rasterization'
-  ] : [
-    '--use-gl=angle',
-    '--use-angle=swiftshader',
-    '--ignore-gpu-blocklist'
-  ];
-  console.log('[RENDERER V3] GPU-Modus:', hasGPU ? 'VULKAN (T4)' : 'SWIFTSHADER (CPU)');
-
+  // [FIX-V5.5] SwiftShader ist stabil in Colab headless. Vulkan crasht Chrome.
+  // Deep-Dive Erkenntnis: Vulkan braucht voll-initialisiertes X11 + VirtualGL,
+  // was in Colab headless nicht zuverlässig funktioniert.
   const browser = await puppeteer.launch({
     headless: true,
     args: [
@@ -269,21 +256,32 @@ async function run() {
       '--disable-dev-shm-usage',
       '--disable-gpu-sandbox',
       '--disable-frame-rate-limit',
-      ...gpuArgs
+      '--use-gl=angle',
+      '--use-angle=swiftshader',
+      '--ignore-gpu-blocklist',
+      '--enable-gpu-rasterization'
     ]
   });
+  console.log('[RENDERER V3] Browser gestartet (SwiftShader CPU)');
 
   const page = await browser.newPage();
-  await page.setViewport({ width: 1920, height: 1080 });
+  await page.setViewport({ width: 1280, height: 720 });
   
   // [DEBUG] Mirror page console
   page.on('console', msg => console.log('[VITE-PAGE]', msg.text()));
+  page.on('pageerror', err => console.log('[VITE-ERROR]', err.message));
 
-  console.log('[RENDERER V3] Lade 3D-Welt...');
-  await page.goto('http://127.0.0.1:5173/?streaming=true', {
-    waitUntil: 'networkidle2',
-    timeout:   60000
-  });
+  console.log('[RENDERER V3] Lade 3D-Welt (timeout 120s)...');
+  try {
+    await page.goto('http://127.0.0.1:5173/?streaming=true', {
+      waitUntil: 'domcontentloaded',
+      timeout:   120000
+    });
+  } catch(e) {
+    console.log('[RENDERER V3] Seite geladen mit Warnung:', e.message);
+  }
+  // Extra Wartezeit für Three.js Initialisierung
+  await new Promise(r => setTimeout(r, 5000));
   console.log('[RENDERER V3] 3D-Welt geladen!');
 
   const cdp = await page.createCDPSession();
