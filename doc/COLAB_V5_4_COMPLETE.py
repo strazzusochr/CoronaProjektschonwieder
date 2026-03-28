@@ -86,17 +86,26 @@ def setup():
         subprocess.run(f"pkill -9 -f '{pat}' 2>/dev/null || true", shell=True)
     time.sleep(2)
 
-    # -- SCHRITT 1: System-Bibliotheken + Node 24 UPGRADE ----------
-    print("\n[1/9] System-Bibliotheken + NODE 24 installieren...")
+    # -- SCHRITT 1: System-Bibliotheken + Node 24 + GPU-Treiber -----
+    print("\n[1/9] System-Bibliotheken + NODE 24 + GPU-Treiber...")
     subprocess.run(
         "curl -fsSL https://deb.nodesource.com/setup_24.x | bash - && "
         "apt-get update -y && apt-get install -y "
         "nodejs ffmpeg xvfb libatk1.0-0 libatk-bridge2.0-0 libcups2 "
         "libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 "
         "libxrandr2 libgbm1 libasound2 libpango-1.0-0 "
-        "libpangocairo-1.0-0 -q",
+        "libpangocairo-1.0-0 "
+        "vulkan-tools libnvidia-gl-525 -q",
         shell=True
     )
+    # GPU-Status prüfen
+    gpu_check = subprocess.run("nvidia-smi", shell=True, capture_output=True)
+    has_gpu = gpu_check.returncode == 0
+    if has_gpu:
+        print("     [GPU] NVIDIA GPU erkannt → Vulkan-Modus aktiv")
+        subprocess.run("vulkaninfo --summary 2>/dev/null | head -5", shell=True)
+    else:
+        print("     [GPU] Keine GPU → SwiftShader CPU-Fallback")
 
     # -- SCHRITT 2: GitHub Repo klonen ------------------------
     print("\n[2/9] GitHub Repo klonen...")
@@ -236,17 +245,31 @@ async function run() {
   socket.on('connect',       () => console.log('[RENDERER V3] Proxy verbunden'));
   socket.on('connect_error', (e) => console.log('[RENDERER V3] Proxy-Fehler:', e.message));
 
+  // [DEEP-DIVE] GPU-Modus: Vulkan wenn T4 verfügbar, SwiftShader als Fallback
+  const hasGPU = require('fs').existsSync('/dev/nvidia0');
+  const gpuArgs = hasGPU ? [
+    '--use-angle=vulkan',
+    '--enable-features=Vulkan',
+    '--disable-vulkan-surface',
+    '--enable-unsafe-webgpu',
+    '--ignore-gpu-blocklist',
+    '--enable-gpu-rasterization'
+  ] : [
+    '--use-gl=angle',
+    '--use-angle=swiftshader',
+    '--ignore-gpu-blocklist'
+  ];
+  console.log('[RENDERER V3] GPU-Modus:', hasGPU ? 'VULKAN (T4)' : 'SWIFTSHADER (CPU)');
+
   const browser = await puppeteer.launch({
     headless: true,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
-      '--use-gl=swiftshader',
-      '--use-angle=swiftshader',
-      '--ignore-gpu-blocklist',
-      '--enable-gpu-rasterization',
-      '--disable-frame-rate-limit'
+      '--disable-gpu-sandbox',
+      '--disable-frame-rate-limit',
+      ...gpuArgs
     ]
   });
 
