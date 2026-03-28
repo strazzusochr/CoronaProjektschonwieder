@@ -273,16 +273,45 @@ async function run() {
 
   console.log('[RENDERER V3] Lade 3D-Welt (timeout 120s)...');
   try {
-    await page.goto('http://127.0.0.1:5173/', {
+    await page.goto('http://127.0.0.1:5173/?streaming=true', {
       waitUntil: 'domcontentloaded',
       timeout:   120000
     });
   } catch(e) {
     console.log('[RENDERER V3] Seite geladen mit Warnung:', e.message);
   }
-  // Extra Wartezeit für Three.js Initialisierung
-  await new Promise(r => setTimeout(r, 5000));
+  // Extra Wartezeit für Three.js + WebGL Initialisierung
+  await new Promise(r => setTimeout(r, 8000));
   console.log('[RENDERER V3] 3D-Welt geladen!');
+
+  // [DIAGNOSTIC] WebGL Check
+  const webglStatus = await page.evaluate(() => {
+    try {
+      const c = document.createElement('canvas');
+      const gl = c.getContext('webgl2') || c.getContext('webgl');
+      if (gl) return 'WebGL OK: ' + gl.getParameter(gl.RENDERER);
+      return 'WebGL NICHT verf\u00fcgbar!';
+    } catch(e) { return 'WebGL ERROR: ' + e.message; }
+  });
+  console.log('[RENDERER V3] WebGL Status:', webglStatus);
+
+  // [DIAGNOSTIC] Screenshot-Selbsttest
+  try {
+    const testShot = await page.screenshot({ encoding: 'base64' });
+    console.log('[RENDERER V3] Screenshot-Test: OK (' + testShot.length + ' bytes base64)');
+    // Prüfe ob der Screenshot nicht komplett schwarz ist
+    const pixelCheck = await page.evaluate(() => {
+      const canvas = document.querySelector('canvas');
+      if (!canvas) return 'KEIN Canvas Element gefunden!';
+      try {
+        const ctx = canvas.getContext('2d') || canvas.getContext('webgl') || canvas.getContext('webgl2');
+        return 'Canvas gefunden: ' + canvas.width + 'x' + canvas.height;
+      } catch(e) { return 'Canvas Error: ' + e.message; }
+    });
+    console.log('[RENDERER V3] Canvas-Check:', pixelCheck);
+  } catch(e) {
+    console.log('[RENDERER V3] Screenshot-Test FEHLGESCHLAGEN:', e.message);
+  }
 
   const cdp = await page.createCDPSession();
   let frames = 0;
@@ -299,9 +328,9 @@ async function run() {
   // [FIX] Force screencast to start emitting
   await cdp.send('Page.startScreencast', {
     format:        'jpeg',
-    quality:       70,
-    maxWidth:      1920,
-    maxHeight:     1080,
+    quality:       60,
+    maxWidth:      1280,
+    maxHeight:     720,
     everyNthFrame: 1
   });
   
