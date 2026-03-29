@@ -432,8 +432,7 @@ if __name__ == "__main__":
     if tunnel_url:
         print(f"     Tunnel: {tunnel_url}")
         _popen_logged(["node", f"{proxy_dir}/renderer.js"], "/tmp/renderer.log")
-        time.sleep(3)
-
+        
         print("\n" + "=" * 60)
         print(f"  SYSTEM BEREIT!  {tunnel_url}")
         print("  Logs: /tmp/vite.log | proxy.log | renderer.log")
@@ -455,6 +454,22 @@ if __name__ == "__main__":
             f'CDP Screencast 60FPS | SwiftShader WebGL | NPC-KI 150 NPCs | 1080p | PC: 0%'
             f'</div></div>'
         ))
+
+        print("\n[DIAGNOSTICS] Warte 20 Sekunden auf Renderer-Start für Log-Ausgabe...")
+        time.sleep(20)
+
+        print("\n" + "=" * 60)
+        print("=== PROXY LOG (letzte 20 Zeilen) ===")
+        with open("/tmp/proxy.log", "r") as f:
+            lines = f.readlines()
+            print("".join(lines[-20:]))
+
+        print("\n=== RENDERER LOG (letzte 30 Zeilen) ===")
+        print("ACHTUNG: Hier prüfen, ob WebGL OK ist oder Canvas Fehler da sind!")
+        with open("/tmp/renderer.log", "r") as f:
+            lines = f.readlines()
+            print("".join(lines[-30:]))
+        print("=" * 60 + "\n")
     else:
         print("\n[ERROR] Tunnel-URL nicht gefunden nach 60s! Log:")
         with open("/tmp/cloudflared.log", "r") as f:
