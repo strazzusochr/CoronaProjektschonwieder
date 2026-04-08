@@ -9,6 +9,11 @@ if (!rootElement) {
   throw new Error('Root element "#root" not found.');
 }
 
+window.addEventListener('vite:preloadError', (event) => {
+  event.preventDefault();
+  window.location.reload();
+});
+
 createRoot(rootElement).render(
   <StrictMode>
     <App />
