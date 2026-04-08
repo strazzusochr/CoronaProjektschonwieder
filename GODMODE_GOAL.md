@@ -1,4 +1,4 @@
-PROCESSED: # GODMODE Mission: Resilient Autonomy Test
-Task: Create a file called RESILIENCE_PROOF.md in the repo root documenting that the pilot can now handle 429 errors by rotating models. Include the list of current fallback models.
+# GODMODE Mission: Final Resilience Proof
+Task: Create a file called FINAL_PROOF.md in the repo root. Document that the pilot successfully used SHA comparison to verify autonomy. List the current working models.
 Status: PENDING
 Autonomy: 100%
