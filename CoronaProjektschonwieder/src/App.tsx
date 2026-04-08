@@ -1,7 +1,6 @@
-import React, { Suspense } from 'react';
+import { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Sky, Stars, Environment } from '@react-three/drei';
-import './index.css';
 
 function CityEnvironment() {
   return (
