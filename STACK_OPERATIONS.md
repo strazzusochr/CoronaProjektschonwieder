@@ -29,13 +29,15 @@ For the detailed horizontal/vertical phase control model, use
 - `n8n` from `n8n/` on port `5678`
 - `LangGraph` from `langgraph/` on port `8080`
 
-It also prints the current local entrypoints and reminds operators that Aider is
-started separately through `aider_godmode.ps1`.
+It also recovers or persists a stable local `n8n` encryption key, prints the
+current local entrypoints, performs HTTP health checks, and reminds operators
+that Aider is started separately through `aider_godmode.ps1`.
 
 ### Oracle-style shell startup
 
 `START_GODMODE.sh` performs the same orchestration for a Linux/Oracle-shaped
-environment and prints local plus hosted endpoints.
+environment, including stable `n8n` key handling and post-start health checks,
+and prints local plus hosted endpoints.
 
 ## Component Reality Map
 
@@ -65,8 +67,9 @@ environment and prints local plus hosted endpoints.
 
 - Local runnable service: `langgraph/system.py`, `langgraph/docker-compose.yml`
 - Hosted facade: `hf_langgraph_space/app.py`
-- Current state: working API shape exists, but not the full 8-agent system
-  described in the external guide
+- Current state: local `/health` and `/run` are runtime-proven; provider
+  failures now degrade cleanly to offline responses, but this is still not the
+  full 8-agent system described in the external guide
 
 ### n8n
 
@@ -81,8 +84,9 @@ environment and prints local plus hosted endpoints.
 - Hosted loop: `hf_pilot_actual/app.py`
 - Mission sync: `autonomy_guard.py`
 - Memory sink: `memory_vault.md`
-- Current state: real repo-sync and mission-state logic exists, but depends on
-  external tokens, webhooks, and hosted runtime
+- Current state: real repo-sync and mission-state logic exists, with a local
+  debug-safe `/health` path, but live automation still depends on external
+  tokens, webhooks, and hosted runtime
 
 ## Integration Reality Today
 
@@ -91,10 +95,16 @@ implemented.
 
 Currently evidenced:
 
-- startup scripts can co-start `OpenHands`, `n8n`, and `LangGraph`
+- startup scripts can co-start `OpenHands`, `n8n`, and `LangGraph` and verify
+  their health locally
+- the OpenHands adapter accepts the canonical mission payload locally
+- LangGraph `/run` returns a controlled result even when the configured live
+  provider is unavailable
 - pilot code can trigger `n8n` or the OpenHands adapter if configured
 - n8n memory workflow targets `memory_vault.md`
 - the canonical mission payload contract is shared across pilot, n8n, and adapter
+- the frontend verification path is locally proven through build, Playwright,
+  and AI-browser debug
 
 Not yet fully materialized as local end-to-end integrations:
 

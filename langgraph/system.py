@@ -87,15 +87,24 @@ def _get_backend() -> tuple[str, Any | None]:
     return ("offline-fallback", None)
 
 
+def _offline_response(role: str, prompt: str, reason: str | None = None) -> str:
+    suffix = ""
+    if reason:
+        compact_reason = " ".join(reason.split())
+        suffix = f" :: degraded from live backend: {compact_reason[:220]}"
+    return f"[offline:{role}] {prompt[:220]} :: fallback response generated without live model keys.{suffix}"
+
+
 def _invoke(role: str, prompt: str) -> tuple[str, str]:
     backend, client = _get_backend()
     if client is None:
-        return (
-            backend,
-            f"[offline:{role}] {prompt[:220]} :: fallback response generated without live model keys.",
-        )
+        return (backend, _offline_response(role, prompt))
 
-    response = client.invoke(f"{GODMODE_CONTEXT}\n\n[{role.upper()}]\n{prompt}")
+    try:
+        response = client.invoke(f"{GODMODE_CONTEXT}\n\n[{role.upper()}]\n{prompt}")
+    except Exception as exc:
+        return (f"{backend}-degraded", _offline_response(role, prompt, reason=str(exc)))
+
     content = getattr(response, "content", response)
     if isinstance(content, list):
         text = "".join(

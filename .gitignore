@@ -12,3 +12,4 @@ aider_godmode.ps1
 START_GODMODE.ps1
 START_GODMODE.sh
 generate_*
+.godmode_runtime/

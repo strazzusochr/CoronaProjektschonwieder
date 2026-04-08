@@ -215,9 +215,11 @@ Lesart:
 - Externe Abhaengigkeiten: Hosted-Facade, Modell-Provider, Live-Cluster- oder
   Space-Settings
 - Abweichungen/Risiken: der Guide ist ambitionierter als der heute repo-
-  belegte Orchestrator
-- Exit-Gate: lokale Runtime und Hosted-Facade sind nachvollziehbar, und der
-  8-Agent-Gap ist sauber als `partial` dokumentiert
+  belegte Orchestrator; Live-Provider koennen extern fehlschlagen, muessen dann
+  aber kontrolliert degradieren statt den lokalen API-Pfad zu brechen
+- Exit-Gate: lokale Runtime, `/health` und `/run` sind nachvollziehbar, die
+  Hosted-Facade bleibt getrennt sichtbar, und der 8-Agent-Gap ist sauber als
+  `partial` dokumentiert
 
 ### Phase 06 - n8n
 
@@ -283,7 +285,9 @@ Lesart:
 - Externe Abhaengigkeiten: live Webhooks, HF-Runtimes, Remote-Agents,
   Produktions-Deploys
 - Abweichungen/Risiken: die Integrationsintention ist gut belegt, aber nicht
-  jede externe Strecke ist im Repo live reproduzierbar
+  jede externe Strecke ist im Repo live reproduzierbar; lokal belegbar sind
+  jedoch Startup, Service-Health, Adapter-Annahme sowie Frontend- und
+  Browser-Verifikation
 - Exit-Gate: eine vollstaendige Missionskette ist dokumentiert, jede offene
   Hosted-Luecke ist markiert, und Proof/DONE bleiben die finalen Freigabepunkte
 
@@ -347,8 +351,10 @@ Lesart:
 
 - Phasenbezug: `05`, `07`
 - Relevante Schritte: `05.1`, `05.2`, `05.3`, `05.4`, `07.2`
-- Heutiger Ist-Stand: lokale API, Compose-Runtime und HF-Facade sind belegbar;
-  Guide-Zielbild bleibt groesser als der aktuelle Repo-Stand
+- Heutiger Ist-Stand: lokale API, Compose-Runtime, `/health` und `/run` sind
+  belegbar; bei externem Providerfehler faellt die Runtime kontrolliert auf
+  den Offline-Pfad zurueck; das Guide-Zielbild bleibt groesser als der aktuelle
+  Repo-Stand
 - Offene Luecken: voller 8-Agent-Orchestrator, belastbarer Live-Beweis ueber
   mehrere Dienste hinweg
 - Kanonische Quelle: `langgraph/system.py`, `langgraph/docker-compose.yml`,
@@ -382,7 +388,8 @@ Lesart:
 - Phasenbezug: `00`, `07`
 - Relevante Schritte: `00.4`, `07.3`, `07.4`
 - Heutiger Ist-Stand: Frontend-Unterprojekt, Proof-Dateien und Missions-DONE-
-  Kontrollpfad sind klar im Root verankert
+  Kontrollpfad sind klar im Root verankert; Build, Playwright und AI-Browser-
+  Debug sind lokal reproduzierbar
 - Offene Luecken: externe Deploy- und Hosting-Events sind nicht aus dem Repo
   allein ableitbar
 - Kanonische Quelle: `CoronaProjektschonwieder/`, `FINAL_PROOF.md`,

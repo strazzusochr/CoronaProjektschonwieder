@@ -18,9 +18,9 @@ ist jetzt `KONTROLLPROTOKOLL_00_07.md`.
 ## Verifizierte Punkte
 
 - `hf_pilot_actual/app.py` implementiert die kanonische Pilot-Schleife mit standardisiertem Missions-Payload.
-- `langgraph/system.py` stellt eine lokale FastAPI-basierte Orchestrierung mit Planner-, Swarm-, Reviewer- und Meta-Optimizer-Pfad bereit.
+- `langgraph/system.py` stellt eine lokale FastAPI-basierte Orchestrierung mit Planner-, Swarm-, Reviewer- und Meta-Optimizer-Pfad bereit; `START_GODMODE` verifiziert den lokalen Health-Pfad, und `/run` degradiert bei Providerfehlern kontrolliert statt mit `500` zu scheitern.
 - `n8n/docker-compose.yml`, `n8n_memory_workflow.json` und `n8n_mission_workflow.json` zeigen die kanonische Automations- und Missionsrichtung.
-- Das Frontend-Unterprojekt `CoronaProjektschonwieder/` wurde lokal build- und browserseitig verifiziert; fruehere Aussagen ueber einen offenen Build-Blocker sind nicht mehr aktuell.
+- Das Frontend-Unterprojekt `CoronaProjektschonwieder/` wurde lokal build-, test- und browserseitig verifiziert; der AI-Browser-Debug bestaetigt aktive Szene, sichtbaren Status und fehlende Browserfehler.
 
 ## Dokumentationsgrenzen
 
