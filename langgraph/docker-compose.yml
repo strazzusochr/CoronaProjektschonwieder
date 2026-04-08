@@ -1,0 +1,11 @@
+version: "3.8"
+services:
+  langgraph:
+    build: .
+    container_name: langgraph-godmode-local
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}

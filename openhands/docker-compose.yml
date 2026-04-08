@@ -1,0 +1,24 @@
+version: "3.8"
+
+services:
+  openhands:
+    image: ghcr.io/all-hands-ai/openhands:0.17
+    container_name: openhands-godmode
+    pull_policy: always
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - SANDBOX_RUNTIME_CONTAINER_IMAGE=docker.openhands.dev/all-hands-ai/runtime:latest
+      - LOG_ALL_EVENTS=true
+      - WORKSPACE_MOUNT_PATH=/opt/workspace_base
+      - LLM_MODEL=claude-sonnet-4-5
+      - LLM_API_KEY=${ANTHROPIC_API_KEY}
+      - LLM_BASE_URL=http://host.docker.internal:4000
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+    volumes:
+      - ./workspace:/opt/workspace_base
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ~/.openhands-state:/.openhands-state
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

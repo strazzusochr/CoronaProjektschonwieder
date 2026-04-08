@@ -1,0 +1,21 @@
+model_list:
+  - model_name: smart-router
+    litellm_params:
+      model: anthropic/claude-sonnet-4-5
+      api_key: "os.environ/ANTHROPIC_API_KEY"
+  
+  - model_name: smart-router
+    litellm_params:
+      model: openrouter/deepseek/deepseek-chat-v3-0324
+      api_key: "os.environ/OPENROUTER_API_KEY"
+      weight: 3  # 3x wahrscheinlicher (billiger!)
+  
+  - model_name: smart-router
+    litellm_params:
+      model: openrouter/google/gemini-flash-1.5
+      api_key: "os.environ/OPENROUTER_API_KEY"
+
+router_settings:
+  routing_strategy: cost-based-routing
+  allowed_fails: 2
+  fallbacks: [{"claude-sonnet-4-5": ["gemini-flash-1.5"]}]

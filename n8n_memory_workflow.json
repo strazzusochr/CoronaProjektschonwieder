@@ -1,0 +1,99 @@
+{
+  "name": "GODMODE AI Memory System",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "7f0a1b2c-3d4e-5f6a-7b8c-9d0e1f2a3b4c",
+      "name": "Every 30 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3000/api/logs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.OPENHANDS_API_KEY }}"
+            }
+          ]
+        }
+      },
+      "id": "1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p",
+      "name": "Fetch Agent Logs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "model": "claude-3-5-sonnet-20240620",
+        "options": {},
+        "prompt": "Analysiere diese Agent-Logs und extrahiere 'Learnings' für die Zukunft (Best Practices, Fixes). Gib sie als Liste zurück.\n\nLogs:\n{{ $json.body }}"
+      },
+      "id": "2b3c4d5e-6f7g-8h9i-0j1k-2l3m4n5o6p7q",
+      "name": "Extract Learnings (AI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "command": "echo '{{ $json.learnings }}' >> d:/Web/docs/godmode_setup/memory_vault.md"
+      },
+      "id": "3c4d5e6f-7g8h-9i0j-1k2l-3m4n5o6p7q8r",
+      "name": "Save to Memory Vault",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Every 30 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Fetch Agent Logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Agent Logs": {
+      "main": [
+        [
+          {
+            "node": "Extract Learnings (AI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Learnings (AI)": {
+      "main": [
+        [
+          {
+            "node": "Save to Memory Vault",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

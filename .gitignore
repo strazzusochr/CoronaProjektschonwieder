@@ -1,0 +1,14 @@
+node_modules/
+*.log
+.env
+.godmode_env
+GODMODE_BIBLE_FINAL.html
+GODMODE_BIBLE_V1.html
+Deploy-Cloud.ps1
+Deploy-OpenHands.ps1
+whoami.json
+payload.json
+aider_godmode.ps1
+START_GODMODE.ps1
+START_GODMODE.sh
+generate_*
