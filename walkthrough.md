@@ -5,6 +5,8 @@
 Dieses Dokument ist ein knapper High-Level-Überblick über den aktuellen, repo-verifizierten Stand in `d:\Web\docs\godmode_setup`.
 
 Das kanonische Dokument für Guide-vs-Repo-Abgleich, Statuslabels und priorisierte Lücken ist jetzt `STACK_GAP_ROADMAP.md`.
+Das kanonische Dokument fuer die detaillierte 00-07-Abnahme- und Kontrollmatrix
+ist jetzt `KONTROLLPROTOKOLL_00_07.md`.
 
 ## Aktueller Repository-Scope
 
@@ -28,6 +30,8 @@ Das kanonische Dokument für Guide-vs-Repo-Abgleich, Statuslabels und priorisier
 ## Nächster Einstieg
 
 - Fuer den strukturierten Soll-Ist-Abgleich gegen `godmode_stack_guide.html`: `STACK_GAP_ROADMAP.md`
+- Fuer die detaillierte horizontale/vertikale Kontrollmatrix ueber alle Phasen:
+  `KONTROLLPROTOKOLL_00_07.md`
 - Fuer reale Startpfade, Service-Grenzen und Integrationsstand: `STACK_OPERATIONS.md`
 - Fuer die sichere ENV-Struktur: `ENV_REFERENCE.md` und `.godmode_env.example`
 - Fuer kanonische Quellen und Archivpfade: `PROVENANCE_MATRIX.md`

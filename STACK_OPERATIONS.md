@@ -5,8 +5,12 @@ Stand: 2026-04-08
 This document explains what the repository can actually start, wire, and
 operate today.
 
+For the detailed horizontal/vertical phase control model, use
+`KONTROLLPROTOKOLL_00_07.md` as the canonical operational audit view.
+
 ## Canonical Companion Docs
 
+- `KONTROLLPROTOKOLL_00_07.md`: detailed 00-07 control and acceptance matrix
 - `STACK_GAP_ROADMAP.md`: repo-vs-guide comparison and prioritized gaps
 - `walkthrough.md`: short repo-verified overview
 - `ENV_REFERENCE.md`: shared environment variable contract
