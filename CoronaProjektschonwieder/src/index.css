@@ -200,6 +200,13 @@ select {
   border-color: rgba(255, 146, 116, 0.26);
 }
 
+.scene-fallback--standby {
+  justify-content: center;
+  background:
+    linear-gradient(180deg, rgba(9, 10, 18, 0.3) 0%, rgba(9, 10, 18, 0.86) 100%),
+    radial-gradient(circle at center, rgba(240, 163, 94, 0.16), transparent 52%);
+}
+
 .scene-fallback h2 {
   margin: 0;
   font-family: Georgia, 'Times New Roman', serif;
@@ -210,6 +217,31 @@ select {
   margin: 0;
   max-width: 40ch;
   color: var(--muted);
+}
+
+.scene-launch-button {
+  width: fit-content;
+  padding: 0.8rem 1.15rem;
+  border: 1px solid rgba(255, 214, 170, 0.22);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f0a35e 0%, #b86f3f 100%);
+  color: #120d0b;
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+}
+
+.scene-launch-button:hover,
+.scene-launch-button:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 30px rgba(184, 111, 63, 0.25);
+  filter: brightness(1.04);
+}
+
+.scene-launch-button:focus-visible {
+  outline: 2px solid #ffd6ae;
+  outline-offset: 3px;
 }
 
 @media (max-width: 900px) {

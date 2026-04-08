@@ -14,7 +14,7 @@ GITHUB_USER = "strazzusochr"
 REPO_NAME = "CoronaProjektschonwieder"
 N8N_WEBHOOK = os.environ.get("N8N_WEBHOOK_URL")
 
-REPO_URL = f"https://{GITHUB_TOKEN}@github.com/{GITHUB_USER}/{REPO_NAME}.git"
+REPO_URL = f"https://github.com/{GITHUB_USER}/{REPO_NAME}.git"
 WORKDIR = "/tmp/workspace"
 
 def clone_or_pull():

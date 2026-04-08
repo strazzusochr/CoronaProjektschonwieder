@@ -1,0 +1,71 @@
+# ============================================================
+# GODMODE MASTER ENVIRONMENT TEMPLATE
+# Copy to ".godmode_env" and replace every placeholder.
+# Never commit real secrets.
+# ============================================================
+
+# LLM providers
+export ANTHROPIC_API_KEY="replace-with-anthropic-key"
+export OPENROUTER_API_KEY="replace-with-openrouter-key"
+export OPENAI_API_KEY="replace-with-openai-key"
+export GOOGLE_API_KEY="replace-with-google-key"
+
+# Hugging Face
+export HF_TOKEN="replace-with-hf-token"
+export HF_USERNAME="Wrzzzrzr"
+export HF_AIDER_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/aider-web-ide"
+export HF_OPENHANDS_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/openhands-godmode"
+export HF_LANGGRAPH_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/langgraph-godmode"
+export HF_PILOT_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/godmode-pilot"
+export BOLTDIY_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/bolt-diy-godmode"
+
+# GitHub
+export GITHUB_TOKEN="replace-with-github-token"
+export GITHUB_USERNAME="strazzusochr"
+export GITHUB_REPO="CoronaProjektschonwieder"
+export GITHUB_REPO_URL="https://github.com/strazzusochr/CoronaProjektschonwieder"
+
+# Local model / proxy routing
+export LITELLM_URL="http://localhost:4000"
+export LITELLM_API_KEY="replace-with-litellm-key"
+export OLLAMA_BASE_URL="http://localhost:11434"
+export OPENAI_BASE_URL="https://openrouter.ai/api/v1"
+export MODEL_ROUTER_NAME="smart-router"
+
+# Aider
+export AIDER_MODEL="openrouter/anthropic/claude-sonnet-4-5"
+export AIDER_WEAK_MODEL="openrouter/deepseek/deepseek-chat-v3-0324"
+export AIDER_MAP_TOKENS="8192"
+
+# OpenHands
+export OPENHANDS_PORT="3000"
+export OPENHANDS_PUBLIC_URL="http://localhost:3000"
+export OPENHANDS_API_URL="http://localhost:3000"
+export OPENHANDS_TRIGGER_URL=""
+export OPENHANDS_API_KEY="replace-with-openhands-token"
+export OPENHANDS_ADAPTER_URL="http://localhost:3001"
+export OPENHANDS_ADAPTER_PORT="3001"
+export OPENHANDS_LLM_MODEL="claude-sonnet-4-5"
+export OPENHANDS_LLM_BASE_URL="http://host.docker.internal:4000"
+
+# LangGraph
+export LANGGRAPH_PORT="8080"
+export LANGGRAPH_API_URL="http://localhost:8080"
+export PROMPT_EVOLUTION_PATH="./langgraph/prompt_evolution.json"
+
+# n8n
+export N8N_BASIC_AUTH_USER="replace-with-n8n-user"
+export N8N_BASIC_AUTH_PASSWORD="replace-with-n8n-password"
+export N8N_ENCRYPTION_KEY="replace-with-n8n-encryption-key"
+export N8N_PORT="5678"
+export N8N_WEBHOOK_URL="http://localhost:5678/webhook/godmode-mission"
+export N8N_EDITOR_BASE_URL="http://localhost:5678"
+export MEMORY_VAULT_PATH="./memory_vault.md"
+
+# Pilot / mission payload
+export GODMODE_SOURCE="hf_pilot_actual"
+export GODMODE_MISSION_AGENT="Aider-Cloud"
+
+# Infrastructure
+export ORACLE_IP="127.0.0.1"
+export ORACLE_USER="replace-with-oracle-user"

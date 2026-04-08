@@ -1,34 +1,36 @@
-# GODMODE Walkthrough (Final Master Version)
+# GODMODE Walkthrough
 
 ## Stand: 2026-04-08
 
-Dieses Dokument fasst den aktuellen technischen Stand der GODMODE-Komponenten im Repository zusammen.
+Dieses Dokument ist ein knapper High-Level-Überblick über den aktuellen, repo-verifizierten Stand in `d:\Web\docs\godmode_setup`.
 
-## 1) Cloud-Autonomie
-- Das System enthält Cloud-orientierte Komponenten für Hugging Face (`hf_pilot_temp/`, `hf_smolagents/`).
-- `hf_pilot_temp/app.py` betreibt eine autonome Schleife, synchronisiert das Repository und verarbeitet Ziele aus `GODMODE_GOAL.md`.
+Das kanonische Dokument für Guide-vs-Repo-Abgleich, Statuslabels und priorisierte Lücken ist jetzt `STACK_GAP_ROADMAP.md`.
 
-## 2) SHA-basierte Verifizierung
-- Die SHA-Prüfung erfolgt über `git rev-parse HEAD` in `hf_pilot_temp/app.py`.
-- Die inhaltliche Begründung ist in `FINAL_PROOF.md` dokumentiert.
+## Aktueller Repository-Scope
 
-## 3) Resilienz / Modell-Fallback
-- Die präsentierten Komponenten zeigen Multi-Tool-/Agent-Architektur.
-- Ein expliziter, produktionsreifer Modell-Rotationsmechanismus über mehrere freie Modelle ist als Zielbild beschrieben; vor einem produktiven Einsatz sollte dies als eigener Testfall mit Monitoring abgesichert werden.
+- Das Repository enthält lokale oder Hugging-Face-orientierte Bausteine für `OpenHands`, `smolagents`, `Aider`, `LangGraph`, `n8n` und eine Pilot-/Autonomy-Schicht.
+- `bolt.diy` wird bewusst als externer Hugging-Face-Baustein behandelt und nicht als lokales Mirror-Modul.
+- Startup- und Launcher-Artefakte existieren für `master env/startup`, darunter `.godmode_env`, `.godmode_env.example`, `ENV_REFERENCE.md`, `START_GODMODE.sh`, `START_GODMODE.ps1` und `aider_godmode.ps1`.
+- `autonomy_guard.py`, `FINAL_PROOF.md`, `GODMODE_GOAL.md` und `memory_vault.md` bilden den Missions- und Audit-Rahmen.
 
-## 4) Missionsstatus
-- Die Datei `FINAL_PROOF.md` ist vorhanden.
-- Der Status in `GODMODE_GOAL.md` wurde auf `DONE` gesetzt.
+## Verifizierte Punkte
 
-## 5) Offene technische Punkte
-- Das Frontend-Unterprojekt `CoronaProjektschonwieder/` hat aktuell einen Build-Blocker (fehlende `index.html`), siehe `CODE_AUDIT_TASKS.md`.
-- Für den beschriebenen Vercel-Fehler sollte als nächster Schritt ein Deployment-Run mit Build-Log-Export durchgeführt werden.
+- `hf_pilot_actual/app.py` implementiert die kanonische Pilot-Schleife mit standardisiertem Missions-Payload.
+- `langgraph/system.py` stellt eine lokale FastAPI-basierte Orchestrierung mit Planner-, Swarm-, Reviewer- und Meta-Optimizer-Pfad bereit.
+- `n8n/docker-compose.yml`, `n8n_memory_workflow.json` und `n8n_mission_workflow.json` zeigen die kanonische Automations- und Missionsrichtung.
+- Das Frontend-Unterprojekt `CoronaProjektschonwieder/` wurde lokal build- und browserseitig verifiziert; fruehere Aussagen ueber einen offenen Build-Blocker sind nicht mehr aktuell.
 
-## 6) Autonomie-Guard
-- `autonomy_guard.py` prüft den SHA-Stand (`git rev-parse HEAD`), validiert das Vorhandensein von `FINAL_PROOF.md` und kann den Missionsstatus automatisch synchronisieren.
-- Mit `--apply` wird der Status bei Bedarf auf DONE geschrieben und ein Audit-Eintrag in `memory_vault.md` erzeugt.
+## Dokumentationsgrenzen
 
-## 7) Nächste Schritte
-1. Build-Fix im Frontend (Vite-Einstiegspunkt ergänzen).
-2. CI-Tests ergänzen (Vitest + RTL).
-3. Deployment-Fehler mit reproduzierbarem Log analysieren und dokumentieren.
+- Dieses Dokument beschreibt absichtlich nur den hohen, repo-verifizierten Stand.
+- Aussagen ueber Oracle Cloud, Hugging Face Spaces, Account-Zugaenge, Secrets oder live gehostete Systeme werden nicht hier gepflegt, sondern im Statusmodell von `STACK_GAP_ROADMAP.md` als `external`, `partial`, `missing` oder `implemented` eingeordnet.
+
+## Nächster Einstieg
+
+- Fuer den strukturierten Soll-Ist-Abgleich gegen `godmode_stack_guide.html`: `STACK_GAP_ROADMAP.md`
+- Fuer reale Startpfade, Service-Grenzen und Integrationsstand: `STACK_OPERATIONS.md`
+- Fuer die sichere ENV-Struktur: `ENV_REFERENCE.md` und `.godmode_env.example`
+- Fuer kanonische Quellen und Archivpfade: `PROVENANCE_MATRIX.md`
+- Fuer den Missionsvertrag zwischen Pilot, n8n und OpenHands: `MISSION_PAYLOAD_CONTRACT.md`
+- Fuer den Status der 12 Superkraefte: `SUPERPOWERS_STATUS.md`
+- Fuer Missions- und SHA-Nachweise: `FINAL_PROOF.md`, `GODMODE_GOAL.md`, `memory_vault.md`

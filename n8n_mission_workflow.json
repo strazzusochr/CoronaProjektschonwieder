@@ -1,0 +1,118 @@
+{
+  "name": "GODMODE Mission Trigger",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "godmode-mission",
+        "responseMode": "responseNode"
+      },
+      "id": "mission-webhook",
+      "name": "Mission Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 280]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: {\n  agent: $json.agent || $env.GODMODE_MISSION_AGENT || 'Aider-Cloud',\n  task: $json.task,\n  source: $json.source || $env.GODMODE_SOURCE || 'n8n',\n  repo: $json.repo || $env.GITHUB_REPO_URL,\n  ref: $json.ref || 'main',\n  status: $json.status || 'triggered',\n  timestamp: $json.timestamp || new Date().toISOString()\n} }];"
+      },
+      "id": "normalize-payload",
+      "name": "Normalize Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 280]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.LANGGRAPH_API_URL + '/run' }}",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={\"task\": $json.task, \"source\": $json.source, \"ref\": $json.ref}"
+      },
+      "id": "langgraph-plan",
+      "name": "LangGraph Plan",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [700, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.OPENHANDS_ADAPTER_URL + '/trigger' }}",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}"
+      },
+      "id": "dispatch-openhands",
+      "name": "Dispatch OpenHands",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [700, 360]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"accepted\",\"mission\":$json}"
+      },
+      "id": "mission-response",
+      "name": "Mission Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [950, 280]
+    }
+  ],
+  "connections": {
+    "Mission Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Payload": {
+      "main": [
+        [
+          {
+            "node": "LangGraph Plan",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Dispatch OpenHands",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LangGraph Plan": {
+      "main": [
+        [
+          {
+            "node": "Mission Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dispatch OpenHands": {
+      "main": [
+        [
+          {
+            "node": "Mission Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

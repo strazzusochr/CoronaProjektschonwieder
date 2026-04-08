@@ -1,7 +1,8 @@
-import { lazy, Suspense } from 'react';
+import { lazy, startTransition, Suspense, useState } from 'react';
 import { CanvasErrorBoundary } from './CanvasErrorBoundary';
 
-const SceneCanvas = lazy(() => import('./SceneCanvas'));
+const loadSceneCanvas = () => import('./SceneCanvas');
+const SceneCanvas = lazy(loadSceneCanvas);
 
 type SceneFallbackProps = {
   title: string;
@@ -26,6 +27,18 @@ function SceneFallback({
 }
 
 export default function App() {
+  const [isSceneRequested, setIsSceneRequested] = useState(false);
+
+  const activateScene = () => {
+    startTransition(() => {
+      setIsSceneRequested(true);
+    });
+  };
+
+  const preloadScene = () => {
+    void loadSceneCanvas();
+  };
+
   return (
     <main className="app-shell">
       <section className="hero-panel">
@@ -49,32 +62,54 @@ export default function App() {
 
       <section className="scene-panel" aria-label="3D viewport">
         <div className="scene-panel__hud">
-          <p className="scene-panel__status">Viewport online</p>
+          <p className="scene-panel__status">
+            {isSceneRequested ? 'Viewport online' : 'Viewport standby'}
+          </p>
           <div className="scene-panel__legend">
             <span>Drag to orbit</span>
             <span>Scroll to zoom</span>
           </div>
         </div>
-        <CanvasErrorBoundary
-          fallback={
-            <SceneFallback
-              title="3D preview unavailable"
-              description="The scene could not be initialized. The status panel stays online so the app never collapses into a blank screen."
-              tone="error"
-            />
-          }
-        >
-          <Suspense
+        {isSceneRequested ? (
+          <CanvasErrorBoundary
             fallback={
               <SceneFallback
-                title="Loading 3D scene"
-                description="Preparing the Vienna skyline, lights, and orbit controls."
+                title="3D preview unavailable"
+                description="The scene could not be initialized. The status panel stays online so the app never collapses into a blank screen."
+                tone="error"
               />
             }
           >
-            <SceneCanvas />
-          </Suspense>
-        </CanvasErrorBoundary>
+            <Suspense
+              fallback={
+                <SceneFallback
+                  title="Loading 3D scene"
+                  description="Preparing the Vienna skyline, lights, and orbit controls."
+                />
+              }
+            >
+              <SceneCanvas />
+            </Suspense>
+          </CanvasErrorBoundary>
+        ) : (
+          <div className="scene-fallback scene-fallback--standby" role="status">
+            <span className="scene-fallback__eyebrow">Standby</span>
+            <h2>Launch the 3D viewport when you are ready</h2>
+            <p>
+              The heavy Three.js scene stays deferred until you explicitly open it,
+              keeping first paint, audits, and browser startup much lighter.
+            </p>
+            <button
+              className="scene-launch-button"
+              type="button"
+              onClick={activateScene}
+              onMouseEnter={preloadScene}
+              onFocus={preloadScene}
+            >
+              Activate 3D scene
+            </button>
+          </div>
+        )}
       </section>
     </main>
   );

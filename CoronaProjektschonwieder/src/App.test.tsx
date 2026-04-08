@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import App from './App';
 
@@ -19,7 +19,8 @@ describe('App', () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText(/3d viewport/i)).toBeInTheDocument();
     expect(screen.getByText(/browser smoke-tested/i)).toBeInTheDocument();
-    expect(screen.getByText(/viewport online/i)).toBeInTheDocument();
+    expect(screen.getByText(/viewport standby/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /activate 3d scene/i }));
     expect(await screen.findByTestId('scene-canvas-mock')).toBeInTheDocument();
   });
 });

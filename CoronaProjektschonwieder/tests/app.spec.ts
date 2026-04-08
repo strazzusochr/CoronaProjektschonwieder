@@ -22,6 +22,11 @@ test('renders the mission UI without browser errors', async ({ page }) => {
     })
   ).toBeVisible();
   await expect(page.getByText(/browser smoke-tested/i)).toBeVisible();
+  const activateSceneButton = page.getByRole('button', {
+    name: /activate 3d scene/i,
+  });
+  await expect(activateSceneButton).toBeVisible();
+  await activateSceneButton.click();
   await expect(page.getByText(/viewport online/i)).toBeVisible();
   await expect(page.locator('canvas')).toHaveCount(1);
 

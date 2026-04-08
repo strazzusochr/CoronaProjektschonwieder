@@ -1,0 +1,13 @@
+{
+  "type": "user",
+  "name": "Wrzzzrzr",
+  "profile_state": "sanitized-local-reference",
+  "auth": {
+    "type": "access_token",
+    "accessToken": {
+      "displayName": "<redacted>",
+      "role": "write"
+    }
+  },
+  "note": "Tracked metadata is sanitized. Real account state must stay in local auth stores only."
+}
