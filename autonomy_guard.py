@@ -13,9 +13,10 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-GOAL_FILE = Path("GODMODE_GOAL.md")
-PROOF_FILE = Path("FINAL_PROOF.md")
-MEMORY_FILE = Path("memory_vault.md")
+REPO_ROOT = Path(__file__).resolve().parent
+GOAL_FILE = REPO_ROOT / "GODMODE_GOAL.md"
+PROOF_FILE = REPO_ROOT / "FINAL_PROOF.md"
+MEMORY_FILE = REPO_ROOT / "memory_vault.md"
 
 
 @dataclass
