@@ -1,4 +1,4 @@
-PROCESSED: # GODMODE Mission: Cloud Sovereignty Proof (Qwen3 Coder Free Edition)
-Task: Create a file called CLOUD_SOVEREIGNTY.md in the repo root documenting the transition to a 100% cloud-native architecture using a free open-source model via OpenRouter's dynamic free tier (Qwen3 Coder). Include a small joke about saving credits. Do exactly this and save the file.
+# GODMODE Mission: Resilient Autonomy Test
+Task: Create a file called RESILIENCE_PROOF.md in the repo root documenting that the pilot can now handle 429 errors by rotating models. Include the list of current fallback models.
 Status: PENDING
 Autonomy: 100%
