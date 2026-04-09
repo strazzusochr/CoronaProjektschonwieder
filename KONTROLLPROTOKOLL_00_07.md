@@ -1,6 +1,6 @@
 # GODMODE Kontrollprotokoll 00-07
 
-Stand: 2026-04-08
+Stand: 2026-04-09
 
 Dieses Dokument ist das kanonische Abnahme- und Steuerprotokoll fuer den
 GODMODE-Stack in `d:\Web\docs\godmode_setup`.
@@ -21,6 +21,26 @@ Es kombiniert vier Sichten in einer Datei:
   `external`-Vermerk.
 - Archivpfade wie `hf_langgraph`, `hf_pilot_clone` und `corona_test` duerfen
   nur als Historienhinweis gelesen werden, nicht als aktive Wahrheitsquelle.
+
+## Hosted Sync 2026-04-09
+
+- `Wrzzzrzr/openhands-godmode`: aus `hf_openhands/` neu ausgerollt; Wrapper-
+  Fixes fuer LF/CMD-Bootstrap sind live, Space-URL antwortete mit HTTP `200`.
+- `Wrzzzrzr/langgraph-godmode`: weiterhin `RUNNING`; `/health` antwortete mit
+  HTTP `200`.
+- `Wrzzzrzr/smolagents-godmode`: neu erstellt und aus `hf_smolagents/`
+  ausgerollt; Space-URL antwortete mit HTTP `200`.
+- `Wrzzzrzr/aider-godmode-safe`: neue kanonische Hosted-Aider-Oberflaeche; die
+  URL antwortete mit HTTP `200`.
+- `Wrzzzrzr/aider-web-ide`: historischer Alt-Space bleibt wegen eines frueheren
+  HF-Abuse-Flags pausiert und ist nicht mehr kanonisch.
+- `Wrzzzrzr/godmode-pilot`: private Hosted-Pilotinstanz ist ueber die
+  authentisierte HF-API als `RUNNING` belegt; direkter anonymer `/health`-
+  Abruf ist fuer die private Space-URL nicht aussagekraeftig.
+- Oracle-Core: SSH zum in `.godmode_env` konfigurierten Host lief am
+  2026-04-09 in einen Timeout. Deshalb bleiben Oracle-bezogene Proof Gates
+  weiterhin `partial`, obwohl die Repo-seitigen Start- und Env-Vertraege
+  vorbereitet sind.
 
 ## Horizontale Kontrollmatrix
 

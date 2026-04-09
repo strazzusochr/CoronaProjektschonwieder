@@ -10,13 +10,13 @@ from smolagents import (
     CodeAgent,
     DuckDuckGoSearchTool,
     FinalAnswerTool,
-    HfApiModel,
+    InferenceClientModel,
+    OpenAIServerModel,
     PythonInterpreterTool,
     Tool,
     ToolCallingAgent,
     VisitWebpageTool,
 )
-from smolagents.agents import ManagedAgent
 
 GODMODE_CONTEXT = """
 You are operating inside the GODMODE stack.
@@ -85,12 +85,22 @@ class VisualDebugTool(Tool):
             return f"Fehler bei visueller Analyse: {exc}"
 
 
-def build_model() -> HfApiModel:
-    return HfApiModel(
-        model_id=os.environ.get("SMOLAGENTS_MODEL_ID", "anthropic/claude-sonnet-4-5"),
-        token=os.environ.get("HF_TOKEN"),
-        base_url=os.environ.get("OPENAI_BASE_URL", "https://openrouter.ai/api/v1"),
-        api_key=os.environ.get("OPENROUTER_API_KEY"),
+def build_model() -> OpenAIServerModel | InferenceClientModel:
+    model_id = os.environ.get("SMOLAGENTS_MODEL_ID", "anthropic/claude-sonnet-4-5")
+    openai_base = os.environ.get("OPENAI_BASE_URL", "https://openrouter.ai/api/v1")
+    openai_key = os.environ.get("OPENROUTER_API_KEY")
+    hf_token = os.environ.get("HF_TOKEN")
+
+    if openai_key:
+        return OpenAIServerModel(
+            model_id=model_id,
+            api_base=openai_base,
+            api_key=openai_key,
+        )
+
+    return InferenceClientModel(
+        model_id=model_id,
+        token=hf_token,
     )
 
 
@@ -115,10 +125,7 @@ def build_agents() -> tuple[CodeAgent, ToolCallingAgent, CodeAgent]:
     manager_agent = CodeAgent(
         tools=[answer_tool],
         model=model,
-        managed_agents=[
-            ManagedAgent(agent=web_agent, name="web_researcher"),
-            ManagedAgent(agent=code_agent, name="code_writer"),
-        ],
+        managed_agents=[web_agent, code_agent],
         name="GODMODE_Manager",
         max_steps=50,
     )
@@ -146,7 +153,7 @@ def run_agent(prompt: str, agent_type: str) -> str:
     return str(result)
 
 
-with gr.Blocks(title="GODMODE Agents", theme=gr.themes.Soft()) as demo:
+with gr.Blocks(title="GODMODE Agents") as demo:
     gr.Markdown(
         "# GODMODE Multi-Agent System (smolagents)\n"
         "Web research, code execution, and screenshot-based visual debugging."
@@ -164,4 +171,4 @@ with gr.Blocks(title="GODMODE Agents", theme=gr.themes.Soft()) as demo:
 
 
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=7860)
+    demo.launch(server_name="0.0.0.0", server_port=7860, theme=gr.themes.Soft())

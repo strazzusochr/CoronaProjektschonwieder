@@ -30,6 +30,10 @@ if (-not $env:AIDER_MAP_TOKENS) {
     $env:AIDER_MAP_TOKENS = "8192"
 }
 
+if (-not $env:AIDER_DOCKER_IMAGE) {
+    $env:AIDER_DOCKER_IMAGE = "paulgauthier/aider-full"
+}
+
 $DefaultArgs = @(
     "--architect"
     "--editor-model", $env:AIDER_WEAK_MODEL
@@ -49,13 +53,25 @@ if ($AiderArgs.Count -gt 0) {
     $EffectiveArgs = $DefaultArgs
 }
 
-Write-Host "🚀 STARTING GODMODE AIDER (DOCKER)..." -ForegroundColor Cyan
+if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
+    Write-Error "Docker is not installed or not available on PATH."
+    exit 1
+}
 
-docker run -it --rm `
-  -v ${PWD}:/app `
-  -e ANTHROPIC_API_KEY=$env:ANTHROPIC_API_KEY `
-  -e OPENROUTER_API_KEY=$env:OPENROUTER_API_KEY `
-  -e OPENAI_BASE_URL=$env:OPENAI_BASE_URL `
-  -e AIDER_MODEL=$env:AIDER_MODEL `
-  -e AIDER_WEAK_MODEL=$env:AIDER_WEAK_MODEL `
-  aiderchat/aider @EffectiveArgs
+$DockerArgs = @(
+    "run"
+    "-i"
+    "--rm"
+    "-v", "${PWD}:/app"
+    "-e", "ANTHROPIC_API_KEY=$env:ANTHROPIC_API_KEY"
+    "-e", "OPENROUTER_API_KEY=$env:OPENROUTER_API_KEY"
+    "-e", "OPENAI_BASE_URL=$env:OPENAI_BASE_URL"
+    "-e", "AIDER_MODEL=$env:AIDER_MODEL"
+    "-e", "AIDER_WEAK_MODEL=$env:AIDER_WEAK_MODEL"
+    $env:AIDER_DOCKER_IMAGE
+)
+
+Write-Host "STARTING GODMODE AIDER (DOCKER)..." -ForegroundColor Cyan
+
+& docker @DockerArgs @EffectiveArgs
+exit $LASTEXITCODE

@@ -6,7 +6,7 @@ import time
 # --- CONFIGURATION ---
 GOALS_FILE = "GODMODE_GOAL.md"
 MEMORY_VAULT = "memory_vault.md"
-HF_SPACE_URL = "https://Wrzzzrzr-aider-web-ide.hf.space"  # Aider IDE URL
+HF_SPACE_URL = "https://wrzzzrzr-aider-godmode-safe.hf.space"  # Aider IDE URL
 
 def read_current_goal():
     if os.path.exists(GOALS_FILE):

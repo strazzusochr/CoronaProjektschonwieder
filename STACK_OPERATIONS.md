@@ -1,6 +1,6 @@
 # GODMODE Stack Operations
 
-Stand: 2026-04-08
+Stand: 2026-04-09
 
 This document explains what the repository can actually start, wire, and
 operate today.
@@ -17,6 +17,24 @@ For the detailed horizontal/vertical phase control model, use
 - `PROVENANCE_MATRIX.md`: canonical vs archive source map
 - `MISSION_PAYLOAD_CONTRACT.md`: canonical dispatcher schema
 - `SUPERPOWERS_STATUS.md`: implemented vs partial superpower map
+
+## Hosted Sync 2026-04-09
+
+- `OpenHands`: `https://wrzzzrzr-openhands-godmode.hf.space` rebuilt from
+  `hf_openhands/` and returned HTTP `200` after the wrapper bootstrap fix.
+- `LangGraph`: `https://wrzzzrzr-langgraph-godmode.hf.space/health` returned
+  HTTP `200`.
+- `smolagents`: `https://wrzzzrzr-smolagents-godmode.hf.space` was created from
+  `hf_smolagents/` and returned HTTP `200`.
+- `Aider`: canonical hosted surface is now
+  `https://wrzzzrzr-aider-godmode-safe.hf.space`, which returned HTTP `200`.
+  The old `aider-web-ide` Space remains paused due a historical Hugging Face
+  abuse flag and should be treated as retired.
+- `Pilot`: `Wrzzzrzr/godmode-pilot` is private but HF API reported runtime
+  stage `RUNNING` on 2026-04-09.
+- `Oracle`: SSH to the configured `ORACLE_IP` timed out on 2026-04-09, so the
+  Oracle-core proof gates remain externally blocked even though the repo-side
+  startup/runtime contracts are prepared.
 
 ## What Startup Scripts Really Do
 
@@ -46,22 +64,24 @@ and prints local plus hosted endpoints.
 - Local runtime definition: `openhands/docker-compose.yml`
 - Stable trigger facade: `openhands/adapter.py`
 - Hosted wrapper: `hf_openhands/`
-- Current state: real container/runtime artifacts exist, but hosted and
-  multi-agent operating procedures are still partial
+- Current state: local runtime plus hosted HF wrapper are both proven; the HF
+  wrapper now preserves the upstream launch command, normalizes shell line
+  endings, and serves HTTP `200`, while Oracle-hosted proof remains `partial`
 
 ### Aider
 
 - Local launcher: `aider_godmode.ps1`
 - Hosted/remote references: `godmode_auto_pilot.py`, `hf_aider/README.md`
-- Current state: usable entrypoint exists, but broader cloud wiring is partly
-  documentation- and environment-dependent
+- Current state: usable local launcher exists and a HF-safe hosted surface is
+  now deployed at `aider-godmode-safe`; the previously flagged `aider-web-ide`
+  Space is no longer the canonical target
 
 ### smolagents
 
 - Main implementation: `hf_smolagents/app.py`
 - Canonical hosted/local notes: `hf_smolagents/README.md`
 - Current state: real multi-agent Gradio tooling exists, including a vision
-  helper and managed agents
+  helper and managed agents, and the hosted `smolagents-godmode` Space is live
 
 ### LangGraph
 
@@ -85,8 +105,9 @@ and prints local plus hosted endpoints.
 - Mission sync: `autonomy_guard.py`
 - Memory sink: `memory_vault.md`
 - Current state: real repo-sync and mission-state logic exists, with a local
-  debug-safe `/health` path, but live automation still depends on external
-  tokens, webhooks, and hosted runtime
+  debug-safe `/health` path and a HF-hosted private pilot proven as `RUNNING`
+  through the authenticated HF API; live automation still depends on external
+  webhooks and cross-service routing
 
 ## Integration Reality Today
 
@@ -100,6 +121,9 @@ Currently evidenced:
 - the OpenHands adapter accepts the canonical mission payload locally
 - LangGraph `/run` returns a controlled result even when the configured live
   provider is unavailable
+- HF-hosted `OpenHands`, `LangGraph`, `smolagents`, and the safe Aider surface
+  are all materially deployed, with direct HTTP `200` proof for every public
+  Space
 - pilot code can trigger `n8n` or the OpenHands adapter if configured
 - n8n memory workflow targets `memory_vault.md`
 - the canonical mission payload contract is shared across pilot, n8n, and adapter
@@ -117,5 +141,7 @@ Not yet fully materialized as local end-to-end integrations:
 - Anything that requires Oracle provisioning, Hugging Face Space settings,
   secret management, hosted URLs, or account access should be treated as
   external operator work unless separately verified.
+- Hugging Face Space status in this document is verified as of 2026-04-09 and
+  should be rechecked before later rollout decisions.
 - This repository is a hybrid of runnable local components, hosted wrappers,
   and external HF services such as `bolt.diy`.

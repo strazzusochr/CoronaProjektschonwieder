@@ -1,0 +1,3 @@
+*.py text eol=lf
+*.md text eol=lf
+requirements.txt text eol=lf

@@ -23,6 +23,9 @@ This directory is the canonical local source for the GODMODE smolagents layer.
 - `HF_TOKEN` for hosted model access
 - `OPENROUTER_API_KEY` for OpenRouter-compatible inference
 - `ANTHROPIC_API_KEY` for screenshot inspection
+- local core install via `requirements.txt` covers the current app code path
+- browser-heavy extras such as `playwright` or `browser-use` are optional and
+  should only be installed when this module is extended to use them directly
 
 ## Canonical role in the stack
 
