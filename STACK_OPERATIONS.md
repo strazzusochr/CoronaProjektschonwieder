@@ -30,8 +30,9 @@ For the detailed horizontal/vertical phase control model, use
   `https://wrzzzrzr-aider-godmode-safe.hf.space`, which returned HTTP `200`.
   The old `aider-web-ide` Space remains paused due a historical Hugging Face
   abuse flag and should be treated as retired.
-- `Pilot`: `Wrzzzrzr/godmode-pilot` is private but HF API reported runtime
-  stage `RUNNING` on 2026-04-09.
+- `Pilot`: `Wrzzzrzr/godmode-pilot` is private, HF API reported runtime stage
+  `RUNNING`, and an authenticated `/health` request returned HTTP `200` on
+  2026-04-09.
 - `Oracle`: SSH to the configured `ORACLE_IP` timed out on 2026-04-09, so the
   Oracle-core proof gates remain externally blocked even though the repo-side
   startup/runtime contracts are prepared.
@@ -105,9 +106,9 @@ and prints local plus hosted endpoints.
 - Mission sync: `autonomy_guard.py`
 - Memory sink: `memory_vault.md`
 - Current state: real repo-sync and mission-state logic exists, with a local
-  debug-safe `/health` path and a HF-hosted private pilot proven as `RUNNING`
-  through the authenticated HF API; live automation still depends on external
-  webhooks and cross-service routing
+  debug-safe `/health` path and a HF-hosted private pilot proven by both the
+  authenticated HF API and an authenticated hosted `/health` request; live
+  automation still depends on external webhooks and cross-service routing
 
 ## Integration Reality Today
 

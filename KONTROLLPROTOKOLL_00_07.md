@@ -35,8 +35,8 @@ Es kombiniert vier Sichten in einer Datei:
 - `Wrzzzrzr/aider-web-ide`: historischer Alt-Space bleibt wegen eines frueheren
   HF-Abuse-Flags pausiert und ist nicht mehr kanonisch.
 - `Wrzzzrzr/godmode-pilot`: private Hosted-Pilotinstanz ist ueber die
-  authentisierte HF-API als `RUNNING` belegt; direkter anonymer `/health`-
-  Abruf ist fuer die private Space-URL nicht aussagekraeftig.
+  authentisierte HF-API als `RUNNING` belegt; ein authentisierter `/health`-
+  Abruf lieferte HTTP `200`.
 - Oracle-Core: SSH zum in `.godmode_env` konfigurierten Host lief am
   2026-04-09 in einen Timeout. Deshalb bleiben Oracle-bezogene Proof Gates
   weiterhin `partial`, obwohl die Repo-seitigen Start- und Env-Vertraege
