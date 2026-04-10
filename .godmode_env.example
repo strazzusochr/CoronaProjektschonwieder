@@ -58,7 +58,10 @@ export N8N_BASIC_AUTH_USER="replace-with-n8n-user"
 export N8N_BASIC_AUTH_PASSWORD="replace-with-n8n-password"
 export N8N_ENCRYPTION_KEY="replace-with-n8n-encryption-key"
 export N8N_PORT="5678"
-export N8N_WEBHOOK_URL="http://localhost:5678/webhook/godmode-mission"
+# Must point to a currently active published production webhook.
+# Verify the local n8n production URL before letting Pilot dispatch to it.
+export N8N_WEBHOOK_BASE_URL="http://localhost:5678/"
+export N8N_WEBHOOK_URL="http://localhost:5678/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission"
 export N8N_EDITOR_BASE_URL="http://localhost:5678"
 export MEMORY_VAULT_PATH="./memory_vault.md"
 
@@ -67,5 +70,5 @@ export GODMODE_SOURCE="hf_pilot_actual"
 export GODMODE_MISSION_AGENT="Aider-Cloud"
 
 # Infrastructure
-export ORACLE_IP="127.0.0.1"
+export ORACLE_IP="replace-with-oracle-ip"
 export ORACLE_USER="replace-with-oracle-user"

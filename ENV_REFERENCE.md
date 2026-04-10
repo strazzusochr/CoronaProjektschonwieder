@@ -1,6 +1,6 @@
 # GODMODE Environment Reference
 
-Stand: 2026-04-08
+Stand: 2026-04-10
 
 This document defines the only tracked secret contract for the GODMODE stack.
 Real values live in `.godmode_env`. Tracked files must reference only env vars
@@ -102,12 +102,28 @@ Used by: local orchestration and prompt-evolution persistence.
 - `N8N_BASIC_AUTH_PASSWORD`
 - `N8N_ENCRYPTION_KEY`
 - `N8N_PORT`
+- `N8N_WEBHOOK_BASE_URL`
 - `N8N_WEBHOOK_URL`
 - `N8N_EDITOR_BASE_URL`
 - `MEMORY_VAULT_PATH`
 
 Used by: `n8n/docker-compose.yml`, workflow imports, mission triggers, and
 memory persistence.
+
+Important 2026-04-10 audit note:
+
+- `N8N_WEBHOOK_BASE_URL` is the local base URL consumed by the n8n container
+  itself via `WEBHOOK_URL`.
+- `N8N_WEBHOOK_URL` is the concrete mission-dispatch target used by pilot and
+  operator tooling.
+- A generic local path like `http://localhost:5678/webhook/godmode-mission`
+  was not valid in the audited n8n `2.15.0` runtime.
+- The repo and runtime were hardened on 2026-04-10 so the active local mission
+  dispatch path is now
+  `http://localhost:5678/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission`,
+  which returned HTTP `200`.
+- Do not collapse base URL and dispatch URL into the same variable again: that
+  caused a real runtime drift between local compose wiring and pilot dispatch.
 
 ### Pilot / mission payload
 
@@ -122,6 +138,13 @@ Used by: `hf_pilot_actual/` and the mission payload contract.
 - `ORACLE_USER`
 
 Used by: operator status output and Oracle-shaped startup flows.
+
+Important 2026-04-10 audit note:
+
+- `ORACLE_IP` in the tracked template is only a placeholder and must be
+  replaced with the real host value in `.godmode_env`.
+- The current audited Oracle host (`132.145.225.182`) is not tracked as the
+  canonical template default because it is operator-specific infrastructure.
 
 ## Minimum Component Requirements
 
@@ -148,6 +171,7 @@ Minimum practical set:
 - `N8N_BASIC_AUTH_USER`
 - `N8N_BASIC_AUTH_PASSWORD`
 - `N8N_ENCRYPTION_KEY`
+- `N8N_WEBHOOK_BASE_URL`
 - `N8N_WEBHOOK_URL`
 
 ### Aider

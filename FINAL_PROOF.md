@@ -4,9 +4,9 @@
 
 - Repository verified: `D:\Web\docs\godmode_setup`
 - Frontend project verified: `D:\Web\docs\godmode_setup\CoronaProjektschonwieder`
-- Base repository HEAD during this proof: `a93f711104c5f71845cfbc7d61e834511a9773fe`
+- Base repository HEAD during this proof: `1071a2b83a1c9743f6ea2a176515f482c11a2d1b`
 - Verification date: `2026-04-10`
-- Scope of this proof: record the successful local validation of the refreshed frontend proof, local stack runtime proof, local n8n hardening proof, and restored Hugging Face owner-auth / private pilot visibility
+- Scope of this proof: record the successful local validation of the refreshed frontend proof, local stack runtime proof, local n8n hardening proof, restored Hugging Face owner-auth, private pilot resynchronization, and the remaining Oracle-only external blocker
 
 ## Local Repairs Included In This Proof
 
@@ -58,7 +58,7 @@ powershell -ExecutionPolicy Bypass -File .\START_GODMODE.ps1
 docker exec n8n-godmode n8n import:workflow --input=/backups/n8n_mission_workflow.json
 docker exec n8n-godmode n8n import:workflow --input=/backups/n8n_memory_workflow.json
 docker exec n8n-godmode n8n import:workflow --input=/backups/n8n_memory_probe_workflow.json
-curl -X POST http://127.0.0.1:5678/webhook/godmodeMissionTrigger01/mission%2520webhook/godmode-mission ...
+curl -X POST http://127.0.0.1:5678/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission ...
 docker compose run --rm n8n execute --id godmodeMemoryProbe01 --rawOutput
 ```
 
@@ -121,7 +121,7 @@ n8n -> http://127.0.0.1:5678/healthz (200)
 
 ```text
 HTTP/1.1 200 OK
-POST /webhook/godmodeMissionTrigger01/mission%2520webhook/godmode-mission
+POST /webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission
 ```
 
 Observed runtime side effect:
@@ -160,8 +160,13 @@ AFTER=2026-04-10T09:55:15.2038860+02:00|987
 - The proof now reflects current Vite, Vitest, Playwright and dist artifact state.
 - Local n8n mission intake and local memory append are both now concretely evidenced.
 - HF owner-auth is restored to `Wrzzzrzr`.
-- The private pilot space is reachable again with authenticated `/health` and reports `status=healthy`, but its internal `goal` / `last_sha` are stale relative to the current local repo state.
-- Oracle remains the only hard external runtime gate still failing in this proof set; fresh network checks from this machine time out on ports `22`, `3000`, and `8080` against `132.145.225.182`.
+- The private pilot space is reachable again with authenticated `/health`, reports `status=healthy`, runs on Space SHA `4155ac58e5beb277eea3f352241ccd7e3857341d`, and now mirrors the current GitHub `main` SHA `1071a2b83a1c9743f6ea2a176515f482c11a2d1b`.
+- Oracle remains the only hard external runtime gate still failing in this proof set; `Test-Connection` to `132.145.225.182` is `False`, TCP probes to ports `22`, `3000`, `3001`, `4000`, `5678`, `8080`, and `11434` all time out, and a short traceroute reaches `140.91.199.85` before timing out upstream of the host.
+- Local n8n mission dispatch is now proven again after hardening the runtime:
+  the webhook node was renamed to ASCII-stable `mission-webhook`, the env was
+  split into `N8N_WEBHOOK_BASE_URL` versus `N8N_WEBHOOK_URL`, and
+  `POST /webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission`
+  returned HTTP `200` on 2026-04-10.
 
 ## Remaining Non-Local Blockers
 
@@ -171,6 +176,16 @@ This proof does **not** verify:
 
 Additional caution that remains outside a clean beta-go:
 
-- the private pilot is reachable again, but reports an older internal `goal` / `last_sha`
 - `Wrzzzrzr/godmode-pilot-v2` remains not found / not verified
-- Oracle ports `22`, `3000`, and `8080` still time out from this machine against `132.145.225.182`
+- Oracle remains unreachable from this machine: ping is `False`, ports `22`, `3000`, `3001`, `4000`, `5678`, `8080`, and `11434` time out against `132.145.225.182`
+- Oracle core remains externally unreachable: ICMP and direct TCP probes to
+  `132.145.225.182` still timed out on 2026-04-10
+- local n8n still reports `0 published workflows`, so operators must keep the
+  concrete registered route
+  `/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission`
+  as the current canonical dispatch target until the publish layer is cleaned
+  up
+
+Historical note resolved during this proof:
+
+- the earlier stale private-pilot `goal` / `last_sha` was cleared by pushing the root repo to GitHub `main` at `1071a2b83a1c...` and deploying the pilot refresh patch on Space SHA `4155ac58e5be...`

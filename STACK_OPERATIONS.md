@@ -1,6 +1,6 @@
 # GODMODE Stack Operations
 
-Stand: 2026-04-09
+Stand: 2026-04-10
 
 This document explains what the repository can actually start, wire, and
 operate today.
@@ -18,7 +18,7 @@ For the detailed horizontal/vertical phase control model, use
 - `MISSION_PAYLOAD_CONTRACT.md`: canonical dispatcher schema
 - `SUPERPOWERS_STATUS.md`: implemented vs partial superpower map
 
-## Hosted Sync 2026-04-09
+## Hosted Sync 2026-04-10
 
 - `OpenHands`: `https://wrzzzrzr-openhands-godmode.hf.space` rebuilt from
   `hf_openhands/` and returned HTTP `200` after the wrapper bootstrap fix.
@@ -30,12 +30,23 @@ For the detailed horizontal/vertical phase control model, use
   `https://wrzzzrzr-aider-godmode-safe.hf.space`, which returned HTTP `200`.
   The old `aider-web-ide` Space remains paused due a historical Hugging Face
   abuse flag and should be treated as retired.
-- `Pilot`: `Wrzzzrzr/godmode-pilot` is private, HF API reported runtime stage
+- `Pilot`: `Wrzzzrzr/godmode-pilot` is private, HF API reports runtime stage
   `RUNNING`, and an authenticated `/health` request returned HTTP `200` on
-  2026-04-09.
-- `Oracle`: SSH to the configured `ORACLE_IP` timed out on 2026-04-09, so the
-  Oracle-core proof gates remain externally blocked even though the repo-side
-  startup/runtime contracts are prepared.
+  2026-04-10 with a body synced to GitHub `main` SHA `1071a2b...` after the
+  pilot refresh patch was deployed on Space SHA `4155ac5...`.
+- `n8n local`: health and memory paths are proven, and after hardening the
+  webhook node name plus env split on 2026-04-10, the local production mission
+  URL
+  `POST /webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission`
+  returned HTTP `200`. The runtime still logs `0 published workflows`, so the
+  stable proof currently depends on the concrete registered path rather than
+  the short generic slug.
+- `Oracle`: ICMP reachability to the configured `ORACLE_IP`
+  (`132.145.225.182`) is currently `False`; direct TCP probes timed out on
+  2026-04-10 for ports `22`, `3000`, `3001`, `4000`, `5678`, `8080`, and
+  `11434`; and a short traceroute reached `140.91.199.85` before timing out,
+  so the Oracle-core proof gates remain externally blocked even though the
+  repo-side startup/runtime contracts are prepared.
 
 ## What Startup Scripts Really Do
 
@@ -136,13 +147,14 @@ Not yet fully materialized as local end-to-end integrations:
 - `Aider <-> OpenHands` proof at runtime
 - `smolagents <-> LangGraph` proof at runtime
 - live `bolt.diy` verification inside this repo
+- a generic published n8n slug without workflow-id/node-name path segments
 
 ## Operational Boundaries
 
 - Anything that requires Oracle provisioning, Hugging Face Space settings,
   secret management, hosted URLs, or account access should be treated as
   external operator work unless separately verified.
-- Hugging Face Space status in this document is verified as of 2026-04-09 and
+- Hugging Face Space status in this document is verified as of 2026-04-10 and
   should be rechecked before later rollout decisions.
 - This repository is a hybrid of runnable local components, hosted wrappers,
   and external HF services such as `bolt.diy`.
