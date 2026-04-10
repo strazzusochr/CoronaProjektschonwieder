@@ -42,12 +42,13 @@ For the detailed horizontal/vertical phase control model, use
   returned HTTP `200`. The runtime still logs `0 published workflows`, so the
   stable proof currently depends on the concrete registered path rather than
   the short generic slug.
-- `Oracle`: ICMP reachability to the configured `ORACLE_IP`
-  (`132.145.225.182`) is currently `False`; direct TCP probes timed out on
-  2026-04-10 for ports `22`, `3000`, `3001`, `4000`, `5678`, `8080`, and
-  `11434`; and a short traceroute reached `140.91.199.85` before timing out,
-  so the Oracle-core proof gates remain externally blocked even though the
-  repo-side startup/runtime contracts are prepared.
+- `Future Oracle profile`: the reserved host values in `.godmode_env` remain a
+  documented future profile only. `Test-Connection` to the current
+  `ORACLE_IP` (`132.145.225.182`) was `False` on 2026-04-10, direct TCP probes
+  to ports `22`, `3000`, `3001`, `4000`, `5678`, `8080`, and `11434` timed
+  out, and a short traceroute reached `140.91.199.85` before timing out.
+  This is now a `PLACEHOLDER`/future-host note, not an active blocker for the
+  provider-neutral local, selfhosted, or HF-facade runtime model.
 
 ## What Startup Scripts Really Do
 
@@ -64,11 +65,13 @@ It also recovers or persists a stable local `n8n` encryption key, prints the
 current local entrypoints, performs HTTP health checks, and reminds operators
 that Aider is started separately through `aider_godmode.ps1`.
 
-### Oracle-style shell startup
+### Selfhosted core shell startup
 
-`START_GODMODE.sh` performs the same orchestration for a Linux/Oracle-shaped
-environment, including stable `n8n` key handling and post-start health checks,
-and prints local plus hosted endpoints.
+`START_GODMODE.sh` performs the same orchestration for a Linux/selfhosted core
+environment, including stable `n8n` key handling, optional Docker context
+selection, and post-start health checks, and prints local plus hosted
+endpoints. The reserved Oracle variables now stay disabled future-profile
+inputs unless an operator deliberately reactivates that profile later.
 
 ## Component Reality Map
 
@@ -79,7 +82,8 @@ and prints local plus hosted endpoints.
 - Hosted wrapper: `hf_openhands/`
 - Current state: local runtime plus hosted HF wrapper are both proven; the HF
   wrapper now preserves the upstream launch command, normalizes shell line
-  endings, and serves HTTP `200`, while Oracle-hosted proof remains `partial`
+  endings, and serves HTTP `200`, while the optional future Oracle profile
+  remains only a documented placeholder
 
 ### Aider
 
@@ -152,9 +156,9 @@ Not yet fully materialized as local end-to-end integrations:
 
 ## Operational Boundaries
 
-- Anything that requires Oracle provisioning, Hugging Face Space settings,
-  secret management, hosted URLs, or account access should be treated as
-  external operator work unless separately verified.
+- Anything that requires future Oracle provisioning, Hugging Face Space
+  settings, secret management, hosted URLs, or account access should be
+  treated as external operator work unless separately verified.
 - Hugging Face Space status in this document is verified as of 2026-04-10 and
   should be rechecked before later rollout decisions.
 - This repository is a hybrid of runnable local components, hosted wrappers,

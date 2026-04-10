@@ -17,7 +17,11 @@ N8N_KEY_FILE="$RUNTIME_DIR/n8n_encryption_key.txt"
 get_stable_n8n_key() {
   mkdir -p "$RUNTIME_DIR"
   if [[ ! -f "$N8N_KEY_FILE" ]]; then
-    existing_key="$(docker run --rm -v n8n_n8n_data:/data alpine sh -lc "sed -n 's/.*\"encryptionKey\": \"\\([^\"]*\\)\".*/\\1/p' /data/config 2>/dev/null" 2>/dev/null || true)"
+    local docker_prefix=(docker)
+    if [[ "${CORE_DOCKER_CONTEXT:-default}" != "default" ]]; then
+      docker_prefix+=(--context "$CORE_DOCKER_CONTEXT")
+    fi
+    existing_key="$("${docker_prefix[@]}" run --rm -v n8n_n8n_data:/data alpine sh -lc "sed -n 's/.*\"encryptionKey\": \"\\([^\"]*\\)\".*/\\1/p' /data/config 2>/dev/null" 2>/dev/null || true)"
     if [[ -n "$existing_key" ]]; then
       printf '%s' "$existing_key" > "$N8N_KEY_FILE"
     fi
@@ -54,26 +58,40 @@ test_http_endpoint() {
   return 1
 }
 
-export ORACLE_IP="${ORACLE_IP:-127.0.0.1}"
+export CORE_RUNTIME_PROVIDER="${CORE_RUNTIME_PROVIDER:-local}"
+export CORE_RUNTIME_MODE="${CORE_RUNTIME_MODE:-local}"
+export CORE_RUNTIME_HOST="${CORE_RUNTIME_HOST:-127.0.0.1}"
+export CORE_RUNTIME_PUBLIC_URL="${CORE_RUNTIME_PUBLIC_URL:-http://$CORE_RUNTIME_HOST}"
+export CORE_RUNTIME_SSH_HOST="${CORE_RUNTIME_SSH_HOST:-}"
+export CORE_DOCKER_CONTEXT="${CORE_DOCKER_CONTEXT:-default}"
+export CORE_DEPLOY_PROFILE="${CORE_DEPLOY_PROFILE:-local}"
+export ORACLE_ENABLED="${ORACLE_ENABLED:-false}"
+export ORACLE_PLACEHOLDER="${ORACLE_PLACEHOLDER:-true}"
+export ORACLE_RESERVED_FOR_FUTURE="${ORACLE_RESERVED_FOR_FUTURE:-true}"
 export OPENHANDS_PORT="${OPENHANDS_PORT:-3000}"
 export OPENHANDS_ADAPTER_PORT="${OPENHANDS_ADAPTER_PORT:-3001}"
 export N8N_PORT="${N8N_PORT:-5678}"
 export LANGGRAPH_PORT="${LANGGRAPH_PORT:-8080}"
 export N8N_ENCRYPTION_KEY="${N8N_ENCRYPTION_KEY:-$(get_stable_n8n_key)}"
 
-cd "$REPO_ROOT/openhands" && docker compose up -d
+docker_cmd=(docker)
+if [[ "$CORE_DOCKER_CONTEXT" != "default" ]]; then
+  docker_cmd+=(--context "$CORE_DOCKER_CONTEXT")
+fi
+
+cd "$REPO_ROOT/openhands" && "${docker_cmd[@]}" compose up -d
 echo "OK  OpenHands compose running on :$OPENHANDS_PORT"
 
-cd "$REPO_ROOT/n8n" && docker compose up -d
+cd "$REPO_ROOT/n8n" && "${docker_cmd[@]}" compose up -d
 echo "OK  n8n compose running on :$N8N_PORT"
 
-cd "$REPO_ROOT/langgraph" && docker compose up -d --build
+cd "$REPO_ROOT/langgraph" && "${docker_cmd[@]}" compose up -d --build
 echo "OK  LangGraph compose running on :$LANGGRAPH_PORT"
 
-LOCAL_OPENHANDS_URL="http://127.0.0.1:$OPENHANDS_PORT"
-LOCAL_ADAPTER_URL="http://127.0.0.1:$OPENHANDS_ADAPTER_PORT/health"
-LOCAL_LANGGRAPH_URL="http://127.0.0.1:$LANGGRAPH_PORT/health"
-LOCAL_N8N_URL="http://127.0.0.1:$N8N_PORT/healthz"
+LOCAL_OPENHANDS_URL="http://$CORE_RUNTIME_HOST:$OPENHANDS_PORT"
+LOCAL_ADAPTER_URL="http://$CORE_RUNTIME_HOST:$OPENHANDS_ADAPTER_PORT/health"
+LOCAL_LANGGRAPH_URL="http://$CORE_RUNTIME_HOST:$LANGGRAPH_PORT/health"
+LOCAL_N8N_URL="http://$CORE_RUNTIME_HOST:$N8N_PORT/healthz"
 
 test_http_endpoint "$LOCAL_OPENHANDS_URL" "OpenHands"
 test_http_endpoint "$LOCAL_ADAPTER_URL" "OpenHands Adapter"
@@ -94,15 +112,21 @@ test_http_endpoint "$LOCAL_N8N_URL" "n8n" "$N8N_AUTH_HEADER"
 
 echo ""
 echo "======================================="
-echo "  GODMODE STACK STATUS"
+echo "  GODMODE STACK STATUS (CORE)"
 echo "======================================="
+echo "  Core provider:     $CORE_RUNTIME_PROVIDER"
+echo "  Core mode:         $CORE_RUNTIME_MODE"
+echo "  Core host:         $CORE_RUNTIME_HOST"
+echo "  Deploy profile:    $CORE_DEPLOY_PROFILE"
+echo "  Docker context:    $CORE_DOCKER_CONTEXT"
 echo "  OpenHands local:  $LOCAL_OPENHANDS_URL"
-echo "  Adapter local:    http://127.0.0.1:$OPENHANDS_ADAPTER_PORT"
-echo "  n8n local:        http://127.0.0.1:$N8N_PORT"
-echo "  LangGraph local:  http://127.0.0.1:$LANGGRAPH_PORT"
+echo "  Adapter local:    http://$CORE_RUNTIME_HOST:$OPENHANDS_ADAPTER_PORT"
+echo "  n8n local:        http://$CORE_RUNTIME_HOST:$N8N_PORT"
+echo "  LangGraph local:  http://$CORE_RUNTIME_HOST:$LANGGRAPH_PORT"
 echo "  n8n hosted:       ${N8N_EDITOR_BASE_URL:-unset}"
 echo "  Aider (HF):       ${HF_AIDER_SPACE_URL:-unset}"
 echo "  bolt.diy (HF):    ${BOLTDIY_SPACE_URL:-unset}"
+echo "  Oracle profile:   enabled=$ORACLE_ENABLED; placeholder=$ORACLE_PLACEHOLDER"
 echo "======================================="
 echo "  CANONICAL STACK ONLINE. GODMODE ACTIVE."
 echo "======================================="

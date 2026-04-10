@@ -5,6 +5,11 @@ Stand: 2026-04-09
 Dieses Dokument ist das kanonische Abnahme- und Steuerprotokoll fuer den
 GODMODE-Stack in `d:\Web\docs\godmode_setup`.
 
+Provider-neutral migration note:
+- Oracle is no longer an active required host in the canonical runtime model.
+- Remaining Oracle references in this protocol are historical audit evidence
+  or future-profile placeholders unless a line explicitly says otherwise.
+
 Es kombiniert vier Sichten in einer Datei:
 
 - horizontal: Phasen `00` bis `07` gegen Stack-Domaenen und Missionsartefakte
@@ -37,10 +42,10 @@ Es kombiniert vier Sichten in einer Datei:
 - `Wrzzzrzr/godmode-pilot`: private Hosted-Pilotinstanz ist ueber die
   authentisierte HF-API als `RUNNING` belegt; ein authentisierter `/health`-
   Abruf lieferte HTTP `200`.
-- Oracle-Core: SSH zum in `.godmode_env` konfigurierten Host lief am
-  2026-04-09 in einen Timeout. Deshalb bleiben Oracle-bezogene Proof Gates
-  weiterhin `partial`, obwohl die Repo-seitigen Start- und Env-Vertraege
-  vorbereitet sind.
+- Future Oracle profile: SSH zum in `.godmode_env` reservierten Host lief am
+  2026-04-09 in einen Timeout. Deshalb bleiben Oracle-bezogene Hinweise hier
+  historische bzw. zukunftsprofilbezogene Evidenz, obwohl die Repo-seitigen
+  Start- und Env-Vertraege vorbereitet sind.
 
 ## Horizontale Kontrollmatrix
 

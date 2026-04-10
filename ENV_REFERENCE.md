@@ -66,6 +66,32 @@ Used by: pilot sync loops, repo-aware agents, and OpenHands workspace access.
 
 Used by: cost-aware routing, proxying, and provider compatibility layers.
 
+### Core runtime profile
+
+- `CORE_RUNTIME_PROVIDER`
+- `CORE_RUNTIME_MODE`
+- `CORE_RUNTIME_HOST`
+- `CORE_RUNTIME_PUBLIC_URL`
+- `CORE_RUNTIME_SSH_HOST`
+- `CORE_DOCKER_CONTEXT`
+- `CORE_DEPLOY_PROFILE`
+
+Used by: startup scripts, operator status output, and provider-neutral runtime
+selection.
+
+Status model:
+
+- `CORE_RUNTIME_PROVIDER` and `CORE_RUNTIME_MODE` are active selectors and
+  should default to `local` for the currently verified stack.
+- `CORE_RUNTIME_HOST` and `CORE_RUNTIME_PUBLIC_URL` are active and define where
+  local or selfhosted health probes should point.
+- `CORE_RUNTIME_SSH_HOST` is optional and only relevant for future remote
+  selfhosted execution.
+- `CORE_DOCKER_CONTEXT` is optional and allows Docker commands to target a
+  non-default context without binding the stack to any specific provider.
+- `CORE_DEPLOY_PROFILE` is active and should describe the intended runtime
+  profile, such as `local`, `selfhosted`, or `hf-facade`.
+
 ### Aider
 
 - `AIDER_MODEL`
@@ -132,19 +158,26 @@ Important 2026-04-10 audit note:
 
 Used by: `hf_pilot_actual/` and the mission payload contract.
 
-### Infrastructure
+### Future Oracle placeholder profile
 
+- `ORACLE_ENABLED`
+- `ORACLE_PLACEHOLDER`
+- `ORACLE_RESERVED_FOR_FUTURE`
 - `ORACLE_IP`
 - `ORACLE_USER`
 
-Used by: operator status output and Oracle-shaped startup flows.
+Used by: documented future-profile placeholders only.
 
 Important 2026-04-10 audit note:
 
-- `ORACLE_IP` in the tracked template is only a placeholder and must be
-  replaced with the real host value in `.godmode_env`.
-- The current audited Oracle host (`132.145.225.182`) is not tracked as the
-  canonical template default because it is operator-specific infrastructure.
+- Oracle is no longer part of the active required runtime model.
+- `ORACLE_ENABLED=false` and `ORACLE_PLACEHOLDER=true` should remain the
+  default tracked state.
+- `ORACLE_RESERVED_FOR_FUTURE=true` explicitly marks these variables as a
+  retained future profile, not an active dependency.
+- `ORACLE_IP` and `ORACLE_USER` may remain in `.godmode_env` as reserved
+  operator values, but they must not be required for local, selfhosted, or HF
+  facade operation unless a future Oracle profile is deliberately activated.
 
 ## Minimum Component Requirements
 

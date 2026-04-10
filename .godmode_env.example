@@ -32,6 +32,15 @@ export OLLAMA_BASE_URL="http://localhost:11434"
 export OPENAI_BASE_URL="https://openrouter.ai/api/v1"
 export MODEL_ROUTER_NAME="smart-router"
 
+# Core runtime profile
+export CORE_RUNTIME_PROVIDER="local"
+export CORE_RUNTIME_MODE="local"
+export CORE_RUNTIME_HOST="127.0.0.1"
+export CORE_RUNTIME_PUBLIC_URL="http://127.0.0.1"
+export CORE_RUNTIME_SSH_HOST=""
+export CORE_DOCKER_CONTEXT="default"
+export CORE_DEPLOY_PROFILE="local"
+
 # Aider
 export AIDER_MODEL="openrouter/anthropic/claude-sonnet-4-5"
 export AIDER_WEAK_MODEL="openrouter/deepseek/deepseek-chat-v3-0324"
@@ -69,6 +78,9 @@ export MEMORY_VAULT_PATH="./memory_vault.md"
 export GODMODE_SOURCE="hf_pilot_actual"
 export GODMODE_MISSION_AGENT="Aider-Cloud"
 
-# Infrastructure
-export ORACLE_IP="replace-with-oracle-ip"
-export ORACLE_USER="replace-with-oracle-user"
+# Future Oracle placeholder profile
+export ORACLE_ENABLED="false"
+export ORACLE_PLACEHOLDER="true"
+export ORACLE_RESERVED_FOR_FUTURE="true"
+export ORACLE_IP="replace-with-future-oracle-ip"
+export ORACLE_USER="replace-with-future-oracle-user"

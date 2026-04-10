@@ -14,6 +14,7 @@
 - 2026-04-10T11:42:00+02:00 FORENSIC_SYNC downgraded beta readiness after local n8n restart checks: workflows still log as draft-only with 0 published workflows; the production mission URL POST /webhook/godmode-mission returns 404; local memory path remains proven but beta-grade n8n dispatch is not yet stable.
 - 2026-04-10T13:29:00+02:00 FORENSIC_SYNC restored local beta-grade n8n mission dispatch: split `N8N_WEBHOOK_BASE_URL` from the pilot-facing `N8N_WEBHOOK_URL`, renamed the webhook node to ASCII-stable `mission-webhook`, recreated the local n8n runtime, and verified HTTP `200` on `POST /webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission`; Oracle remains the only hard beta blocker from this machine.
 - 2026-04-10T13:47:00+02:00 FORENSIC_SYNC verified post-push pilot consistency: root GitHub main advanced to `62c5baa900a44203481c31dec00c87d33ee79db3`, authenticated private pilot `/health` still returned `200`, and `last_sha` matched the reverified pushed snapshot while Space SHA stayed `4155ac58e5beb277eea3f352241ccd7e3857341d`; Oracle remains the only hard beta blocker.
+- 2026-04-10T17:23:00+02:00 FORENSIC_SYNC completed the provider-neutral core-runtime migration: active Oracle-only startup pressure was removed, `START_GODMODE.ps1` revalidated and rerun successfully with OpenHands/Adapter/LangGraph/n8n all returning `200`, the production n8n mission webhook returned `200` after the rerun, `START_GODMODE.sh` passed `bash -n` inside a real `bash:5.2` container, and Oracle is now retained only as a disabled future profile instead of a beta blocker.
 - 2026-04-10T08:00:57.314Z MEMORY: adapter=healthy
   openhands=http://localhost:3000
   trigger=local-only
@@ -42,5 +43,23 @@
   openhands=http://localhost:3000
   trigger=local-only
 - 2026-04-10T12:30:54.090Z MEMORY: adapter=healthy
+  openhands=http://localhost:3000
+  trigger=local-only
+- 2026-04-10T13:00:54.075Z MEMORY: adapter=healthy
+  openhands=http://localhost:3000
+  trigger=local-only
+- 2026-04-10T13:30:54.222Z MEMORY: adapter=healthy
+  openhands=http://localhost:3000
+  trigger=local-only
+- 2026-04-10T14:00:54.116Z MEMORY: adapter=healthy
+  openhands=http://localhost:3000
+  trigger=local-only
+- 2026-04-10T14:30:54.115Z MEMORY: adapter=healthy
+  openhands=http://localhost:3000
+  trigger=local-only
+- 2026-04-10T15:00:54.087Z MEMORY: adapter=healthy
+  openhands=http://localhost:3000
+  trigger=local-only
+- 2026-04-10T15:30:44.140Z MEMORY: adapter=healthy
   openhands=http://localhost:3000
   trigger=local-only

@@ -6,7 +6,7 @@
 - Frontend project verified: `D:\Web\docs\godmode_setup\CoronaProjektschonwieder`
 - Last fully reverified pushed platform snapshot during this proof: `62c5baa900a44203481c31dec00c87d33ee79db3`
 - Verification date: `2026-04-10`
-- Scope of this proof: record the successful local validation of the refreshed frontend proof, local stack runtime proof, local n8n hardening proof, restored Hugging Face owner-auth, private pilot resynchronization, and the remaining Oracle-only external blocker
+- Scope of this proof: record the successful local validation of the refreshed frontend proof, local stack runtime proof, local n8n hardening proof, restored Hugging Face owner-auth, private pilot resynchronization, and the provider-neutral core-runtime migration that keeps Oracle only as a disabled future profile
 
 ## Local Repairs Included In This Proof
 
@@ -161,7 +161,7 @@ AFTER=2026-04-10T09:55:15.2038860+02:00|987
 - Local n8n mission intake and local memory append are both now concretely evidenced.
 - HF owner-auth is restored to `Wrzzzrzr`.
 - The private pilot space is reachable again with authenticated `/health`, reports `status=healthy`, runs on Space SHA `4155ac58e5beb277eea3f352241ccd7e3857341d`, and during the latest authenticated recheck mirrored the last fully reverified GitHub `main` snapshot `62c5baa900a44203481c31dec00c87d33ee79db3`.
-- Oracle remains the only hard external runtime gate still failing in this proof set; `Test-Connection` to `132.145.225.182` is `False`, TCP probes to ports `22`, `3000`, `3001`, `4000`, `5678`, `8080`, and `11434` all time out, and a short traceroute reaches `140.91.199.85` before timing out upstream of the host.
+- The reserved Oracle host remains externally unreachable from this machine; `Test-Connection` to `132.145.225.182` is `False`, TCP probes to ports `22`, `3000`, `3001`, `4000`, `5678`, `8080`, and `11434` all time out, and a short traceroute reaches `140.91.199.85` before timing out upstream of the host. This is now recorded as a future-profile note, not an active blocker for the provider-neutral beta path.
 - Local n8n mission dispatch is now proven again after hardening the runtime:
   the webhook node was renamed to ASCII-stable `mission-webhook`, the env was
   split into `N8N_WEBHOOK_BASE_URL` versus `N8N_WEBHOOK_URL`, and
@@ -172,13 +172,13 @@ AFTER=2026-04-10T09:55:15.2038860+02:00|987
 
 This proof does **not** verify:
 
-- Oracle-core runtime proof
+- future Oracle profile reactivation on a remote host
 
 Additional caution that remains outside a clean beta-go:
 
 - `Wrzzzrzr/godmode-pilot-v2` remains not found / not verified
-- Oracle remains unreachable from this machine: ping is `False`, ports `22`, `3000`, `3001`, `4000`, `5678`, `8080`, and `11434` time out against `132.145.225.182`
-- Oracle core remains externally unreachable: ICMP and direct TCP probes to
+- the reserved Oracle future profile remains unreachable from this machine: ping is `False`, ports `22`, `3000`, `3001`, `4000`, `5678`, `8080`, and `11434` time out against `132.145.225.182`
+- the reserved Oracle host remains externally unreachable: ICMP and direct TCP probes to
   `132.145.225.182` still timed out on 2026-04-10
 - local n8n still reports `0 published workflows`, so operators must keep the
   concrete registered route
