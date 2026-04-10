@@ -82,15 +82,32 @@ selection.
 Status model:
 
 - `CORE_RUNTIME_PROVIDER` and `CORE_RUNTIME_MODE` are active selectors and
-  should default to `local` for the currently verified stack.
+  the tracked example now defaults to `selfhosted` for the beta-ready remote
+  core profile.
+- A locally verified operator setup may still override both values to `local`
+  inside `.godmode_env` without changing the tracked template.
 - `CORE_RUNTIME_HOST` and `CORE_RUNTIME_PUBLIC_URL` are active and define where
-  local or selfhosted health probes should point.
+  local or selfhosted health probes should point. In the tracked example they
+  are placeholder selfhosted hostnames and must be replaced before remote use.
 - `CORE_RUNTIME_SSH_HOST` is optional and only relevant for future remote
-  selfhosted execution.
+  selfhosted execution; the tracked example value is a placeholder, not a live
+  verified host.
 - `CORE_DOCKER_CONTEXT` is optional and allows Docker commands to target a
   non-default context without binding the stack to any specific provider.
 - `CORE_DEPLOY_PROFILE` is active and should describe the intended runtime
-  profile, such as `local`, `selfhosted`, or `hf-facade`.
+  profile, such as `local`, `selfhosted`, or `hf-facade`. The tracked example
+  now defaults to `selfhosted`.
+
+Remote beta audit note:
+
+- The tracked example intentionally favors a provider-neutral selfhosted remote
+  profile because the current beta model no longer requires Oracle.
+- The example hostnames under `core-runtime.example.internal` and
+  `core-runtime-ssh.example.internal` are placeholders only.
+- Real remote bring-up still requires operator-supplied DNS, reachability,
+  authentication, and any reverse-proxy or TLS decisions.
+- For the exact minimum path, see
+  [SELFHOSTED_CORE_RUNTIME_BETA_RUNBOOK.md](/d:/Web/docs/godmode_setup/SELFHOSTED_CORE_RUNTIME_BETA_RUNBOOK.md).
 
 ### Aider
 
@@ -148,6 +165,9 @@ Important 2026-04-10 audit note:
   dispatch path is now
   `http://localhost:5678/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission`,
   which returned HTTP `200`.
+- In the tracked selfhosted example template, the same path now points to the
+  placeholder remote host `core-runtime.example.internal`. That value is not a
+  live runtime claim and must be replaced before a real remote rollout.
 - Do not collapse base URL and dispatch URL into the same variable again: that
   caused a real runtime drift between local compose wiring and pilot dispatch.
 

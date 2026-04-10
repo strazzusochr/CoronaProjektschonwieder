@@ -1,6 +1,6 @@
 # GODMODE Guide-vs-Repo Gap Roadmap
 
-Stand: 2026-04-08
+Stand: 2026-04-10
 
 Provider-neutral migration note:
 - Oracle is no longer treated as an active required host in the canonical
@@ -107,6 +107,47 @@ Gap notes:
 - Expand `LangGraph` only if the project truly needs the guide's promised multi-agent orchestrator; otherwise document the slimmer current reality.
 - Upgrade the repo from "artifact collection" to "runnable platform" only after documentation and secret management are stabilized.
 - Add verification steps for hosted services so future docs can distinguish "exists in code" from "confirmed live".
+
+## Beta Closure Decisions 2026-04-10
+
+This section records what is good enough for the current beta and what remains
+outside the minimal beta scope.
+
+| Domain | Current class | Beta decision | Beta treatment | Full-version dependency |
+| --- | --- | --- | --- | --- |
+| Architektur & Voraussetzungen | `partial` | minimal implementation required | keep provider-neutral startup scripts plus a tracked selfhosted example profile and a dedicated runbook | real remote DNS, SSH, TLS, and operator secrets |
+| OpenHands | `partial` | minimal implementation required | local compose runtime plus adapter and HF wrapper are sufficient for beta | deeper upstream trigger proof and broader hosted ops runbooks |
+| bolt.diy | `external` | stub/contract is sufficient | remain external-only and documented as non-local HF dependency | real hosted bolt.diy ownership, deployment, and live verification |
+| smolagents | `partial` | current implementation is sufficient | keep current app plus HF facade; document that deeper browser-agent claims remain partial | deeper autonomous browser/runtime proof |
+| Aider | `partial` | current implementation is sufficient | keep local launcher plus safe HF facade | broader remote operator automation and richer hosted workflows |
+| LangGraph | `partial` | minimal implementation is sufficient | current planner/swarm/review service is enough for beta; do not fake the 8-agent guide version | actual multi-agent expansion if the product later requires it |
+| n8n | `partial` | minimal implementation required | keep local workflow JSONs, verified health, and concrete production webhook path | richer hosted imports, published workflow management, and operator credentials |
+| Stack Integration | `partial` | minimal implementation required | keep the canonical mission payload, startup scripts, and verified local mission path | full cross-service end-to-end proof across every hosted subsystem |
+| Deployment runbooks | `missing` | minimal implementation required | add a dedicated selfhosted beta runbook and keep external hosted steps documented as operator work | environment-specific rollout guides per provider |
+| Superpowers / manifesto claims | `partial` | stub/claim visibility is sufficient | keep them explicitly non-blocking and never use them as runtime proof | real subsystem implementations and independent verification |
+
+## Module Notes For Beta
+
+### External-only modules
+
+- `bolt.diy` remains intentionally external for this beta.
+- The repo now treats it as a documented dependency, not as a missing local
+  package to be faked.
+
+### Partial but non-blocking modules
+
+- `LangGraph` remains slimmer than the guide narrative, but the current service
+  is real and documented.
+- `smolagents` remains a genuine hosted/local capability with partial deeper
+  automation proof.
+- `Aider` remains beta-usable through the local launcher and the safe hosted
+  facade.
+
+### Newly closed documentation gap
+
+- The repo now includes
+  [SELFHOSTED_CORE_RUNTIME_BETA_RUNBOOK.md](/d:/Web/docs/godmode_setup/SELFHOSTED_CORE_RUNTIME_BETA_RUNBOOK.md)
+  as the minimal operator runbook for a provider-neutral beta without Oracle.
 
 ## Evidence Rules For Future Updates
 

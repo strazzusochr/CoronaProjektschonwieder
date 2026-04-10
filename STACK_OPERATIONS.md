@@ -17,6 +17,8 @@ For the detailed horizontal/vertical phase control model, use
 - `PROVENANCE_MATRIX.md`: canonical vs archive source map
 - `MISSION_PAYLOAD_CONTRACT.md`: canonical dispatcher schema
 - `SUPERPOWERS_STATUS.md`: implemented vs partial superpower map
+- `SELFHOSTED_CORE_RUNTIME_BETA_RUNBOOK.md`: minimal operator runbook for the
+  provider-neutral beta core runtime
 
 ## Hosted Sync 2026-04-10
 
