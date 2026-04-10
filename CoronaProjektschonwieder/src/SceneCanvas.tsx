@@ -1,6 +1,5 @@
-import { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { Environment, Float, OrbitControls, Sky, Stars } from '@react-three/drei';
+import { Float, OrbitControls, Sky, Stars } from '@react-three/drei';
 
 function GroundPlane() {
   return (
@@ -58,7 +57,6 @@ function CityEnvironment() {
         mieDirectionalG={0.9}
       />
       <Stars radius={120} depth={60} count={5000} factor={3.4} saturation={0} fade speed={0.7} />
-      <Environment preset="sunset" />
       <ambientLight intensity={0.9} />
       <directionalLight
         castShadow
@@ -85,16 +83,14 @@ export default function SceneCanvas() {
         shadows
         gl={{ antialias: true, alpha: false }}
       >
-        <Suspense fallback={null}>
-          <CityEnvironment />
-          <OrbitControls
-            enablePan={false}
-            minDistance={5}
-            maxDistance={16}
-            minPolarAngle={Math.PI / 4}
-            maxPolarAngle={Math.PI / 2.1}
-          />
-        </Suspense>
+        <CityEnvironment />
+        <OrbitControls
+          enablePan={false}
+          minDistance={5}
+          maxDistance={16}
+          minPolarAngle={Math.PI / 4}
+          maxPolarAngle={Math.PI / 2.1}
+        />
       </Canvas>
     </div>
   );
