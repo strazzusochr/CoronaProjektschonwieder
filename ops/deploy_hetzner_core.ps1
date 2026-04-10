@@ -773,20 +773,20 @@ if ($bootstrapRun.exit_code -ne 0) {
 }
 
 $externalChecks = @()
-foreach ($host in @($openhandsHost, $adapterHost, $langgraphHost, $n8nHost, $boltHost)) {
+foreach ($endpointHost in @($openhandsHost, $adapterHost, $langgraphHost, $n8nHost, $boltHost)) {
     try {
-        $r = Invoke-WebRequest -UseBasicParsing -Uri ("https://{0}" -f $host) -TimeoutSec 20
+        $r = Invoke-WebRequest -UseBasicParsing -Uri ("https://{0}" -f $endpointHost) -TimeoutSec 20
         $externalChecks += @{
-            host = $host
-            url = ("https://{0}" -f $host)
+            host = $endpointHost
+            url = ("https://{0}" -f $endpointHost)
             ok = $true
             status_code = [int]$r.StatusCode
         }
     }
     catch {
         $externalChecks += @{
-            host = $host
-            url = ("https://{0}" -f $host)
+            host = $endpointHost
+            url = ("https://{0}" -f $endpointHost)
             ok = $false
             error = $_.Exception.Message
         }
