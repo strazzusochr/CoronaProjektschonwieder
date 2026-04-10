@@ -41,12 +41,16 @@ services:
       - OPENHANDS_TRIGGER_URL=${OPENHANDS_TRIGGER_URL:-}
       - OPENHANDS_API_KEY=${OPENHANDS_API_KEY}
       - OPENHANDS_ADAPTER_PORT=${OPENHANDS_ADAPTER_PORT:-3001}
+      - DEVTOOLS_BRIDGE_URL=${DEVTOOLS_BRIDGE_URL:-http://host.docker.internal:3911}
+      - DEVTOOLS_BRIDGE_TIMEOUT=${DEVTOOLS_BRIDGE_TIMEOUT:-900}
       - GITHUB_REPO_URL=${GITHUB_REPO_URL:-https://github.com/strazzusochr/CoronaProjektschonwieder}
       - GODMODE_SOURCE=${GODMODE_SOURCE:-godmode_setup}
     volumes:
       - ./adapter.py:/app/adapter.py:ro
       - ./adapter_requirements.txt:/app/requirements.txt:ro
       - ./workspace:/app/workspace
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     command: >
       sh -lc "pip install --no-cache-dir -r requirements.txt &&
       uvicorn adapter:app --host 0.0.0.0 --port ${OPENHANDS_ADAPTER_PORT:-3001}"

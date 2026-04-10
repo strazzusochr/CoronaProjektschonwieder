@@ -100,6 +100,13 @@ Gap notes:
 - Write down what each startup script really starts, what is local, and what is only a URL reference.
 - Make the integration story explicit: where the repo has a real bridge today, where it only logs or simulates a bridge, and which environments are required for each step.
 - Consolidate autonomy and mission-state docs so pilot loop, memory vault, and autonomy guard are explained in one coherent operator path.
+- Closed 2026-04-10: explicit runtime wiring for `run_playwright`,
+  `run_devtools`, and `snapshot_devtools` now exists in
+  `core_tools_bridge.py` plus OpenHands adapter forwarding.
+- Closed 2026-04-10: a tracked PM2 ecosystem file and selfhosted PM2 runbook
+  now exist as `pm2/ecosystem.config.cjs` and `PM2_SELFHOSTED_RUNBOOK.md`.
+- Closed 2026-04-10: a dedicated LiteLLM Compose runtime now exists at
+  `litellm/docker-compose.yml`, so the router is no longer config-only.
 
 ### P2 — Plan Deeper Integration And Missing Systems
 
@@ -142,12 +149,17 @@ outside the minimal beta scope.
   automation proof.
 - `Aider` remains beta-usable through the local launcher and the safe hosted
   facade.
+- `LiteLLM` is now wired with a local runtime path in addition to config,
+  but still depends on real provider credentials for meaningful model routing.
 
 ### Newly closed documentation gap
 
 - The repo now includes
   [SELFHOSTED_CORE_RUNTIME_BETA_RUNBOOK.md](/d:/Web/docs/godmode_setup/SELFHOSTED_CORE_RUNTIME_BETA_RUNBOOK.md)
   as the minimal operator runbook for a provider-neutral beta without Oracle.
+- The repo now includes
+  [PM2_SELFHOSTED_RUNBOOK.md](/d:/Web/docs/godmode_setup/PM2_SELFHOSTED_RUNBOOK.md)
+  plus `pm2/ecosystem.config.cjs` for tracked PM2 supervision.
 
 ## Evidence Rules For Future Updates
 

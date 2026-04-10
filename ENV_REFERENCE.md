@@ -59,12 +59,31 @@ Used by: pilot sync loops, repo-aware agents, and OpenHands workspace access.
 ### Local routing and model proxy
 
 - `LITELLM_URL`
+- `LITELLM_PORT`
 - `LITELLM_API_KEY`
 - `OLLAMA_BASE_URL`
 - `OPENAI_BASE_URL`
 - `MODEL_ROUTER_NAME`
 
 Used by: cost-aware routing, proxying, and provider compatibility layers.
+
+### DevTools / Playwright bridge
+
+- `DEVTOOLS_BRIDGE_ENABLED`
+- `DEVTOOLS_BRIDGE_HOST`
+- `DEVTOOLS_BRIDGE_PORT`
+- `DEVTOOLS_BRIDGE_URL`
+- `DEVTOOLS_BRIDGE_TIMEOUT`
+- `DEVTOOLS_BRIDGE_COMMAND_TIMEOUT`
+- `DEVTOOLS_FRONTEND_DIR`
+
+Used by: `core_tools_bridge.py`, OpenHands adapter bridge forwarding, and
+optional PM2 selfhosted supervision.
+
+Default tracked port:
+
+- `DEVTOOLS_BRIDGE_PORT=3911` to avoid the local port collision observed on
+  `3900` during 2026-04-10 validation.
 
 ### Core runtime profile
 
@@ -128,8 +147,19 @@ Used by: `aider_godmode.ps1`, pilot execution, and Aider cloud workflows.
 - `OPENHANDS_ADAPTER_PORT`
 - `OPENHANDS_LLM_MODEL`
 - `OPENHANDS_LLM_BASE_URL`
+- `DEVTOOLS_BRIDGE_URL`
+- `DEVTOOLS_BRIDGE_TIMEOUT`
 
 Used by: `openhands/docker-compose.yml`, the adapter service, and n8n triggers.
+
+### LiteLLM runtime
+
+- `LITELLM_PORT`
+- `LITELLM_URL`
+- `LITELLM_API_KEY`
+
+Used by: `litellm/docker-compose.yml`, startup scripts, and model-routing
+clients.
 
 ### LangGraph
 
@@ -138,6 +168,17 @@ Used by: `openhands/docker-compose.yml`, the adapter service, and n8n triggers.
 - `PROMPT_EVOLUTION_PATH`
 
 Used by: local orchestration and prompt-evolution persistence.
+
+### Core tools bridge endpoints
+
+Runtime endpoints:
+
+- `POST /run_playwright`
+- `POST /run_devtools`
+- `POST /snapshot_devtools`
+- `GET /health`
+
+Used by: local operator automation and OpenHands adapter endpoint forwarding.
 
 ### n8n
 

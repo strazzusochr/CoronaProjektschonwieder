@@ -19,6 +19,8 @@ For the detailed horizontal/vertical phase control model, use
 - `SUPERPOWERS_STATUS.md`: implemented vs partial superpower map
 - `SELFHOSTED_CORE_RUNTIME_BETA_RUNBOOK.md`: minimal operator runbook for the
   provider-neutral beta core runtime
+- `PM2_SELFHOSTED_RUNBOOK.md`: tracked PM2 supervision profile for host-side
+  tooling
 
 ## Hosted Sync 2026-04-10
 
@@ -87,6 +89,14 @@ inputs unless an operator deliberately reactivates that profile later.
   endings, and serves HTTP `200`, while the optional future Oracle profile
   remains only a documented placeholder
 
+### Core tools bridge
+
+- Local runtime: `core_tools_bridge.py`
+- Adapter forwarding: `openhands/adapter.py`
+- Current state: explicit local endpoints now exist for
+  `POST /run_playwright`, `POST /run_devtools`, `POST /snapshot_devtools`,
+  plus `GET /health`
+
 ### Aider
 
 - Local launcher: `aider_godmode.ps1`
@@ -118,6 +128,13 @@ inputs unless an operator deliberately reactivates that profile later.
 - Current state: automation direction is real, but production workflows and
   hosted credentials are only partially proven from the repo
 
+### LiteLLM
+
+- Local deployment: `litellm/docker-compose.yml`
+- Router config: `litellm_config.yaml`
+- Current state: config and runtime path are now both present in the repo;
+  health verification remains environment-dependent on valid provider keys
+
 ### Pilot / autonomy layer
 
 - Hosted loop: `hf_pilot_actual/app.py`
@@ -137,7 +154,11 @@ Currently evidenced:
 
 - startup scripts can co-start `OpenHands`, `n8n`, and `LangGraph` and verify
   their health locally
+- startup scripts now also co-start `LiteLLM` and the host-side core tools
+  bridge and verify both health paths
 - the OpenHands adapter accepts the canonical mission payload locally
+- the OpenHands adapter now forwards `run_playwright`, `run_devtools`, and
+  `snapshot_devtools` to the core tools bridge
 - LangGraph `/run` returns a controlled result even when the configured live
   provider is unavailable
 - HF-hosted `OpenHands`, `LangGraph`, `smolagents`, and the safe Aider surface

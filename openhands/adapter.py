@@ -23,6 +23,12 @@ class MissionPayload(BaseModel):
     )
 
 
+class DevtoolsPayload(BaseModel):
+    command: list[str] | None = None
+    include_unit_tests: bool = False
+    force_run: bool = False
+
+
 @app.get("/")
 def root() -> dict[str, Any]:
     return {"status": "online", "service": "openhands-adapter"}
@@ -34,7 +40,42 @@ def health() -> dict[str, Any]:
         "status": "healthy",
         "public_url": os.environ.get("OPENHANDS_PUBLIC_URL"),
         "trigger_url": os.environ.get("OPENHANDS_TRIGGER_URL") or "",
+        "devtools_bridge_url": os.environ.get("DEVTOOLS_BRIDGE_URL") or "",
     }
+
+
+def _forward_to_devtools(endpoint: str, payload: dict[str, Any]) -> dict[str, Any]:
+    bridge_url = os.environ.get("DEVTOOLS_BRIDGE_URL", "").strip()
+    timeout = int(os.environ.get("DEVTOOLS_BRIDGE_TIMEOUT", "900"))
+
+    if not bridge_url:
+        return {
+            "status": "blocked",
+            "reason": "DEVTOOLS_BRIDGE_URL is empty",
+            "forwarded": False,
+            "endpoint": endpoint,
+            "payload": payload,
+        }
+
+    target_url = f"{bridge_url.rstrip('/')}/{endpoint.lstrip('/')}"
+    try:
+        response = requests.post(target_url, json=payload, timeout=timeout)
+        response.raise_for_status()
+        return {
+            "status": "forwarded",
+            "forwarded": True,
+            "target_url": target_url,
+            "target_status": response.status_code,
+            "data": response.json(),
+        }
+    except requests.RequestException as exc:
+        return {
+            "status": "forward-failed",
+            "forwarded": False,
+            "target_url": target_url,
+            "error": str(exc),
+            "payload": payload,
+        }
 
 
 @app.post("/trigger")
@@ -74,3 +115,18 @@ def trigger(payload: MissionPayload) -> dict[str, Any]:
             "error": str(exc),
             "payload": payload.model_dump(),
         }
+
+
+@app.post("/run_playwright")
+def run_playwright(payload: DevtoolsPayload) -> dict[str, Any]:
+    return _forward_to_devtools("/run_playwright", payload.model_dump())
+
+
+@app.post("/run_devtools")
+def run_devtools(payload: DevtoolsPayload) -> dict[str, Any]:
+    return _forward_to_devtools("/run_devtools", payload.model_dump())
+
+
+@app.post("/snapshot_devtools")
+def snapshot_devtools(payload: DevtoolsPayload) -> dict[str, Any]:
+    return _forward_to_devtools("/snapshot_devtools", payload.model_dump())

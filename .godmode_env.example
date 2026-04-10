@@ -27,10 +27,20 @@ export GITHUB_REPO_URL="https://github.com/strazzusochr/CoronaProjektschonwieder
 
 # Local model / proxy routing
 export LITELLM_URL="http://core-runtime.example.internal:4000"
+export LITELLM_PORT="4000"
 export LITELLM_API_KEY="replace-with-litellm-key"
 export OLLAMA_BASE_URL="http://core-runtime.example.internal:11434"
 export OPENAI_BASE_URL="https://openrouter.ai/api/v1"
 export MODEL_ROUTER_NAME="smart-router"
+
+# DevTools / Playwright bridge
+export DEVTOOLS_BRIDGE_ENABLED="true"
+export DEVTOOLS_BRIDGE_HOST="0.0.0.0"
+export DEVTOOLS_BRIDGE_PORT="3911"
+export DEVTOOLS_BRIDGE_URL="http://core-runtime.example.internal:3911"
+export DEVTOOLS_BRIDGE_TIMEOUT="900"
+export DEVTOOLS_BRIDGE_COMMAND_TIMEOUT="900"
+export DEVTOOLS_FRONTEND_DIR="./CoronaProjektschonwieder"
 
 # Core runtime profile
 # Tracked example defaults to a provider-neutral selfhosted beta profile.

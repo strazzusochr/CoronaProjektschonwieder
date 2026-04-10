@@ -65,6 +65,12 @@ export CORE_RUNTIME_PUBLIC_URL="${CORE_RUNTIME_PUBLIC_URL:-http://$CORE_RUNTIME_
 export CORE_RUNTIME_SSH_HOST="${CORE_RUNTIME_SSH_HOST:-}"
 export CORE_DOCKER_CONTEXT="${CORE_DOCKER_CONTEXT:-default}"
 export CORE_DEPLOY_PROFILE="${CORE_DEPLOY_PROFILE:-local}"
+export LITELLM_PORT="${LITELLM_PORT:-4000}"
+export DEVTOOLS_BRIDGE_ENABLED="${DEVTOOLS_BRIDGE_ENABLED:-true}"
+export DEVTOOLS_BRIDGE_HOST="${DEVTOOLS_BRIDGE_HOST:-0.0.0.0}"
+export DEVTOOLS_BRIDGE_PORT="${DEVTOOLS_BRIDGE_PORT:-3911}"
+export DEVTOOLS_BRIDGE_TIMEOUT="${DEVTOOLS_BRIDGE_TIMEOUT:-900}"
+export DEVTOOLS_BRIDGE_COMMAND_TIMEOUT="${DEVTOOLS_BRIDGE_COMMAND_TIMEOUT:-900}"
 export ORACLE_ENABLED="${ORACLE_ENABLED:-false}"
 export ORACLE_PLACEHOLDER="${ORACLE_PLACEHOLDER:-true}"
 export ORACLE_RESERVED_FOR_FUTURE="${ORACLE_RESERVED_FOR_FUTURE:-true}"
@@ -88,11 +94,34 @@ echo "OK  n8n compose running on :$N8N_PORT"
 cd "$REPO_ROOT/langgraph" && "${docker_cmd[@]}" compose up -d --build
 echo "OK  LangGraph compose running on :$LANGGRAPH_PORT"
 
+cd "$REPO_ROOT/litellm" && "${docker_cmd[@]}" compose up -d
+echo "OK  LiteLLM compose running on :$LITELLM_PORT"
+
+if [[ "$DEVTOOLS_BRIDGE_ENABLED" == "true" ]]; then
+  DEVTOOLS_HEALTH_URL="http://$CORE_RUNTIME_HOST:$DEVTOOLS_BRIDGE_PORT/health"
+  if ! curl -fsS "$DEVTOOLS_HEALTH_URL" >/dev/null 2>&1; then
+    if command -v python >/dev/null 2>&1; then
+      mkdir -p "$RUNTIME_DIR"
+      export DEVTOOLS_FRONTEND_DIR="${DEVTOOLS_FRONTEND_DIR:-$REPO_ROOT/CoronaProjektschonwieder}"
+      nohup python "$REPO_ROOT/core_tools_bridge.py" > "$RUNTIME_DIR/devtools_bridge.log" 2>&1 &
+      sleep 2
+      echo "OK  Core tools bridge started on :$DEVTOOLS_BRIDGE_PORT"
+    else
+      echo "WARN Core tools bridge not started (python missing)"
+    fi
+  else
+    echo "OK  Core tools bridge already reachable on :$DEVTOOLS_BRIDGE_PORT"
+  fi
+fi
+
+LOCAL_LITELLM_URL="http://$CORE_RUNTIME_HOST:$LITELLM_PORT/"
 LOCAL_OPENHANDS_URL="http://$CORE_RUNTIME_HOST:$OPENHANDS_PORT"
 LOCAL_ADAPTER_URL="http://$CORE_RUNTIME_HOST:$OPENHANDS_ADAPTER_PORT/health"
 LOCAL_LANGGRAPH_URL="http://$CORE_RUNTIME_HOST:$LANGGRAPH_PORT/health"
 LOCAL_N8N_URL="http://$CORE_RUNTIME_HOST:$N8N_PORT/healthz"
+LOCAL_DEVTOOLS_URL="http://$CORE_RUNTIME_HOST:$DEVTOOLS_BRIDGE_PORT/health"
 
+test_http_endpoint "$LOCAL_LITELLM_URL" "LiteLLM"
 test_http_endpoint "$LOCAL_OPENHANDS_URL" "OpenHands"
 test_http_endpoint "$LOCAL_ADAPTER_URL" "OpenHands Adapter"
 test_http_endpoint "$LOCAL_LANGGRAPH_URL" "LangGraph"
@@ -109,6 +138,9 @@ PY
   fi
 fi
 test_http_endpoint "$LOCAL_N8N_URL" "n8n" "$N8N_AUTH_HEADER"
+if [[ "$DEVTOOLS_BRIDGE_ENABLED" == "true" ]]; then
+  test_http_endpoint "$LOCAL_DEVTOOLS_URL" "Core Tools Bridge"
+fi
 
 echo ""
 echo "======================================="
@@ -119,10 +151,12 @@ echo "  Core mode:         $CORE_RUNTIME_MODE"
 echo "  Core host:         $CORE_RUNTIME_HOST"
 echo "  Deploy profile:    $CORE_DEPLOY_PROFILE"
 echo "  Docker context:    $CORE_DOCKER_CONTEXT"
+echo "  LiteLLM local:    http://$CORE_RUNTIME_HOST:$LITELLM_PORT"
 echo "  OpenHands local:  $LOCAL_OPENHANDS_URL"
 echo "  Adapter local:    http://$CORE_RUNTIME_HOST:$OPENHANDS_ADAPTER_PORT"
 echo "  n8n local:        http://$CORE_RUNTIME_HOST:$N8N_PORT"
 echo "  LangGraph local:  http://$CORE_RUNTIME_HOST:$LANGGRAPH_PORT"
+echo "  DevTools bridge:  http://$CORE_RUNTIME_HOST:$DEVTOOLS_BRIDGE_PORT"
 echo "  n8n hosted:       ${N8N_EDITOR_BASE_URL:-unset}"
 echo "  Aider (HF):       ${HF_AIDER_SPACE_URL:-unset}"
 echo "  bolt.diy (HF):    ${BOLTDIY_SPACE_URL:-unset}"
