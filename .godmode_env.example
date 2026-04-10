@@ -20,6 +20,11 @@ export HF_PILOT_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/godmode-pilot"
 export BOLTDIY_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/bolt-diy-godmode"
 export HF_VERIFY_STRICT="true"
 
+# Hetzner selfhosted deployment metadata
+export HETZNER_HOST_IP="65.108.253.14"
+export HETZNER_FQDN_ROOT="replace-with-fqdn-root"
+export HETZNER_TLS_EMAIL="replace-with-tls-email"
+
 # GitHub
 export GITHUB_TOKEN="replace-with-github-token"
 export GITHUB_USERNAME="strazzusochr"
@@ -37,14 +42,14 @@ export MODEL_ROUTER_NAME="smart-router"
 # bolt.diy hybrid facade
 export BOLTDIY_MODE="hybrid"
 export BOLTDIY_FACADE_PORT="3901"
-export BOLTDIY_FACADE_URL="http://core-runtime.example.internal:3901"
+export BOLTDIY_FACADE_URL="http://host.docker.internal:3901"
 export BOLTDIY_FORWARD_TIMEOUT="20"
 
 # DevTools / Playwright bridge
 export DEVTOOLS_BRIDGE_ENABLED="true"
 export DEVTOOLS_BRIDGE_HOST="0.0.0.0"
 export DEVTOOLS_BRIDGE_PORT="3911"
-export DEVTOOLS_BRIDGE_URL="http://core-runtime.example.internal:3911"
+export DEVTOOLS_BRIDGE_URL="http://host.docker.internal:3911"
 export DEVTOOLS_BRIDGE_TIMEOUT="900"
 export DEVTOOLS_BRIDGE_COMMAND_TIMEOUT="900"
 export DEVTOOLS_FRONTEND_DIR="./CoronaProjektschonwieder"
@@ -54,9 +59,9 @@ export DEVTOOLS_FRONTEND_DIR="./CoronaProjektschonwieder"
 # Local operators may still override these values in .godmode_env.
 export CORE_RUNTIME_PROVIDER="selfhosted"
 export CORE_RUNTIME_MODE="selfhosted"
-export CORE_RUNTIME_HOST="core-runtime.example.internal"
-export CORE_RUNTIME_PUBLIC_URL="http://core-runtime.example.internal"
-export CORE_RUNTIME_SSH_HOST="core-runtime-ssh.example.internal"
+export CORE_RUNTIME_HOST="65.108.253.14"
+export CORE_RUNTIME_PUBLIC_URL="https://openhands.replace-with-fqdn-root"
+export CORE_RUNTIME_SSH_HOST="65.108.253.14"
 export CORE_DOCKER_CONTEXT="default"
 export CORE_DEPLOY_PROFILE="selfhosted"
 
@@ -67,18 +72,18 @@ export AIDER_MAP_TOKENS="8192"
 
 # OpenHands
 export OPENHANDS_PORT="3000"
-export OPENHANDS_PUBLIC_URL="http://core-runtime.example.internal:3000"
-export OPENHANDS_API_URL="http://core-runtime.example.internal:3000"
+export OPENHANDS_PUBLIC_URL="https://openhands.replace-with-fqdn-root"
+export OPENHANDS_API_URL="http://host.docker.internal:3000"
 export OPENHANDS_TRIGGER_URL=""
 export OPENHANDS_API_KEY="replace-with-openhands-token"
-export OPENHANDS_ADAPTER_URL="http://core-runtime.example.internal:3001"
+export OPENHANDS_ADAPTER_URL="http://host.docker.internal:3001"
 export OPENHANDS_ADAPTER_PORT="3001"
 export OPENHANDS_LLM_MODEL="claude-sonnet-4-5"
-export OPENHANDS_LLM_BASE_URL="http://core-runtime.example.internal:4000"
+export OPENHANDS_LLM_BASE_URL="http://host.docker.internal:4000"
 
 # LangGraph
 export LANGGRAPH_PORT="8080"
-export LANGGRAPH_API_URL="http://core-runtime.example.internal:8080"
+export LANGGRAPH_API_URL="http://host.docker.internal:8080"
 export PROMPT_EVOLUTION_PATH="./langgraph/prompt_evolution.json"
 
 # n8n
@@ -88,9 +93,9 @@ export N8N_ENCRYPTION_KEY="replace-with-n8n-encryption-key"
 export N8N_PORT="5678"
 # Must point to a currently active published production webhook.
 # Replace the example host with the real selfhosted endpoint before dispatch.
-export N8N_WEBHOOK_BASE_URL="http://core-runtime.example.internal:5678/"
-export N8N_WEBHOOK_URL="http://core-runtime.example.internal:5678/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission"
-export N8N_EDITOR_BASE_URL="http://core-runtime.example.internal:5678"
+export N8N_WEBHOOK_BASE_URL="https://n8n.replace-with-fqdn-root/"
+export N8N_WEBHOOK_URL="https://n8n.replace-with-fqdn-root/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission"
+export N8N_EDITOR_BASE_URL="https://n8n.replace-with-fqdn-root"
 export MEMORY_VAULT_PATH="./memory_vault.md"
 
 # Pilot / mission payload

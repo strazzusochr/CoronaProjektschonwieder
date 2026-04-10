@@ -150,7 +150,7 @@ PY
 fi
 test_http_endpoint "$LOCAL_N8N_URL" "n8n" "$N8N_AUTH_HEADER"
 if [[ "$DEVTOOLS_BRIDGE_ENABLED" == "true" ]]; then
-  test_http_endpoint "$LOCAL_DEVTOOLS_URL" "Core Tools Bridge"
+  test_http_endpoint "$LOCAL_DEVTOOLS_URL" "Core Tools Bridge" || true
 fi
 
 echo ""

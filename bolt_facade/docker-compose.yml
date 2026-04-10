@@ -4,7 +4,7 @@ services:
     container_name: bolt-facade-godmode
     restart: unless-stopped
     ports:
-      - "${BOLTDIY_FACADE_PORT:-3901}:3901"
+      - "127.0.0.1:${BOLTDIY_FACADE_PORT:-3901}:3901"
     environment:
       - PYTHONUNBUFFERED=1
       - BOLTDIY_MODE=${BOLTDIY_MODE:-hybrid}

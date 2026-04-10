@@ -55,6 +55,7 @@ select {
 .hero-panel,
 .scene-panel,
 .scene-fallback {
+  -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
   background: var(--panel-bg);
   border: 1px solid var(--panel-border);
@@ -255,7 +256,7 @@ select {
   .scene-canvas-shell,
   .scene-canvas,
   .scene-fallback {
-    min-height: auto;
+    min-height: 0;
   }
 
   .scene-panel,
