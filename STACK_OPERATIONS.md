@@ -32,8 +32,9 @@ For the detailed horizontal/vertical phase control model, use
   abuse flag and should be treated as retired.
 - `Pilot`: `Wrzzzrzr/godmode-pilot` is private, HF API reports runtime stage
   `RUNNING`, and an authenticated `/health` request returned HTTP `200` on
-  2026-04-10 with a body synced to GitHub `main` SHA `1071a2b...` after the
-  pilot refresh patch was deployed on Space SHA `4155ac5...`.
+  2026-04-10 with a body synced to the last fully reverified GitHub `main`
+  snapshot `62c5baa...`; the pilot refresh patch remains deployed on Space SHA
+  `4155ac5...`.
 - `n8n local`: health and memory paths are proven, and after hardening the
   webhook node name plus env split on 2026-04-10, the local production mission
   URL

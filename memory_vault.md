@@ -9,10 +9,11 @@
 - 2026-04-10T09:55:15.2038860+02:00 FORENSIC_SYNC verified local n8n stack proof: imported mission/memory workflows; fixed POST webhook registration, memory append code path, env access, and host routing; mission webhook returned 200 via registered local path; manual memory probe saved 112 bytes to memory_vault.md; base_sha=a93f711104c5f71845cfbc7d61e834511a9773fe
 - 2026-04-10T10:00:00+02:00 FORENSIC_SYNC restored HF owner-auth to Wrzzzrzr; verified private pilot space metadata and authenticated /health=200; observed pilot health drift with older goal/last_sha; verified Oracle port 22 timeout from this machine as the last hard beta blocker.
 - 2026-04-10T10:26:00+02:00 FORENSIC_SYNC rechecked Oracle reachability from this machine: ports 22, 3000 and 8080 on 132.145.225.182 all timed out; Oracle remains the only hard beta blocker while private pilot stays reachable but stale.
-- 2026-04-10T11:05:00+02:00 FORENSIC_SYNC pushed root GitHub main to 1071a2b83a1c9743f6ea2a176515f482c11a2d1b, deployed pilot snapshot-refresh patch at 4155ac58e5beb277eea3f352241ccd7e3857341d, and reverified authenticated private pilot health with current last_sha=1071a2b83a1c; Oracle ports 22, 3000 and 8080 remain the only hard beta blocker from this machine.
+- 2026-04-10T11:05:00+02:00 FORENSIC_SYNC pushed an earlier 2026-04-10 root GitHub main snapshot, deployed the pilot snapshot-refresh patch at 4155ac58e5beb277eea3f352241ccd7e3857341d, and reverified authenticated private pilot health on that earlier sync point; this state was later superseded by the revalidated 62c5baa900a4 snapshot while Oracle stayed the only hard beta blocker.
 - 2026-04-10T11:18:00+02:00 FORENSIC_SYNC deepened Oracle network evidence: Test-Connection to 132.145.225.182 returned False; TCP probes to 22, 3000, 3001, 4000, 5678, 8080 and 11434 all timed out; tracert reached 140.91.199.85 before timing out; Oracle remains the only hard beta blocker.
 - 2026-04-10T11:42:00+02:00 FORENSIC_SYNC downgraded beta readiness after local n8n restart checks: workflows still log as draft-only with 0 published workflows; the production mission URL POST /webhook/godmode-mission returns 404; local memory path remains proven but beta-grade n8n dispatch is not yet stable.
 - 2026-04-10T13:29:00+02:00 FORENSIC_SYNC restored local beta-grade n8n mission dispatch: split `N8N_WEBHOOK_BASE_URL` from the pilot-facing `N8N_WEBHOOK_URL`, renamed the webhook node to ASCII-stable `mission-webhook`, recreated the local n8n runtime, and verified HTTP `200` on `POST /webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission`; Oracle remains the only hard beta blocker from this machine.
+- 2026-04-10T13:47:00+02:00 FORENSIC_SYNC verified post-push pilot consistency: root GitHub main advanced to `62c5baa900a44203481c31dec00c87d33ee79db3`, authenticated private pilot `/health` still returned `200`, and `last_sha` matched the reverified pushed snapshot while Space SHA stayed `4155ac58e5beb277eea3f352241ccd7e3857341d`; Oracle remains the only hard beta blocker.
 - 2026-04-10T08:00:57.314Z MEMORY: adapter=healthy
   openhands=http://localhost:3000
   trigger=local-only
@@ -35,5 +36,8 @@
   openhands=http://localhost:3000
   trigger=local-only
 - 2026-04-10T11:30:54.202Z MEMORY: adapter=healthy
+  openhands=http://localhost:3000
+  trigger=local-only
+- 2026-04-10T12:00:54.061Z MEMORY: adapter=healthy
   openhands=http://localhost:3000
   trigger=local-only
