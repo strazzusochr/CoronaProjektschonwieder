@@ -189,3 +189,7 @@ Additional caution that remains outside a clean beta-go:
 Historical note resolved during this proof:
 
 - the earlier stale private-pilot `goal` / `last_sha` was first cleared by the pilot refresh patch on Space SHA `4155ac58e5be...` and later rechecked again after the root repo advanced to the reverified snapshot `62c5baa900a4...`
+- 2026-04-10T18:08:14.011049+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=95ce52c1-c7ea-4bdb-9bf9-825d5caa43c8
+- 2026-04-10T18:09:13.577415+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=d3f25305-f01e-4f37-b3c2-c72b925d630b
+- 2026-04-10T18:10:53.143784+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=be417511-c385-4ca5-82d7-9e9d0b03b073
+- 2026-04-10T18:24:23.016873+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=7a471f42-d639-4a74-a52c-d072de1e7247

@@ -21,6 +21,8 @@ For the detailed horizontal/vertical phase control model, use
   provider-neutral beta core runtime
 - `PM2_SELFHOSTED_RUNBOOK.md`: tracked PM2 supervision profile for host-side
   tooling
+- `ORACLE_DUAL_TRACK_RUNBOOK.md`: Oracle recovery and gate rules for the
+  parallel dual-track model
 
 ## Hosted Sync 2026-04-10
 
@@ -89,6 +91,16 @@ inputs unless an operator deliberately reactivates that profile later.
   endings, and serves HTTP `200`, while the optional future Oracle profile
   remains only a documented placeholder
 
+### bolt.diy hybrid facade
+
+- Local runtime definition: `bolt_facade/docker-compose.yml`
+- Service logic: `bolt_facade/app.py`
+- Validation helper: `verify_bolt_facade.py`
+- Current state: dispatch order is now fixed to
+  `bolt-facade -> n8n -> openhands-adapter`; external bolt forwarding can be
+  blocked while still persisting local audit artifacts and forwarding to local
+  targets
+
 ### Core tools bridge
 
 - Local runtime: `core_tools_bridge.py`
@@ -152,6 +164,7 @@ implemented.
 
 Currently evidenced:
 
+- startup scripts now co-start `bolt-facade` and verify its health
 - startup scripts can co-start `OpenHands`, `n8n`, and `LangGraph` and verify
   their health locally
 - startup scripts now also co-start `LiteLLM` and the host-side core tools
@@ -165,6 +178,7 @@ Currently evidenced:
   are all materially deployed, with direct HTTP `200` proof for every public
   Space
 - pilot code can trigger `n8n` or the OpenHands adapter if configured
+- pilot code now prefers `bolt-facade` dispatch first when configured
 - n8n memory workflow targets `memory_vault.md`
 - the canonical mission payload contract is shared across pilot, n8n, and adapter
 - the frontend verification path is locally proven through build, Playwright,
@@ -176,6 +190,15 @@ Not yet fully materialized as local end-to-end integrations:
 - `smolagents <-> LangGraph` proof at runtime
 - live `bolt.diy` verification inside this repo
 - a generic published n8n slug without workflow-id/node-name path segments
+
+## Runtime Gate Evidence
+
+- HF runtime evidence script: `verify_hf_runtime.py`
+  - writes snapshots under `.godmode_runtime/evidence/`
+  - validates public core spaces and classifies private/blocked targets
+- Oracle dual-track probe script: `oracle_probe.py`
+  - writes snapshots under `.godmode_runtime/evidence/`
+  - reports `PASS` or `BLOCKED` without forcing Oracle into active runtime
 
 ## Operational Boundaries
 

@@ -34,6 +34,7 @@ other mission dispatchers.
 ## Current Implementations
 
 - [payload.json](/d:/Web/docs/godmode_setup/payload.json)
+- [bolt_facade/app.py](/d:/Web/docs/godmode_setup/bolt_facade/app.py)
 - [hf_pilot_actual/app.py](/d:/Web/docs/godmode_setup/hf_pilot_actual/app.py)
 - [openhands/adapter.py](/d:/Web/docs/godmode_setup/openhands/adapter.py)
 - [n8n_mission_workflow.json](/d:/Web/docs/godmode_setup/n8n_mission_workflow.json)

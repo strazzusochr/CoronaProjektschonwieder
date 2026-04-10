@@ -1,0 +1,42 @@
+services:
+  bolt-facade:
+    image: python:3.11-slim
+    container_name: bolt-facade-godmode
+    restart: unless-stopped
+    ports:
+      - "${BOLTDIY_FACADE_PORT:-3901}:3901"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - BOLTDIY_MODE=${BOLTDIY_MODE:-hybrid}
+      - BOLTDIY_FORWARD_TIMEOUT=${BOLTDIY_FORWARD_TIMEOUT:-20}
+      - BOLTDIY_SPACE_URL=${BOLTDIY_SPACE_URL:-}
+      - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://host.docker.internal:5678/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission}
+      - OPENHANDS_ADAPTER_URL=${OPENHANDS_ADAPTER_URL:-http://host.docker.internal:3001}
+      - MEMORY_VAULT_PATH=/workspace/memory_vault.md
+      - FINAL_PROOF_PATH=/workspace/FINAL_PROOF.md
+      - GODMODE_GOAL_PATH=/workspace/GODMODE_GOAL.md
+      - BOLTDIY_RUNTIME_DIR=/workspace/runtime/bolt_facade
+    volumes:
+      - ./app.py:/app/app.py:ro
+      - ./requirements.txt:/app/requirements.txt:ro
+      - ../memory_vault.md:/workspace/memory_vault.md
+      - ../FINAL_PROOF.md:/workspace/FINAL_PROOF.md
+      - ../GODMODE_GOAL.md:/workspace/GODMODE_GOAL.md
+      - ../.godmode_runtime:/workspace/runtime
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: >
+      sh -lc "pip install --no-cache-dir -r /app/requirements.txt &&
+      uvicorn app:app --host 0.0.0.0 --port 3901 --app-dir /app"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:3901/health', timeout=5).status==200 else 1)"
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s

@@ -13,12 +13,18 @@ Provider-neutral migration note:
 
 This document compares the external guide `C:\Users\immer\Downloads\godmode_stack_guide.html` with the actual repository state in `d:\Web\docs\godmode_setup`.
 
-The repository already contains meaningful implementation artifacts for `OpenHands`, `smolagents`, `Aider`, `LangGraph`, `n8n`, a `master env/startup` pattern, hosted pilot/autonomy support, and an external canonical `bolt.diy` position. However, the guide is broader and more ambitious than the current repo evidence:
+The repository already contains meaningful implementation artifacts for
+`OpenHands`, `smolagents`, `Aider`, `LangGraph`, `n8n`, a
+`master env/startup` pattern, hosted pilot/autonomy support, and now a local
+`bolt.diy` hybrid facade plus external target wiring. However, the guide is
+broader and more ambitious than the current repo evidence:
 
 - several stack modules exist only as partial implementations or thin wrappers,
 - operator documentation now has a baseline, but deeper hosted/local runbooks are still incomplete,
 - external future-Oracle, Hugging Face, account, secret, and provisioning steps are mostly not verifiable from the repo alone,
-- `bolt.diy` is intentionally external-only and not implemented as a local module,
+- `bolt.diy` now has a repo-authored local hybrid facade, while external
+  hosted ownership and true external runtime behavior remain only partially
+  verifiable from this repo,
 - older narrative docs, especially `walkthrough.md`, previously mixed live status, proof, and roadmap concerns and are no longer suitable as the canonical comparison artifact.
 
 ## Status Vocabulary
@@ -34,7 +40,7 @@ The repository already contains meaningful implementation artifacts for `OpenHan
 | --- | --- | --- | --- |
 | Architektur & Voraussetzungen | `partial` | `.godmode_env` exists; `.godmode_env.example`; `ENV_REFERENCE.md`; `START_GODMODE.sh`; `START_GODMODE.ps1`; `openhands/docker-compose.yml`; `n8n/docker-compose.yml` | Repo shows the intended local/selfhosted core structure; future Oracle installation and host access remain external placeholder work. |
 | OpenHands — Das Gehirn des Systems | `partial` | `openhands/docker-compose.yml`; `openhands/adapter.py`; `hf_openhands/entrypoint_hf.sh`; `hf_openhands/README.md`; `Deploy-OpenHands.ps1` | OpenHands runtime and a stable adapter layer exist, but live upstream trigger-proof remains partly external. |
-| bolt.diy — Die Web IDE im Browser | `external` | `.godmode_env.example`; `BOLTDIY_EXTERNAL_INTEGRATION.md`; `START_GODMODE.sh` | The stack now treats `bolt.diy` as an intentional external HF service instead of a missing local module. |
+| bolt.diy — Die Web IDE im Browser | `partial` | `bolt_facade/app.py`; `bolt_facade/docker-compose.yml`; `.godmode_env.example`; `BOLTDIY_EXTERNAL_INTEGRATION.md`; `START_GODMODE.sh` | The stack now has a local hybrid facade and dispatch/fallback evidence path while external hosted ownership and external runtime specifics remain partially verifiable. |
 | smolagents — HuggingFace Native Agents | `partial` | `hf_smolagents/app.py` implements multi-agent Gradio tooling with search/web/python/vision capabilities | Repo contains real agent code, but the guide's hosted setup and "browser-agent deep access" are only partially represented and remain partly external. |
 | Aider — Der Git-Native Code Wizard | `partial` | `hf_aider/README.md`; `aider_godmode.ps1`; `godmode_auto_pilot.py` references `Aider-Cloud` and an HF Space URL | The repo clearly targets Aider integration, but any future Oracle installation path from the guide is only a placeholder and not part of the active required runtime. |
 | LangGraph — Der 8-Agent Orchestrator | `partial` | `langgraph/system.py`; `hf_langgraph_space/app.py`; `hf_langgraph/README.md`; `STACK_OPERATIONS.md`; `START_GODMODE.sh` starts a LangGraph API | Repo has a working LangGraph-shaped service, but not the 8-agent orchestrator promised by the guide. Current implementation is a much smaller single-flow planner/swarm/review pipeline. |
@@ -52,7 +58,8 @@ Repo evidence:
 
 - `.godmode_env` exists as a shared environment file artifact.
 - `.godmode_env.example` and `ENV_REFERENCE.md` provide the new sanitized documentation baseline.
-- `START_GODMODE.sh` coordinates `OpenHands`, `n8n`, `LangGraph`, and external URLs for `bolt.diy` and `smolagents`.
+- `START_GODMODE.sh` coordinates `bolt-facade`, `OpenHands`, `n8n`,
+  `LangGraph`, and external URLs for hosted services.
 - `START_GODMODE.ps1` provides the same idea for Windows/PowerShell.
 - `aider_godmode.ps1` explicitly loads `.godmode_env` when present.
 
@@ -79,7 +86,9 @@ Gap notes:
 ## High-Signal Mismatches
 
 1. The guide describes a larger and more operationally complete stack than the repo currently documents.
-2. `bolt.diy` is a first-class subsystem in the guide, but it is intentionally external-only in the repo.
+2. `bolt.diy` is a first-class subsystem in the guide; the repo now has a
+   real hybrid facade but still depends on external hosted ownership for
+   complete proof.
 3. `LangGraph` is presented in the guide as an 8-agent orchestrator, while the local code currently exposes a much smaller FastAPI + single-node flow.
 4. `OpenHands` and `LangGraph` now have baseline operator docs, but deeper deployment, verification, and integration runbooks are still missing.
 5. `walkthrough.md` previously carried stale frontend/build claims and should no longer serve as the detailed status source for stack maturity.
@@ -110,7 +119,8 @@ Gap notes:
 
 ### P2 — Plan Deeper Integration And Missing Systems
 
-- Keep `bolt.diy` documented as an external HF dependency with explicit operator contracts instead of a fake local mirror.
+- Keep `bolt.diy` documented as a hybrid subsystem: repo-authored local facade
+  plus external HF dependency with explicit operator contracts.
 - Expand `LangGraph` only if the project truly needs the guide's promised multi-agent orchestrator; otherwise document the slimmer current reality.
 - Upgrade the repo from "artifact collection" to "runnable platform" only after documentation and secret management are stabilized.
 - Add verification steps for hosted services so future docs can distinguish "exists in code" from "confirmed live".
@@ -124,7 +134,7 @@ outside the minimal beta scope.
 | --- | --- | --- | --- | --- |
 | Architektur & Voraussetzungen | `partial` | minimal implementation required | keep provider-neutral startup scripts plus a tracked selfhosted example profile and a dedicated runbook | real remote DNS, SSH, TLS, and operator secrets |
 | OpenHands | `partial` | minimal implementation required | local compose runtime plus adapter and HF wrapper are sufficient for beta | deeper upstream trigger proof and broader hosted ops runbooks |
-| bolt.diy | `external` | stub/contract is sufficient | remain external-only and documented as non-local HF dependency | real hosted bolt.diy ownership, deployment, and live verification |
+| bolt.diy | `partial` | minimal implementation required | keep local hybrid facade as canonical dispatch/fallback layer while external target remains explicit | real hosted bolt.diy ownership, deployment, and live verification |
 | smolagents | `partial` | current implementation is sufficient | keep current app plus HF facade; document that deeper browser-agent claims remain partial | deeper autonomous browser/runtime proof |
 | Aider | `partial` | current implementation is sufficient | keep local launcher plus safe HF facade | broader remote operator automation and richer hosted workflows |
 | LangGraph | `partial` | minimal implementation is sufficient | current planner/swarm/review service is enough for beta; do not fake the 8-agent guide version | actual multi-agent expansion if the product later requires it |
@@ -137,9 +147,8 @@ outside the minimal beta scope.
 
 ### External-only modules
 
-- `bolt.diy` remains intentionally external for this beta.
-- The repo now treats it as a documented dependency, not as a missing local
-  package to be faked.
+- `bolt.diy` now has a repo-authored local hybrid facade for dispatch/fallback
+  while hosted ownership and external runtime proof remain external work.
 
 ### Partial but non-blocking modules
 

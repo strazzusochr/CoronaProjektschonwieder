@@ -1,6 +1,6 @@
 # GODMODE Kontrollprotokoll 00-07
 
-Stand: 2026-04-09
+Stand: 2026-04-10
 
 Dieses Dokument ist das kanonische Abnahme- und Steuerprotokoll fuer den
 GODMODE-Stack in `d:\Web\docs\godmode_setup`.
@@ -58,11 +58,11 @@ Lesart:
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Architektur & Voraussetzungen / master env/startup | `implemented`; `00.1`, `00.2`, `00.3`; `.godmode_env.example`, `ENV_REFERENCE.md`, `PROVENANCE_MATRIX.md` | `partial`; `01.1`; `openhands/docker-compose.yml` | `external`; `02.1`, `02.2`; `BOLTDIY_EXTERNAL_INTEGRATION.md` | `partial`; `03.3`; `hf_smolagents/README.md` | `partial`; `04.1`; `aider_godmode.ps1` | `partial`; `05.1`; `langgraph/docker-compose.yml` | `partial`; `06.1`; `n8n/docker-compose.yml` | `implemented`; `07.1`; `START_GODMODE.ps1`, `START_GODMODE.sh` |
 | OpenHands - Das Gehirn des Systems | `partial`; `00.3`; `STACK_GAP_ROADMAP.md` | `partial`; `01.1`, `01.2`, `01.3`, `01.4`; `openhands/adapter.py`, `hf_openhands/README.md` | `external`; `02.3`; `BOLTDIY_EXTERNAL_INTEGRATION.md` | `missing`; `03.4`; no direct repo proof | `missing`; `04.3`; no direct repo proof | `partial`; `05.3`; `MISSION_PAYLOAD_CONTRACT.md` | `partial`; `06.4`; `n8n_mission_workflow.json` | `partial`; `07.2`; `hf_pilot_actual/app.py` |
-| bolt.diy - Die Web IDE im Browser | `external`; `00.3`; `STACK_GAP_ROADMAP.md` | `external`; `01.4`; `BOLTDIY_EXTERNAL_INTEGRATION.md` | `external`; `02.1`, `02.2`, `02.3`; `BOLTDIY_EXTERNAL_INTEGRATION.md` | `external`; `03.4`; no local runtime | `external`; `04.3`; no local runtime | `external`; `05.3`; no local runtime | `external`; `06.4`; no local runtime | `partial`; `07.2`; operator contract only in `BOLTDIY_EXTERNAL_INTEGRATION.md` |
+| bolt.diy - Die Web IDE im Browser | `partial`; `00.3`; `STACK_GAP_ROADMAP.md`, `bolt_facade/docker-compose.yml` | `partial`; `01.4`; `BOLTDIY_EXTERNAL_INTEGRATION.md`, `bolt_facade/app.py` | `implemented`; `02.1`, `02.2`, `02.3`; `bolt_facade/app.py`, `verify_bolt_facade.py` | `partial`; `03.4`; local facade exists, external runtime remains hybrid | `partial`; `04.3`; pilot uses bolt facade dispatch first when configured | `partial`; `05.3`; no full hosted bolt runtime proof | `partial`; `06.4`; n8n mission workflow has dedicated bolt-facade dispatch path | `partial`; `07.2`; local dispatch/fallback is real, external bolt runtime still partially blocked |
 | smolagents - HuggingFace Native Agents | `partial`; `00.2`; `PROVENANCE_MATRIX.md` | `missing`; `01.4`; no direct repo proof | `external`; `02.3`; no local bolt.diy bridge | `implemented`; `03.1`, `03.2`, `03.3`, `03.4`; `hf_smolagents/app.py`, `hf_smolagents/README.md` | `missing`; `04.3`; no direct repo proof | `partial`; `05.3`; no verified live LangGraph bridge | `missing`; `06.4`; no direct repo proof | `partial`; `07.2`; integration intent only |
 | Aider - Der Git-Native Code Wizard | `partial`; `00.1`; `ENV_REFERENCE.md` | `missing`; `01.4`; no direct repo proof | `external`; `02.3`; external UI route only | `missing`; `03.4`; no direct repo proof | `implemented`; `04.1`, `04.2`, `04.3`; `aider_godmode.ps1`, `hf_aider/README.md` | `partial`; `05.3`; orchestration intent only | `partial`; `06.4`; pilot-trigger path only | `partial`; `07.2`; `hf_pilot_actual/app.py` |
-| LangGraph - Der 8-Agent Orchestrator | `partial`; `00.2`; `PROVENANCE_MATRIX.md` | `missing`; `01.4`; no direct OpenHands runtime proof | `external`; `02.3`; no local bolt.diy runtime | `partial`; `03.4`; only intended bridge | `partial`; `04.3`; Aider path not runtime-proven | `partial`; `05.1`, `05.2`, `05.3`, `05.4`; `langgraph/system.py`, `hf_langgraph_space/app.py` | `partial`; `06.4`; mission path exists by contract | `partial`; `07.2`; no full live end-to-end proof |
-| n8n - Die Automation Engine | `partial`; `00.3`; `ENV_REFERENCE.md` | `missing`; `01.4`; no direct repo proof | `external`; `02.3`; no local bolt.diy runtime | `missing`; `03.4`; no direct repo proof | `partial`; `04.3`; pilot and Aider intent only | `partial`; `05.3`; payload alignment only | `partial`; `06.1`, `06.2`, `06.3`, `06.4`; `n8n/docker-compose.yml`, `n8n_memory_workflow.json`, `n8n_mission_workflow.json` | `partial`; `07.2`; operator import remains external |
+| LangGraph - Der 8-Agent Orchestrator | `partial`; `00.2`; `PROVENANCE_MATRIX.md` | `missing`; `01.4`; no direct OpenHands runtime proof | `external`; `02.3`; no direct LangGraph->bolt runtime bridge proof | `partial`; `03.4`; only intended bridge | `partial`; `04.3`; Aider path not runtime-proven | `partial`; `05.1`, `05.2`, `05.3`, `05.4`; `langgraph/system.py`, `hf_langgraph_space/app.py` | `partial`; `06.4`; mission path exists by contract | `partial`; `07.2`; no full live end-to-end proof |
+| n8n - Die Automation Engine | `partial`; `00.3`; `ENV_REFERENCE.md` | `missing`; `01.4`; no direct repo proof | `external`; `02.3`; no direct n8n->external bolt runtime proof | `missing`; `03.4`; no direct repo proof | `partial`; `04.3`; pilot and Aider intent only | `partial`; `05.3`; payload alignment only | `partial`; `06.1`, `06.2`, `06.3`, `06.4`; `n8n/docker-compose.yml`, `n8n_memory_workflow.json`, `n8n_mission_workflow.json` | `partial`; `07.2`; operator import remains external |
 | Stack Integration / pilot-autonomy | `implemented`; `00.4`; `MISSION_PAYLOAD_CONTRACT.md`, `PROVENANCE_MATRIX.md` | `partial`; `01.4`; `openhands/adapter.py` | `external`; `02.3`; `BOLTDIY_EXTERNAL_INTEGRATION.md` | `partial`; `03.4`; `hf_smolagents/app.py` | `partial`; `04.3`; `hf_pilot_actual/app.py` | `partial`; `05.3`; `langgraph/system.py` | `partial`; `06.4`; `n8n_mission_workflow.json` | `partial`; `07.1`, `07.2`, `07.4`; `hf_pilot_actual/app.py`, `autonomy_guard.py`, `GODMODE_GOAL.md` |
 | proof / frontend verification | `implemented`; `00.4`; `FINAL_PROOF.md`, `memory_vault.md` | `missing`; `01.4`; no domain-specific proof | `external`; `02.3`; no local browser proof for bolt.diy | `partial`; `03.2`; `VisualDebugTool` in `hf_smolagents/app.py` | `missing`; `04.3`; no direct browser proof | `partial`; `05.2`; review path exists in `langgraph/system.py` | `partial`; `06.3`; memory proof path exists | `implemented`; `07.3`, `07.4`; `FINAL_PROOF.md`, `CoronaProjektschonwieder/` |
 | ULTIMATE SUPERKRAEFTE / 12 superpowers | `implemented`; `00.3`; `litellm_config.yaml`, `ENV_REFERENCE.md` | `partial`; `01.2`; `SUPERPOWERS_STATUS.md` | `partial`; `02.2`, `02.3`; `BOLTDIY_EXTERNAL_INTEGRATION.md` | `implemented`; `03.1`, `03.2`; `hf_smolagents/app.py` | `implemented`; `04.1`, `04.2`; `aider_godmode.ps1` | `implemented`; `05.2`; `langgraph/system.py` | `partial`; `06.2`, `06.3`; `n8n_*_workflow.json` | `partial`; `07.2`, `07.4`; `SUPERPOWERS_STATUS.md`, `autonomy_guard.py` |
@@ -133,30 +133,32 @@ Lesart:
 
 ### Phase 02 - bolt.diy
 
-- Zielbild: bolt.diy ist bewusst als externer HF-Baustein kontrolliert, nicht
-  als lokales Scheinmodul.
+- Zielbild: bolt.diy ist als Hybrid-Baustein kontrolliert: lokale
+  Dispatch-/Fallback-Facade plus externer HF-Zielpfad.
 - Eingaenge/Voraussetzungen: `BOLTDIY_EXTERNAL_INTEGRATION.md`,
   `STACK_GAP_ROADMAP.md`, `.godmode_env.example`
 - Kontrollpunkte:
-  - `02.1`: external-only Position ist explizit
+  - `02.1`: Hybrid-Position ist explizit (lokale Facade + externer Zielpfad)
   - `02.2`: Secret-, LiteLLM- und Operatorvertrag sind dokumentiert
-  - `02.3`: Rueckkanal zu Pilot, OpenHands und n8n ist benannt, auch wenn er
-    nicht voll lokal bewiesen ist
+  - `02.3`: Rueckkanal zu Pilot, OpenHands und n8n ist lokal belegt; externe
+    Hosted-Proofs bleiben gesondert
 - Schritte:
-  - `02.1`: bolt.diy ueberall als `external` statt als `missing local module`
-    fuehren
+  - `02.1`: lokale Facade (`bolt_facade/app.py`) plus externer Zielpfad
+    gemeinsam fuehren
   - `02.2`: HF/LiteLLM/CORS/Secret-Grenzen aus
     `BOLTDIY_EXTERNAL_INTEGRATION.md` einordnen
   - `02.3`: Feedback-Loop zu `MISSION_PAYLOAD_CONTRACT.md`, Pilot und n8n
     zuordnen
-- Erwartete Artefakte: externer Operatorvertrag, keine irrefuehrende lokale
-  Implementationsbehauptung
-- Repo-Evidenz: `BOLTDIY_EXTERNAL_INTEGRATION.md`, `STACK_GAP_ROADMAP.md`
+- Erwartete Artefakte: lokale Facade-API, Dispatch-Evidence, externer
+  Operatorvertrag
+- Repo-Evidenz: `bolt_facade/app.py`, `bolt_facade/docker-compose.yml`,
+  `verify_bolt_facade.py`, `BOLTDIY_EXTERNAL_INTEGRATION.md`,
+  `STACK_GAP_ROADMAP.md`
 - Externe Abhaengigkeiten: Hugging Face Space, CORS, Hosted-Secrets, Live-UI
 - Abweichungen/Risiken: Browser-IDE und Live-Feedback sind nicht repo-intern
   pruefbar
-- Exit-Gate: bolt.diy ist durchgaengig als `external` gefuehrt und an reale
-  Integrationspunkte angebunden
+- Exit-Gate: lokale Hybrid-Facade ist runtime-proven; externer bolt-Pfad ist
+  sauber als `partial`/`blocked` klassifiziert, falls Zugriff fehlt
 
 ### Phase 03 - smolagents
 
@@ -344,10 +346,12 @@ Lesart:
 
 - Phasenbezug: `02`, `07`
 - Relevante Schritte: `02.1`, `02.2`, `02.3`, `07.2`
-- Heutiger Ist-Stand: bolt.diy ist absichtlich `external`-gefuehrt und als
-  externer HF-Dienst dokumentiert
-- Offene Luecken: keine lokale Runtime im Repo, kein lokaler Browser-IDE-Proof
-- Kanonische Quelle: `BOLTDIY_EXTERNAL_INTEGRATION.md`,
+- Heutiger Ist-Stand: bolt.diy laeuft als lokaler Hybrid-Facade-Pfad mit
+  externer HF-Zielintegration
+- Offene Luecken: externer hosted bolt-Endpunkt und private Zugriffe bleiben
+  teilweise `blocked` oder `not verified`
+- Kanonische Quelle: `bolt_facade/app.py`, `bolt_facade/docker-compose.yml`,
+  `verify_bolt_facade.py`, `BOLTDIY_EXTERNAL_INTEGRATION.md`,
   `STACK_GAP_ROADMAP.md`
 
 ### smolagents - HuggingFace Native Agents
@@ -441,7 +445,7 @@ Lesart:
 | 3. smolagents Web-Crawler | `implemented` | `03`, `07` | `hf_smolagents/app.py` | Web-Recherche und agentische Recherchepfade | live hosted Browserzugriff bleibt teilweise extern |
 | 4. LangGraph Self-Evolving | `implemented` | `05` | `langgraph/system.py`, `SUPERPOWERS_STATUS.md` | Prompt-Evolution und Meta-Optimierung | groesseres Guide-Zielbild bleibt offen |
 | 5. n8n Phantom Trigger | `partial` | `06`, `07` | `n8n_mission_workflow.json`, `SUPERPOWERS_STATUS.md` | eventartiger Missionsstart | produktiver importierter Workflow bleibt extern |
-| 6. OpenHands + bolt.diy Feedback Loop | `partial` | `02`, `07` | `BOLTDIY_EXTERNAL_INTEGRATION.md`, `MISSION_PAYLOAD_CONTRACT.md` | Rueckkanal zwischen Browser-IDE und Agentik | bolt.diy bleibt external-only |
+| 6. OpenHands + bolt.diy Feedback Loop | `partial` | `02`, `07` | `bolt_facade/app.py`, `verify_bolt_facade.py`, `MISSION_PAYLOAD_CONTRACT.md` | Lokaler Rueckkanal zwischen Facade, n8n und Agentik ist real | externer bolt-Hosted-Pfad bleibt teilweise blocked/not verified |
 | 7. LiteLLM Router | `implemented` | `00`, `07` | `litellm_config.yaml`, `.godmode_env.example` | gemeinsamer Modellrouter mit Fallback-Pfad | live Routing-Zustand haengt von echten Secrets ab |
 | 8. Aider Repo-Map | `implemented` | `04` | `aider_godmode.ps1`, `SUPERPOWERS_STATUS.md` | grosse Repo-Kontexte bleiben steuerbar | kein extra hosted Beweis noetig |
 | 9. Vision Agent | `implemented` | `03`, `07` | `hf_smolagents/app.py` | visuelle Debug- und Pruefpfade | live Browser-/Screenshot-Strecken bleiben teilweise extern |

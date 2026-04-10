@@ -44,8 +44,13 @@ Used by: `OpenHands`, `LangGraph`, `smolagents`, Aider, and hosted integrations.
 - `HF_LANGGRAPH_SPACE_URL`
 - `HF_PILOT_SPACE_URL`
 - `BOLTDIY_SPACE_URL`
+- `HF_VERIFY_STRICT`
 
 Used by: Hugging Face Spaces and hosted wrappers.
+
+`HF_VERIFY_STRICT` is consumed by `verify_hf_runtime.py` to decide whether
+private-space 401/403 responses must fail the HF gate (`true`) or stay
+`NOT VERIFIED` (`false`).
 
 ### GitHub
 
@@ -66,6 +71,23 @@ Used by: pilot sync loops, repo-aware agents, and OpenHands workspace access.
 - `MODEL_ROUTER_NAME`
 
 Used by: cost-aware routing, proxying, and provider compatibility layers.
+
+### bolt.diy hybrid facade
+
+- `BOLTDIY_MODE`
+- `BOLTDIY_FACADE_PORT`
+- `BOLTDIY_FACADE_URL`
+- `BOLTDIY_FORWARD_TIMEOUT`
+
+Used by: `bolt_facade/app.py`, `bolt_facade/docker-compose.yml`, pilot dispatch,
+and n8n bridge routing.
+
+Default tracked mode:
+
+- `BOLTDIY_MODE=hybrid`
+- dispatch order is fixed to: `bolt-facade -> n8n -> openhands-adapter`
+- when external `bolt.diy` forwarding is blocked, the facade persists a local
+  audit artifact instead of silently dropping the dispatch
 
 ### DevTools / Playwright bridge
 
@@ -190,6 +212,7 @@ Used by: local operator automation and OpenHands adapter endpoint forwarding.
 - `N8N_WEBHOOK_URL`
 - `N8N_EDITOR_BASE_URL`
 - `MEMORY_VAULT_PATH`
+- `BOLTDIY_FACADE_URL`
 
 Used by: `n8n/docker-compose.yml`, workflow imports, mission triggers, and
 memory persistence.
@@ -224,6 +247,7 @@ Used by: `hf_pilot_actual/` and the mission payload contract.
 - `ORACLE_ENABLED`
 - `ORACLE_PLACEHOLDER`
 - `ORACLE_RESERVED_FOR_FUTURE`
+- `ORACLE_VERIFY_ENABLED`
 - `ORACLE_IP`
 - `ORACLE_USER`
 
@@ -239,6 +263,8 @@ Important 2026-04-10 audit note:
 - `ORACLE_IP` and `ORACLE_USER` may remain in `.godmode_env` as reserved
   operator values, but they must not be required for local, selfhosted, or HF
   facade operation unless a future Oracle profile is deliberately activated.
+- `ORACLE_VERIFY_ENABLED=true` activates the dual-track probe flow via
+  `oracle_probe.py`; this does not force Oracle into the active core runtime.
 
 ## Minimum Component Requirements
 
@@ -276,6 +302,16 @@ Minimum practical set:
 - `AIDER_MODEL`
 - `AIDER_WEAK_MODEL`
 
+### bolt.diy facade
+
+Minimum practical set:
+
+- `BOLTDIY_MODE=hybrid`
+- `BOLTDIY_FACADE_URL`
+- `BOLTDIY_SPACE_URL`
+- `N8N_WEBHOOK_URL`
+- `OPENHANDS_ADAPTER_URL`
+
 ## Related Files
 
 - [`.godmode_env.example`](/d:/Web/docs/godmode_setup/.godmode_env.example)
@@ -283,3 +319,5 @@ Minimum practical set:
 - [START_GODMODE.ps1](/d:/Web/docs/godmode_setup/START_GODMODE.ps1)
 - [aider_godmode.ps1](/d:/Web/docs/godmode_setup/aider_godmode.ps1)
 - [STACK_OPERATIONS.md](/d:/Web/docs/godmode_setup/STACK_OPERATIONS.md)
+- [verify_hf_runtime.py](/d:/Web/docs/godmode_setup/verify_hf_runtime.py)
+- [oracle_probe.py](/d:/Web/docs/godmode_setup/oracle_probe.py)

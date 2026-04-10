@@ -18,6 +18,7 @@ export HF_OPENHANDS_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/openhands-
 export HF_LANGGRAPH_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/langgraph-godmode"
 export HF_PILOT_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/godmode-pilot"
 export BOLTDIY_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/bolt-diy-godmode"
+export HF_VERIFY_STRICT="true"
 
 # GitHub
 export GITHUB_TOKEN="replace-with-github-token"
@@ -32,6 +33,12 @@ export LITELLM_API_KEY="replace-with-litellm-key"
 export OLLAMA_BASE_URL="http://core-runtime.example.internal:11434"
 export OPENAI_BASE_URL="https://openrouter.ai/api/v1"
 export MODEL_ROUTER_NAME="smart-router"
+
+# bolt.diy hybrid facade
+export BOLTDIY_MODE="hybrid"
+export BOLTDIY_FACADE_PORT="3901"
+export BOLTDIY_FACADE_URL="http://core-runtime.example.internal:3901"
+export BOLTDIY_FORWARD_TIMEOUT="20"
 
 # DevTools / Playwright bridge
 export DEVTOOLS_BRIDGE_ENABLED="true"
@@ -94,5 +101,6 @@ export GODMODE_MISSION_AGENT="Aider-Cloud"
 export ORACLE_ENABLED="false"
 export ORACLE_PLACEHOLDER="true"
 export ORACLE_RESERVED_FOR_FUTURE="true"
+export ORACLE_VERIFY_ENABLED="true"
 export ORACLE_IP="replace-with-future-oracle-ip"
 export ORACLE_USER="replace-with-future-oracle-user"
