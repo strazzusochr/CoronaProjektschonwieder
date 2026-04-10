@@ -13,7 +13,7 @@ export GOOGLE_API_KEY="replace-with-google-key"
 # Hugging Face
 export HF_TOKEN="replace-with-hf-token"
 export HF_USERNAME="Wrzzzrzr"
-export HF_AIDER_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/aider-web-ide"
+export HF_AIDER_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/aider-godmode-safe"
 export HF_OPENHANDS_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/openhands-godmode"
 export HF_LANGGRAPH_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/langgraph-godmode"
 export HF_PILOT_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/godmode-pilot"

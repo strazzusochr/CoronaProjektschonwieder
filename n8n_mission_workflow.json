@@ -1,8 +1,16 @@
 {
+  "id": "godmodeMissionTrigger01",
   "name": "GODMODE Mission Trigger",
+  "active": false,
+  "settings": {},
+  "pinData": {},
+  "versionId": "7d3e4f7c-3c8d-4d9a-b2ce-0f1c2a7f8101",
+  "meta": null,
+  "tags": [],
   "nodes": [
     {
       "parameters": {
+        "httpMethod": "POST",
         "path": "godmode-mission",
         "responseMode": "responseNode"
       },

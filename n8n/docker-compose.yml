@@ -19,17 +19,19 @@ services:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - HF_TOKEN=${HF_TOKEN}
-      - OPENHANDS_API_URL=${OPENHANDS_API_URL:-http://localhost:3000}
+      - OPENHANDS_API_URL=${OPENHANDS_API_URL:-http://host.docker.internal:3000}
       - OPENHANDS_API_KEY=${OPENHANDS_API_KEY}
-      - OPENHANDS_ADAPTER_URL=${OPENHANDS_ADAPTER_URL:-http://localhost:3001}
-      - LANGGRAPH_API_URL=${LANGGRAPH_API_URL:-http://localhost:8080}
-      - MEMORY_VAULT_PATH=${MEMORY_VAULT_PATH:-./memory_vault.md}
+      - OPENHANDS_ADAPTER_URL=${OPENHANDS_ADAPTER_URL:-http://host.docker.internal:3001}
+      - LANGGRAPH_API_URL=${LANGGRAPH_API_URL:-http://host.docker.internal:8080}
+      - MEMORY_VAULT_PATH=${MEMORY_VAULT_PATH:-/workspace/memory_vault.md}
+      - NODE_FUNCTION_ALLOW_BUILTIN=fs,path
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
-      - EXECUTIONS_PROCESS=main
       - N8N_LOG_LEVEL=info
     volumes:
       - n8n_data:/home/node/.n8n
       - ./backups:/backups
+      - ../memory_vault.md:/workspace/memory_vault.md
 
 volumes:
   n8n_data:

@@ -13,3 +13,6 @@ START_GODMODE.ps1
 START_GODMODE.sh
 generate_*
 .godmode_runtime/
+__pycache__/
+CoronaProjektschonwieder/dev.err
+n8n/backups/

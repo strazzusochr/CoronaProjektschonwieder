@@ -1,27 +1,18 @@
 {
-  "id": "godmodeMemorySystem01",
-  "name": "GODMODE AI Memory System",
+  "id": "godmodeMemoryProbe01",
+  "name": "GODMODE AI Memory Probe",
   "active": false,
   "settings": {},
   "pinData": {},
-  "versionId": "c1b5f0b8-0b95-4e63-a5a8-7b89e6823201",
+  "versionId": "6f6cc8ef-4f7f-4e5d-a15f-1b1e22b08cc1",
   "meta": null,
   "tags": [],
   "nodes": [
     {
-      "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "minutes",
-              "minutesInterval": 30
-            }
-          ]
-        }
-      },
-      "id": "schedule-memory-refresh",
-      "name": "Every 30 Minutes",
-      "type": "n8n-nodes-base.scheduleTrigger",
+      "parameters": {},
+      "id": "execute-workflow-trigger",
+      "name": "When Executed by CLI",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1,
       "position": [240, 280]
     },
@@ -43,17 +34,17 @@
       "name": "Fetch Runtime Health",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [470, 280]
+      "position": [480, 280]
     },
     {
       "parameters": {
-        "jsCode": "const lines = [\n  `- ${new Date().toISOString()} MEMORY: adapter=${$json.status}`,\n  `  openhands=${$json.public_url || 'unset'}`,\n  `  trigger=${$json.trigger_url || 'local-only'}`\n];\nreturn [{ json: { learnings: lines.join('\\n') + '\\n' } }];"
+        "jsCode": "const lines = [\n  `- ${new Date().toISOString()} MEMORY_PROBE: adapter=${$json.status}`,\n  `  openhands=${$json.public_url || 'unset'}`,\n  `  trigger=${$json.trigger_url || 'local-only'}`\n];\nreturn [{ json: { learnings: lines.join('\\n') + '\\n' } }];"
       },
       "id": "shape-memory-entry",
       "name": "Shape Memory Entry",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [700, 280]
+      "position": [720, 280]
     },
     {
       "parameters": {
@@ -63,11 +54,11 @@
       "name": "Save to Memory Vault",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [930, 280]
+      "position": [960, 280]
     }
   ],
   "connections": {
-    "Every 30 Minutes": {
+    "When Executed by CLI": {
       "main": [
         [
           {
