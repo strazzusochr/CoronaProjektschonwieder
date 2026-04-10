@@ -5,7 +5,7 @@ function GroundPlane() {
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
       <planeGeometry args={[48, 48]} />
-      <meshStandardMaterial color="#21140f" roughness={0.92} metalness={0.08} />
+      <meshStandardMaterial color="#261914" roughness={0.96} metalness={0.04} />
     </mesh>
   );
 }
@@ -16,27 +16,27 @@ function CathedralPlaceholder() {
       <group position={[0, 1.8, 0]}>
         <mesh castShadow receiveShadow position={[0, 0, 0]}>
           <boxGeometry args={[3.4, 2.2, 1.8]} />
-          <meshStandardMaterial color="#cf8a4f" roughness={0.48} metalness={0.18} />
+          <meshStandardMaterial color="#c98149" roughness={0.56} metalness={0.1} />
         </mesh>
 
         <mesh castShadow receiveShadow position={[0, 2.1, 0]}>
           <boxGeometry args={[1.4, 2.4, 1.15]} />
-          <meshStandardMaterial color="#e3b271" roughness={0.42} metalness={0.12} />
+          <meshStandardMaterial color="#e1b479" roughness={0.46} metalness={0.08} />
         </mesh>
 
         <mesh castShadow receiveShadow position={[-1.1, 2.25, 0]}>
           <cylinderGeometry args={[0.34, 0.48, 3.1, 6]} />
-          <meshStandardMaterial color="#9f6d46" roughness={0.5} metalness={0.16} />
+          <meshStandardMaterial color="#93613d" roughness={0.54} metalness={0.12} />
         </mesh>
 
         <mesh castShadow receiveShadow position={[1.1, 2.25, 0]}>
           <cylinderGeometry args={[0.34, 0.48, 3.1, 6]} />
-          <meshStandardMaterial color="#9f6d46" roughness={0.5} metalness={0.16} />
+          <meshStandardMaterial color="#93613d" roughness={0.54} metalness={0.12} />
         </mesh>
 
         <mesh castShadow position={[0, 4.2, 0]}>
           <coneGeometry args={[0.5, 1.7, 6]} />
-          <meshStandardMaterial color="#f0c891" roughness={0.36} metalness={0.18} />
+          <meshStandardMaterial color="#f3d3a4" roughness={0.38} metalness={0.12} />
         </mesh>
       </group>
     </Float>
@@ -50,25 +50,27 @@ function CityEnvironment() {
       <fog attach="fog" args={['#050816', 10, 34]} />
       <Sky
         distance={450000}
-        sunPosition={[4, 1, 6]}
-        turbidity={7}
-        rayleigh={2.6}
+        sunPosition={[5, 2, 6]}
+        turbidity={6}
+        rayleigh={2.9}
         mieCoefficient={0.006}
         mieDirectionalG={0.9}
       />
       <Stars radius={120} depth={60} count={5000} factor={3.4} saturation={0} fade speed={0.7} />
-      <ambientLight intensity={0.9} />
+      <ambientLight intensity={0.55} color="#f4d6b1" />
+      <hemisphereLight intensity={1.05} color="#9eb6ff" groundColor="#22130f" />
       <directionalLight
         castShadow
-        intensity={2.4}
-        position={[6, 10, 4]}
+        color="#ffd7ae"
+        intensity={3.1}
+        position={[7, 11, 5]}
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
       />
-      <spotLight intensity={35} angle={0.32} penumbra={0.45} position={[-5, 8, 5]} />
+      <spotLight color="#ffb974" intensity={24} angle={0.34} penumbra={0.5} position={[-6, 8, 6]} />
       <GroundPlane />
       <CathedralPlaceholder />
-      <gridHelper args={[28, 28, '#5f4639', '#2c2019']} position={[0, 0.01, 0]} />
+      <gridHelper args={[28, 28, '#725646', '#37271e']} position={[0, 0.01, 0]} />
     </>
   );
 }
