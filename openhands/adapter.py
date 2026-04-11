@@ -9,6 +9,29 @@ from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
 app = FastAPI(title="GODMODE OpenHands Adapter")
+STARTED_AT = datetime.now(timezone.utc).isoformat()
+METRICS: dict[str, Any] = {
+    "requests_total": 0,
+    "forwarded_total": 0,
+    "blocked_total": 0,
+    "failed_total": 0,
+    "by_endpoint": {
+        "trigger": 0,
+        "run_playwright": 0,
+        "run_devtools": 0,
+        "snapshot_devtools": 0,
+    },
+}
+
+
+def _record_result(status: str) -> None:
+    METRICS["requests_total"] += 1
+    if status == "forwarded":
+        METRICS["forwarded_total"] += 1
+    elif status == "blocked":
+        METRICS["blocked_total"] += 1
+    else:
+        METRICS["failed_total"] += 1
 
 
 class MissionPayload(BaseModel):
@@ -44,11 +67,22 @@ def health() -> dict[str, Any]:
     }
 
 
+@app.get("/metrics")
+def metrics() -> dict[str, Any]:
+    return {
+        "status": "ok",
+        "service": "openhands-adapter",
+        "started_at": STARTED_AT,
+        "metrics": METRICS,
+    }
+
+
 def _forward_to_devtools(endpoint: str, payload: dict[str, Any]) -> dict[str, Any]:
     bridge_url = os.environ.get("DEVTOOLS_BRIDGE_URL", "").strip()
     timeout = int(os.environ.get("DEVTOOLS_BRIDGE_TIMEOUT", "900"))
 
     if not bridge_url:
+        _record_result("blocked")
         return {
             "status": "blocked",
             "reason": "DEVTOOLS_BRIDGE_URL is empty",
@@ -61,6 +95,7 @@ def _forward_to_devtools(endpoint: str, payload: dict[str, Any]) -> dict[str, An
     try:
         response = requests.post(target_url, json=payload, timeout=timeout)
         response.raise_for_status()
+        _record_result("forwarded")
         return {
             "status": "forwarded",
             "forwarded": True,
@@ -69,6 +104,7 @@ def _forward_to_devtools(endpoint: str, payload: dict[str, Any]) -> dict[str, An
             "data": response.json(),
         }
     except requests.RequestException as exc:
+        _record_result("forward-failed")
         return {
             "status": "forward-failed",
             "forwarded": False,
@@ -80,10 +116,12 @@ def _forward_to_devtools(endpoint: str, payload: dict[str, Any]) -> dict[str, An
 
 @app.post("/trigger")
 def trigger(payload: MissionPayload) -> dict[str, Any]:
+    METRICS["by_endpoint"]["trigger"] += 1
     trigger_url = os.environ.get("OPENHANDS_TRIGGER_URL", "").strip()
     api_key = os.environ.get("OPENHANDS_API_KEY", "").strip()
 
     if not trigger_url:
+        _record_result("blocked")
         return {
             "status": "accepted-local",
             "forwarded": False,
@@ -102,6 +140,7 @@ def trigger(payload: MissionPayload) -> dict[str, Any]:
             timeout=15,
         )
         response.raise_for_status()
+        _record_result("forwarded")
         return {
             "status": "forwarded",
             "forwarded": True,
@@ -109,6 +148,7 @@ def trigger(payload: MissionPayload) -> dict[str, Any]:
             "payload": payload.model_dump(),
         }
     except requests.RequestException as exc:
+        _record_result("forward-failed")
         return {
             "status": "forward-failed",
             "forwarded": False,
@@ -119,14 +159,17 @@ def trigger(payload: MissionPayload) -> dict[str, Any]:
 
 @app.post("/run_playwright")
 def run_playwright(payload: DevtoolsPayload) -> dict[str, Any]:
+    METRICS["by_endpoint"]["run_playwright"] += 1
     return _forward_to_devtools("/run_playwright", payload.model_dump())
 
 
 @app.post("/run_devtools")
 def run_devtools(payload: DevtoolsPayload) -> dict[str, Any]:
+    METRICS["by_endpoint"]["run_devtools"] += 1
     return _forward_to_devtools("/run_devtools", payload.model_dump())
 
 
 @app.post("/snapshot_devtools")
 def snapshot_devtools(payload: DevtoolsPayload) -> dict[str, Any]:
+    METRICS["by_endpoint"]["snapshot_devtools"] += 1
     return _forward_to_devtools("/snapshot_devtools", payload.model_dump())

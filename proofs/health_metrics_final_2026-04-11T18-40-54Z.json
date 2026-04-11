@@ -1,0 +1,86 @@
+[
+  {
+    "name": "local-openhands",
+    "url": "http://127.0.0.1:3000",
+    "status_code": 200,
+    "ok": true
+  },
+  {
+    "name": "local-adapter-health",
+    "url": "http://127.0.0.1:3001/health",
+    "status_code": 200,
+    "ok": true
+  },
+  {
+    "name": "local-adapter-metrics",
+    "url": "http://127.0.0.1:3001/metrics",
+    "status_code": 200,
+    "ok": true
+  },
+  {
+    "name": "local-bolt-health",
+    "url": "http://127.0.0.1:3901/health",
+    "status_code": 200,
+    "ok": true
+  },
+  {
+    "name": "local-bolt-metrics",
+    "url": "http://127.0.0.1:3901/metrics",
+    "status_code": 200,
+    "ok": true
+  },
+  {
+    "name": "local-n8n-healthz",
+    "url": "http://127.0.0.1:5678/healthz",
+    "status_code": 200,
+    "ok": true
+  },
+  {
+    "name": "local-langgraph-health",
+    "url": "http://127.0.0.1:8080/health",
+    "status_code": 200,
+    "ok": true
+  },
+  {
+    "name": "local-core-tools-bridge-health",
+    "url": "http://127.0.0.1:3911/health",
+    "status_code": 200,
+    "ok": true
+  },
+  {
+    "name": "local-core-tools-bridge-metrics",
+    "url": "http://127.0.0.1:3911/metrics",
+    "status_code": 200,
+    "ok": true
+  },
+  {
+    "name": "hetzner-openhands",
+    "url": "https://openhands.65.108.253.14.nip.io",
+    "status_code": 200,
+    "ok": true
+  },
+  {
+    "name": "hetzner-adapter-health",
+    "url": "https://adapter.65.108.253.14.nip.io/health",
+    "status_code": 200,
+    "ok": true
+  },
+  {
+    "name": "hetzner-bolt-health",
+    "url": "https://bolt.65.108.253.14.nip.io/health",
+    "status_code": 200,
+    "ok": true
+  },
+  {
+    "name": "hetzner-n8n-healthz",
+    "url": "https://n8n.65.108.253.14.nip.io/healthz",
+    "status_code": 200,
+    "ok": true
+  },
+  {
+    "name": "hetzner-langgraph-health",
+    "url": "https://langgraph.65.108.253.14.nip.io/health",
+    "status_code": 200,
+    "ok": true
+  }
+]

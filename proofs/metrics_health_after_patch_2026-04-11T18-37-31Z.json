@@ -1,0 +1,40 @@
+[
+  {
+    "name": "local-adapter-metrics",
+    "url": "http://127.0.0.1:3001/metrics",
+    "status_code": 404,
+    "ok": false,
+    "error": "Response status code does not indicate success: 404 (Not Found)."
+  },
+  {
+    "name": "local-bolt-metrics",
+    "url": "http://127.0.0.1:3901/metrics",
+    "status_code": 200,
+    "ok": true
+  },
+  {
+    "name": "local-core-tools-bridge-metrics",
+    "url": "http://127.0.0.1:3911/metrics",
+    "status_code": 404,
+    "ok": false,
+    "error": "Response status code does not indicate success: 404 (Not Found)."
+  },
+  {
+    "name": "local-adapter-health",
+    "url": "http://127.0.0.1:3001/health",
+    "status_code": 200,
+    "ok": true
+  },
+  {
+    "name": "local-bolt-health",
+    "url": "http://127.0.0.1:3901/health",
+    "status_code": 200,
+    "ok": true
+  },
+  {
+    "name": "local-core-tools-bridge-health",
+    "url": "http://127.0.0.1:3911/health",
+    "status_code": 200,
+    "ok": true
+  }
+]

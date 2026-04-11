@@ -1,0 +1,224 @@
+{
+  "timestamp_utc": "2026-04-11T18:42:09.2069811Z",
+  "commit": "9b7e46b687ec10e39b857fa2e66dc04c41797219",
+  "summary": {
+    "bolt_gate": null,
+    "bolt_external": null,
+    "hf_core": "PASS",
+    "hf_private": "PASS",
+    "superpowers_verified": null,
+    "oracle_mode": "SKIPPED",
+    "hetzner_deploy": null,
+    "pm2_cli": "PASS",
+    "hcloud_cli": "PASS"
+  },
+  "evidence": {
+    "hf_whoami": "user=Wrzzzrzr",
+    "local_health": [
+      {
+        "name": "local-openhands",
+        "url": "http://127.0.0.1:3000",
+        "status": "PASS",
+        "http_status": 200
+      },
+      {
+        "name": "local-adapter-health",
+        "url": "http://127.0.0.1:3001/health",
+        "status": "PASS",
+        "http_status": 200
+      },
+      {
+        "name": "local-adapter-metrics",
+        "url": "http://127.0.0.1:3001/metrics",
+        "status": "PASS",
+        "http_status": 200
+      },
+      {
+        "name": "local-bolt-health",
+        "url": "http://127.0.0.1:3901/health",
+        "status": "PASS",
+        "http_status": 200
+      },
+      {
+        "name": "local-bolt-metrics",
+        "url": "http://127.0.0.1:3901/metrics",
+        "status": "PASS",
+        "http_status": 200
+      },
+      {
+        "name": "local-n8n-healthz",
+        "url": "http://127.0.0.1:5678/healthz",
+        "status": "PASS",
+        "http_status": 200
+      },
+      {
+        "name": "local-langgraph-health",
+        "url": "http://127.0.0.1:8080/health",
+        "status": "PASS",
+        "http_status": 200
+      },
+      {
+        "name": "local-core-tools-bridge-health",
+        "url": "http://127.0.0.1:3911/health",
+        "status": "PASS",
+        "http_status": 200
+      },
+      {
+        "name": "local-core-tools-bridge-metrics",
+        "url": "http://127.0.0.1:3911/metrics",
+        "status": "PASS",
+        "http_status": 200
+      }
+    ],
+    "hetzner_https": [
+      {
+        "name": "hetzner-openhands",
+        "url": "https://openhands.65.108.253.14.nip.io",
+        "status": "PASS",
+        "http_status": 200
+      },
+      {
+        "name": "hetzner-adapter-health",
+        "url": "https://adapter.65.108.253.14.nip.io/health",
+        "status": "PASS",
+        "http_status": 200
+      },
+      {
+        "name": "hetzner-bolt-health",
+        "url": "https://bolt.65.108.253.14.nip.io/health",
+        "status": "PASS",
+        "http_status": 200
+      },
+      {
+        "name": "hetzner-n8n-healthz",
+        "url": "https://n8n.65.108.253.14.nip.io/healthz",
+        "status": "PASS",
+        "http_status": 200
+      },
+      {
+        "name": "hetzner-langgraph-health",
+        "url": "https://langgraph.65.108.253.14.nip.io/health",
+        "status": "PASS",
+        "http_status": 200
+      }
+    ],
+    "pm2_online_processes": 2,
+    "hcloud_server_count": 1,
+    "hcloud_servers": [
+      {
+        "id": 126407412,
+        "name": "ubuntu-16gb-hel1-1",
+        "status": "running",
+        "server_type": {
+          "id": 94,
+          "name": "cax31",
+          "description": "CAX31",
+          "category": "cost_optimized",
+          "cores": 8,
+          "memory": 16,
+          "disk": 160,
+          "storage_type": "local",
+          "cpu_type": "shared",
+          "architecture": "arm",
+          "included_traffic": 0,
+          "prices": [
+            {
+              "location": "fsn1",
+              "price_hourly": {
+                "net": "0.0256000000",
+                "gross": "0.0304640000000000"
+              },
+              "price_monthly": {
+                "net": "15.9900000000",
+                "gross": "19.0281000000000000"
+              },
+              "included_traffic": 21990232555520,
+              "price_per_tb_traffic": {
+                "net": "1.0000000000",
+                "gross": "1.1900000000000000"
+              }
+            },
+            {
+              "location": "hel1",
+              "price_hourly": {
+                "net": "0.0256000000",
+                "gross": "0.0304640000000000"
+              },
+              "price_monthly": {
+                "net": "15.9900000000",
+                "gross": "19.0281000000000000"
+              },
+              "included_traffic": 21990232555520,
+              "price_per_tb_traffic": {
+                "net": "1.0000000000",
+                "gross": "1.1900000000000000"
+              }
+            },
+            {
+              "location": "nbg1",
+              "price_hourly": {
+                "net": "0.0256000000",
+                "gross": "0.0304640000000000"
+              },
+              "price_monthly": {
+                "net": "15.9900000000",
+                "gross": "19.0281000000000000"
+              },
+              "included_traffic": 21990232555520,
+              "price_per_tb_traffic": {
+                "net": "1.0000000000",
+                "gross": "1.1900000000000000"
+              }
+            }
+          ],
+          "deprecated": false,
+          "deprecation": null,
+          "locations": [
+            {
+              "id": 1,
+              "name": "fsn1",
+              "deprecation": null
+            },
+            {
+              "id": 2,
+              "name": "nbg1",
+              "deprecation": null
+            },
+            {
+              "id": 3,
+              "name": "hel1",
+              "deprecation": null
+            }
+          ]
+        },
+        "public_net": {
+          "ipv4": {
+            "id": 125969445,
+            "ip": "65.108.253.14",
+            "blocked": false,
+            "dns_ptr": "static.14.253.108.65.clients.your-server.de"
+          },
+          "ipv6": {
+            "id": 125969446,
+            "ip": "2a01:4f9:c014:fbfa::/64",
+            "blocked": false,
+            "dns_ptr": []
+          },
+          "floating_ips": [],
+          "firewalls": []
+        }
+      }
+    ],
+    "refs": {
+      "bolt": ".godmode_runtime/evidence/bolt_facade_api_latest.json",
+      "hf": ".godmode_runtime/evidence/hf_runtime_latest.json",
+      "superpowers": ".godmode_runtime/evidence/superpowers_audit_latest.json",
+      "oracle": ".godmode_runtime/evidence/oracle_probe_latest.json",
+      "hetzner": ".godmode_runtime/evidence/hetzner_deploy_latest.json",
+      "health_metrics": "health_metrics_final_2026-04-11T18-40-54Z.json",
+      "pm2_jlist": "pm2_jlist_2026-04-11T18-39-58Z.json",
+      "hcloud_server_list": "hcloud_server_list_2026-04-11T18-39-58Z.json",
+      "browser_smoke": "browser_smoke_retry_2026-04-11T18-40-20Z.log"
+    }
+  }
+}

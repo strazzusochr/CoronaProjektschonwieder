@@ -1,0 +1,81 @@
+{
+  "timestamp_utc": "2026-04-11T18:29:57.5397318Z",
+  "commit": "9b7e46b687ec10e39b857fa2e66dc04c41797219",
+  "summary": {
+    "bolt_gate": "PASS",
+    "bolt_external": "forwarded",
+    "hf_core": "PASS",
+    "hf_private": "PASS",
+    "superpowers_verified": 100.0,
+    "oracle_mode": "SKIPPED",
+    "hetzner_deploy": "PASS",
+    "pm2_cli": "BLOCKED",
+    "hcloud_cli": "BLOCKED"
+  },
+  "evidence": {
+    "hf_whoami": "user=Wrzzzrzr",
+    "local_health": [
+      {
+        "url": "http://127.0.0.1:3000",
+        "status": "PASS",
+        "http_status": 200
+      },
+      {
+        "url": "http://127.0.0.1:3001/health",
+        "status": "PASS",
+        "http_status": 200
+      },
+      {
+        "url": "http://127.0.0.1:3901/health",
+        "status": "PASS",
+        "http_status": 200
+      },
+      {
+        "url": "http://127.0.0.1:5678/healthz",
+        "status": "PASS",
+        "http_status": 200
+      },
+      {
+        "url": "http://127.0.0.1:8080/health",
+        "status": "PASS",
+        "http_status": 200
+      }
+    ],
+    "hetzner_https": [
+      {
+        "url": "https://openhands.65.108.253.14.nip.io",
+        "status": "PASS",
+        "http_status": 200
+      },
+      {
+        "url": "https://adapter.65.108.253.14.nip.io",
+        "status": "PASS",
+        "http_status": 200
+      },
+      {
+        "url": "https://langgraph.65.108.253.14.nip.io",
+        "status": "PASS",
+        "http_status": 200
+      },
+      {
+        "url": "https://n8n.65.108.253.14.nip.io",
+        "status": "PASS",
+        "http_status": 200
+      },
+      {
+        "url": "https://bolt.65.108.253.14.nip.io",
+        "status": "PASS",
+        "http_status": 200
+      }
+    ],
+    "pm2_output": "The term 'pm2' is not recognized as a name of a cmdlet, function, script file, or executable program.\r\nCheck the spelling of the name, or if a path was included, verify that the path is correct and try again.",
+    "hcloud_output": "The term 'hcloud' is not recognized as a name of a cmdlet, function, script file, or executable program.\r\nCheck the spelling of the name, or if a path was included, verify that the path is correct and try again.",
+    "refs": {
+      "bolt": ".godmode_runtime/evidence/bolt_facade_api_latest.json",
+      "hf": ".godmode_runtime/evidence/hf_runtime_latest.json",
+      "superpowers": ".godmode_runtime/evidence/superpowers_audit_latest.json",
+      "oracle": ".godmode_runtime/evidence/oracle_probe_latest.json",
+      "hetzner": ".godmode_runtime/evidence/hetzner_deploy_latest.json"
+    }
+  }
+}

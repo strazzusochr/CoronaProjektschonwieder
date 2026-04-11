@@ -18,6 +18,17 @@ Hetzner selfhosted track note (2026-04-11):
 - HTTPS probes for `openhands`, `adapter`, `langgraph`, `n8n`, `bolt` returned
   `200`; direct service ports remain externally closed as required.
 
+Beta-Gate closure note (2026-04-11):
+- Closure bundle refreshed: `proofs/beta_gate_closure_latest.json`.
+- Health + Metrics gate now `14/14 PASS` via
+  `proofs/health_metrics_final_2026-04-11T18-40-54Z.json`.
+- PM2 runtime supervision is live-verified with online processes in
+  `proofs/pm2_list_post_browser_2026-04-11T18-40-20Z.log`.
+- Hetzner CLI gate is live-verified with server `ubuntu-16gb-hel1-1` in
+  `proofs/hcloud_server_list_2026-04-11T18-39-58Z.json`.
+- Browser smoke retry passed after resolving port contention with PM2 preview:
+  `proofs/browser_smoke_retry_2026-04-11T18-40-20Z.log`.
+
 Es kombiniert vier Sichten in einer Datei:
 
 - horizontal: Phasen `00` bis `07` gegen Stack-Domaenen und Missionsartefakte

@@ -17,6 +17,16 @@ TEST_RESULTS_DIR = FRONTEND_DIR / "test-results"
 BRIDGE_HOST = os.environ.get("DEVTOOLS_BRIDGE_HOST", "0.0.0.0")
 BRIDGE_PORT = int(os.environ.get("DEVTOOLS_BRIDGE_PORT", "3911"))
 COMMAND_TIMEOUT = int(os.environ.get("DEVTOOLS_BRIDGE_COMMAND_TIMEOUT", "900"))
+STARTED_EPOCH = time.time()
+METRICS: dict[str, Any] = {
+    "requests_total": 0,
+    "run_playwright_total": 0,
+    "run_devtools_total": 0,
+    "snapshot_devtools_total": 0,
+    "ok_total": 0,
+    "failed_total": 0,
+    "timeout_total": 0,
+}
 
 
 def _latest_snapshot() -> Path | None:
@@ -100,6 +110,18 @@ class DevtoolsBridgeHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self) -> None:  # noqa: N802
+        if self.path == "/metrics":
+            self._send(
+                200,
+                {
+                    "status": "ok",
+                    "service": "core-tools-bridge",
+                    "uptime_seconds": round(time.time() - STARTED_EPOCH, 2),
+                    "metrics": METRICS,
+                },
+            )
+            return
+
         if self.path != "/health":
             self._send(404, {"status": "not-found", "path": self.path})
             return
@@ -121,8 +143,16 @@ class DevtoolsBridgeHandler(BaseHTTPRequestHandler):
         payload = _json_or_empty(self)
 
         if self.path == "/run_playwright":
+            METRICS["requests_total"] += 1
+            METRICS["run_playwright_total"] += 1
             command = payload.get("command") or ["npm", "run", "test:browser"]
             result = _run_command(command, FRONTEND_DIR)
+            if result["status"] == "ok":
+                METRICS["ok_total"] += 1
+            elif result["status"] == "timeout":
+                METRICS["timeout_total"] += 1
+            else:
+                METRICS["failed_total"] += 1
             snapshot = _latest_snapshot()
             self._send(
                 200 if result["status"] == "ok" else 500,
@@ -136,6 +166,8 @@ class DevtoolsBridgeHandler(BaseHTTPRequestHandler):
             return
 
         if self.path == "/run_devtools":
+            METRICS["requests_total"] += 1
+            METRICS["run_devtools_total"] += 1
             include_unit_tests = bool(payload.get("include_unit_tests", False))
             steps: list[dict[str, Any]] = []
             steps.append(_run_command(["npm", "run", "build"], FRONTEND_DIR))
@@ -143,6 +175,13 @@ class DevtoolsBridgeHandler(BaseHTTPRequestHandler):
                 steps.append(_run_command(["npm", "test"], FRONTEND_DIR))
             steps.append(_run_command(["npm", "run", "test:browser"], FRONTEND_DIR))
             failed = any(step["status"] != "ok" for step in steps)
+            if failed:
+                if any(step["status"] == "timeout" for step in steps):
+                    METRICS["timeout_total"] += 1
+                else:
+                    METRICS["failed_total"] += 1
+            else:
+                METRICS["ok_total"] += 1
             snapshot = _latest_snapshot()
             self._send(
                 200 if not failed else 500,
@@ -156,6 +195,8 @@ class DevtoolsBridgeHandler(BaseHTTPRequestHandler):
             return
 
         if self.path == "/snapshot_devtools":
+            METRICS["requests_total"] += 1
+            METRICS["snapshot_devtools_total"] += 1
             force_run = bool(payload.get("force_run", False))
             snapshot = _latest_snapshot()
             run_result: dict[str, Any] | None = None
@@ -163,6 +204,12 @@ class DevtoolsBridgeHandler(BaseHTTPRequestHandler):
             if force_run or snapshot is None:
                 run_result = _run_command(["npm", "run", "test:browser"], FRONTEND_DIR)
                 snapshot = _latest_snapshot()
+                if run_result["status"] == "ok":
+                    METRICS["ok_total"] += 1
+                elif run_result["status"] == "timeout":
+                    METRICS["timeout_total"] += 1
+                else:
+                    METRICS["failed_total"] += 1
 
             exists = snapshot is not None and snapshot.exists()
             self._send(

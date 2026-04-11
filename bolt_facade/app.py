@@ -41,6 +41,15 @@ _BOLTDIY_SPACE_TOKEN_RAW = os.environ.get("BOLTDIY_SPACE_TOKEN", "").strip()
 BOLTDIY_SPACE_TOKEN = _BOLTDIY_SPACE_TOKEN_RAW or os.environ.get("HF_TOKEN", "").strip()
 N8N_WEBHOOK_URL = os.environ.get("N8N_WEBHOOK_URL", "").strip()
 OPENHANDS_ADAPTER_URL = os.environ.get("OPENHANDS_ADAPTER_URL", "").strip()
+STARTED_AT = datetime.now(timezone.utc).isoformat()
+METRICS: dict[str, Any] = {
+    "dispatch_total": 0,
+    "dispatch_forwarded_total": 0,
+    "dispatch_blocked_total": 0,
+    "dispatch_failed_total": 0,
+    "fallback_persisted_total": 0,
+    "proof_total": 0,
+}
 
 
 class MissionPayload(BaseModel):
@@ -392,6 +401,17 @@ def health() -> dict[str, Any]:
     }
 
 
+@app.get("/metrics")
+def metrics() -> dict[str, Any]:
+    return {
+        "status": "ok",
+        "service": "bolt-facade",
+        "started_at": STARTED_AT,
+        "mode": BOLTDIY_MODE,
+        "metrics": METRICS,
+    }
+
+
 @app.post("/dispatch")
 def dispatch(payload: MissionPayload) -> dict[str, Any]:
     _ensure_dirs()
@@ -409,6 +429,15 @@ def dispatch(payload: MissionPayload) -> dict[str, Any]:
 
     overall = "forwarded" if forwarded else "blocked" if blocked else "forward-failed"
     fallback_persisted = results[0].get("status") != "forwarded"
+    METRICS["dispatch_total"] += 1
+    if overall == "forwarded":
+        METRICS["dispatch_forwarded_total"] += 1
+    elif overall == "blocked":
+        METRICS["dispatch_blocked_total"] += 1
+    else:
+        METRICS["dispatch_failed_total"] += 1
+    if fallback_persisted:
+        METRICS["fallback_persisted_total"] += 1
 
     record = {
         "call_id": call_id,
@@ -462,6 +491,7 @@ def proof(payload: ProofPayload) -> dict[str, Any]:
     latest_file = PROOF_DIR / "latest_proof.json"
     _write_json(proof_file, record)
     _write_json(latest_file, record)
+    METRICS["proof_total"] += 1
 
     _append_line(
         FINAL_PROOF_PATH,
