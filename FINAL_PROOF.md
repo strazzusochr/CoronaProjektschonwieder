@@ -221,3 +221,22 @@ Historical note resolved during this proof:
 - 2026-04-11T16:12:55.650483+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=dd8d2c85-d614-472c-9965-97db31608c17
 - 2026-04-11T16:15:11.985548+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=406875da-369c-498e-bd2d-67bb11f16440
 - 2026-04-11T16:15:41.426588+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=fdb33702-4e0f-4f2d-9f6b-fcc85ad66537
+
+## 2026-04-11 Runtime Update (Hetzner Selfhosted)
+
+- Hetzner deploy now completed with `PASS`:
+  `.godmode_runtime/evidence/hetzner_deploy_latest.json`
+- External HTTPS health checks passed for:
+  `openhands`, `adapter`, `langgraph`, `n8n`, `bolt` on
+  `*.65.108.253.14.nip.io`.
+- Service-port hardening passed: direct external access to
+  `3000/3001/3901/4000/5678/8080/11434/4173` is closed.
+- Latest bolt facade verification now shows external path forwarded with token
+  and local chain `n8n -> openhands-adapter` still forwarded:
+  `.godmode_runtime/evidence/bolt_facade_api_latest.json`.
+- HF runtime strict gate is currently `PASS` for core + private spaces:
+  `.godmode_runtime/evidence/hf_runtime_latest.json`.
+
+Note: Oracle future-profile probe remains a separate track and is still reported
+as `BLOCKED` in `.godmode_runtime/evidence/oracle_probe_latest.json`; this is
+not a blocker for the active selfhosted core runtime.

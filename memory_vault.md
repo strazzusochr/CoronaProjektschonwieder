@@ -215,3 +215,8 @@
 - 2026-04-11T16:16:16.865Z MEMORY_PROBE: adapter=healthy
   openhands=http://localhost:3000
   trigger=local-only
+- 2026-04-11T16:30:45.097Z MEMORY: adapter=healthy
+  openhands=http://localhost:3000
+  trigger=local-only
+- 2026-04-11T16:37:41.0134243Z HETZNER_DEPLOY: status=PASS host=65.108.253.14 fqdn_root=65.108.253.14.nip.io evidence=.godmode_runtime/evidence/hetzner_deploy_latest.json
+- 2026-04-11T16:37:51.233961+00:00 ORACLE_PROBE: status=BLOCKED evidence=.godmode_runtime/evidence/oracle_probe_latest.json

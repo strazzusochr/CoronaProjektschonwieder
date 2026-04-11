@@ -40,3 +40,7 @@ BOLT_PROOF 2026-04-11T16:15:11.985548+00:00 result=PASS proof_id=406875da-369c-4
 BOLT_DISPATCH 2026-04-11T16:15:40.626731+00:00 status=forwarded call_id=8ce147c5-50b9-4ff2-a063-a9a53c67c149
 BOLT_PROOF 2026-04-11T16:15:41.426588+00:00 result=PASS proof_id=fdb33702-4e0f-4f2d-9f6b-fcc85ad66537
 BOLT_DISPATCH 2026-04-11T16:15:54.187309+00:00 status=forwarded call_id=5e9a1fa6-9134-4487-acbb-76112b190226
+HETZNER_DEPLOY 2026-04-11T16:37:41.0134243Z status=PASS host=65.108.253.14 profile=selfhosted evidence=.godmode_runtime/evidence/hetzner_deploy_latest.json
+HF_RUNTIME 2026-04-11T16:15:50.521159+00:00 core_gate=PASS private_gate=PASS evidence=.godmode_runtime/evidence/hf_runtime_latest.json
+SUPERPOWERS 2026-04-11T16:15:50.536895+00:00 verified=12/12 strict=100 evidence=.godmode_runtime/evidence/superpowers_audit_latest.json
+ORACLE_PROBE 2026-04-11T16:37:51.233961+00:00 status=BLOCKED evidence=.godmode_runtime/evidence/oracle_probe_latest.json
