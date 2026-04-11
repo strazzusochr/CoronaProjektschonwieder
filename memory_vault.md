@@ -151,3 +151,67 @@
 - 2026-04-11T00:53:43.358Z MEMORY_PROBE: adapter=healthy
   openhands=http://localhost:3000
   trigger=local-only
+- 2026-04-11T01:00:33.139Z MEMORY: adapter=healthy
+  openhands=http://localhost:3000
+  trigger=local-only
+- 2026-04-11T01:30:33.359Z MEMORY: adapter=healthy
+  openhands=http://localhost:3000
+  trigger=local-only
+- 2026-04-11T15:39:30.701169+00:00 BOLT_DISPATCH: status=forwarded source=verify_superpowers repo=https://github.com/strazzusochr/CoronaProjektschonwieder call_id=04476260-5d4c-4e5c-a166-16908448d0eb
+- 2026-04-11T15:40:09.747Z MEMORY_PROBE: adapter=healthy
+  openhands=http://localhost:3000
+  trigger=local-only
+- 2026-04-11T15:41:03.995Z MEMORY_PROBE: adapter=healthy
+  openhands=http://localhost:3000
+  trigger=local-only
+- 2026-04-11T15:42:41.481124+00:00 BOLT_DISPATCH: status=forwarded source=verify_superpowers repo=https://github.com/strazzusochr/CoronaProjektschonwieder call_id=786f560f-5a24-478f-906d-c48c806ae5f1
+- 2026-04-11T15:43:03.377Z MEMORY_PROBE: adapter=healthy
+  openhands=http://localhost:3000
+  trigger=local-only
+- 2026-04-11T15:59:00.955512+00:00 BOLT_DISPATCH: status=forwarded source=hf_pilot_actual repo=https://github.com/strazzusochr/CoronaProjektschonwieder call_id=12424574-38a4-4657-934b-296473413744
+- 2026-04-11T15:59:01.493459+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=f82bb6f4-7014-4b4c-bfdc-e6bf6b29eba5
+- 2026-04-11T16:00:37.535Z MEMORY_PROBE: adapter=healthy
+  openhands=http://localhost:3000
+  trigger=local-only
+- 2026-04-11T16:00:44.163Z MEMORY: adapter=healthy
+  openhands=http://localhost:3000
+  trigger=local-only
+- 2026-04-11T16:02:11.785568+00:00 BOLT_DISPATCH: status=forwarded source=verify_superpowers repo=https://github.com/strazzusochr/CoronaProjektschonwieder call_id=351cd856-b4f0-450f-8a07-d767eca61bdc
+- 2026-04-11T16:02:38.833Z MEMORY_PROBE: adapter=healthy
+  openhands=http://localhost:3000
+  trigger=local-only
+- 2026-04-11T16:04:52.937Z MEMORY_PROBE: adapter=healthy
+  openhands=http://localhost:3000
+  trigger=local-only
+- 2026-04-11T16:05:04.184132+00:00 BOLT_DISPATCH: status=forwarded source=verify_superpowers repo=https://github.com/strazzusochr/CoronaProjektschonwieder call_id=5d382dd4-4ddf-4700-b323-97ef317df797
+- 2026-04-11T16:05:28.226Z MEMORY_PROBE: adapter=healthy
+  openhands=http://localhost:3000
+  trigger=local-only
+- 2026-04-11T16:05:33.770174+00:00 BOLT_DISPATCH: status=forwarded source=hf_pilot_actual repo=https://github.com/strazzusochr/CoronaProjektschonwieder call_id=681454de-f040-4960-9a13-bb5ab6fd03f2
+- 2026-04-11T16:05:35.208791+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=74938300-3431-49bd-9a0e-38a73847d959
+- 2026-04-11T16:06:09.197633+00:00 BOLT_DISPATCH: status=forwarded source=hf_pilot_actual repo=https://github.com/strazzusochr/CoronaProjektschonwieder call_id=2f3c90e2-b97b-48d7-aff2-c55c3611630f
+- 2026-04-11T16:06:11.020220+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=a52644f8-66ed-4797-be7e-734b1a5199e1
+- 2026-04-11T16:07:22.981Z MEMORY_PROBE: adapter=healthy
+  openhands=http://localhost:3000
+  trigger=local-only
+- 2026-04-11T16:11:06.315Z MEMORY_PROBE: adapter=healthy
+  openhands=http://localhost:3000
+  trigger=local-only
+- 2026-04-11T16:11:11.105112+00:00 BOLT_DISPATCH: status=forwarded source=hf_pilot_actual repo=https://github.com/strazzusochr/CoronaProjektschonwieder call_id=d1ba1439-b468-4834-8f39-4c4de4328c58
+- 2026-04-11T16:11:13.531253+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=333c5fa6-6ecd-42b9-a182-c6ef8c970734
+- 2026-04-11T16:12:46.610Z MEMORY_PROBE: adapter=healthy
+  openhands=http://localhost:3000
+  trigger=local-only
+- 2026-04-11T16:12:54.260070+00:00 BOLT_DISPATCH: status=forwarded source=hf_pilot_actual repo=https://github.com/strazzusochr/CoronaProjektschonwieder call_id=d3f8d0c0-59d2-4ee3-9913-eaeeb35a04c1
+- 2026-04-11T16:12:55.650483+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=dd8d2c85-d614-472c-9965-97db31608c17
+- 2026-04-11T16:15:03.425Z MEMORY_PROBE: adapter=healthy
+  openhands=http://localhost:3000
+  trigger=local-only
+- 2026-04-11T16:15:11.218205+00:00 BOLT_DISPATCH: status=forwarded source=hf_pilot_actual repo=https://github.com/strazzusochr/CoronaProjektschonwieder call_id=9f370f3f-0c3e-4dac-ab13-a608b80dc182
+- 2026-04-11T16:15:11.985548+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=406875da-369c-498e-bd2d-67bb11f16440
+- 2026-04-11T16:15:40.626731+00:00 BOLT_DISPATCH: status=forwarded source=hf_pilot_actual repo=https://github.com/strazzusochr/CoronaProjektschonwieder call_id=8ce147c5-50b9-4ff2-a063-a9a53c67c149
+- 2026-04-11T16:15:41.426588+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=fdb33702-4e0f-4f2d-9f6b-fcc85ad66537
+- 2026-04-11T16:15:54.187309+00:00 BOLT_DISPATCH: status=forwarded source=verify_superpowers repo=https://github.com/strazzusochr/CoronaProjektschonwieder call_id=5e9a1fa6-9134-4487-acbb-76112b190226
+- 2026-04-11T16:16:16.865Z MEMORY_PROBE: adapter=healthy
+  openhands=http://localhost:3000
+  trigger=local-only

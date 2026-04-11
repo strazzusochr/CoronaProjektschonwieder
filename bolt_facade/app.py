@@ -37,7 +37,8 @@ GODMODE_GOAL_PATH = Path(
 BOLTDIY_MODE = os.environ.get("BOLTDIY_MODE", "hybrid").strip().lower()
 BOLTDIY_FORWARD_TIMEOUT = int(os.environ.get("BOLTDIY_FORWARD_TIMEOUT", "20"))
 BOLTDIY_SPACE_URL = os.environ.get("BOLTDIY_SPACE_URL", "").strip()
-BOLTDIY_SPACE_TOKEN = os.environ.get("BOLTDIY_SPACE_TOKEN", os.environ.get("HF_TOKEN", "")).strip()
+_BOLTDIY_SPACE_TOKEN_RAW = os.environ.get("BOLTDIY_SPACE_TOKEN", "").strip()
+BOLTDIY_SPACE_TOKEN = _BOLTDIY_SPACE_TOKEN_RAW or os.environ.get("HF_TOKEN", "").strip()
 N8N_WEBHOOK_URL = os.environ.get("N8N_WEBHOOK_URL", "").strip()
 OPENHANDS_ADAPTER_URL = os.environ.get("OPENHANDS_ADAPTER_URL", "").strip()
 

@@ -226,16 +226,22 @@ echo "OK  LangGraph compose running on :$LANGGRAPH_PORT"
 cd "$REPO_ROOT/litellm" && "${docker_cmd[@]}" compose up -d
 echo "OK  LiteLLM compose running on :$LITELLM_PORT"
 
-cd "$REPO_ROOT/bolt_facade" && "${docker_cmd[@]}" compose up -d
+cd "$REPO_ROOT/bolt_facade" && "${docker_cmd[@]}" compose up -d --build --force-recreate
 echo "OK  bolt-facade compose running on :$BOLTDIY_FACADE_PORT"
 
 if [[ "$DEVTOOLS_BRIDGE_ENABLED" == "true" ]]; then
   DEVTOOLS_HEALTH_URL="http://$CORE_RUNTIME_HOST:$DEVTOOLS_BRIDGE_PORT/health"
   if ! curl -fsS "$DEVTOOLS_HEALTH_URL" >/dev/null 2>&1; then
-    if command -v python >/dev/null 2>&1; then
+    PYTHON_CMD=""
+    if command -v python3 >/dev/null 2>&1; then
+      PYTHON_CMD="python3"
+    elif command -v python >/dev/null 2>&1; then
+      PYTHON_CMD="python"
+    fi
+    if [[ -n "$PYTHON_CMD" ]]; then
       mkdir -p "$RUNTIME_DIR"
       export DEVTOOLS_FRONTEND_DIR="${DEVTOOLS_FRONTEND_DIR:-$REPO_ROOT/CoronaProjektschonwieder}"
-      nohup python "$REPO_ROOT/core_tools_bridge.py" > "$RUNTIME_DIR/devtools_bridge.log" 2>&1 &
+      nohup "$PYTHON_CMD" "$REPO_ROOT/core_tools_bridge.py" > "$RUNTIME_DIR/devtools_bridge.log" 2>&1 &
       sleep 2
       echo "OK  Core tools bridge started on :$DEVTOOLS_BRIDGE_PORT"
     else

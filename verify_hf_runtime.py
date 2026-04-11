@@ -9,6 +9,7 @@ from typing import Any
 from urllib import error, request
 
 RUNTIME_DIR = Path("d:/Web/docs/godmode_setup/.godmode_runtime/evidence")
+ENV_FILE = Path("d:/Web/docs/godmode_setup/.godmode_env")
 
 SPACE_RULES = [
     {"space": "Wrzzzrzr/openhands-godmode", "expected": "RUNNING", "class": "core_public"},
@@ -24,6 +25,24 @@ SPACE_RULES = [
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def load_env_file(path: Path) -> None:
+    if not path.exists():
+        return
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        raw = line.strip()
+        if not raw or raw.startswith("#"):
+            continue
+        if raw.startswith("export "):
+            raw = raw[len("export ") :].strip()
+        if "=" not in raw:
+            continue
+        key, value = raw.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
 
 
 def call_api(space: str, token: str) -> dict[str, Any]:
@@ -84,6 +103,7 @@ def classify(rule: dict[str, Any], result: dict[str, Any], strict: bool) -> str:
 
 
 def main() -> int:
+    load_env_file(ENV_FILE)
     token = os.environ.get("HF_TOKEN", "").strip()
     strict = os.environ.get("HF_VERIFY_STRICT", "true").strip().lower() in {"1", "true", "yes", "on"}
     timestamp = now_iso()
@@ -135,4 +155,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

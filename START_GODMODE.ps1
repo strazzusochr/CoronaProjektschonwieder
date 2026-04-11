@@ -386,7 +386,7 @@ Write-Host "OK  LiteLLM compose running on :$(Resolve-GodmodeValue $env:LITELLM_
 
 # 1. bolt-facade
 Set-Location -Path (Join-Path $RepoRoot "bolt_facade")
-docker @dockerContextArgs compose up -d
+docker @dockerContextArgs compose up -d --build --force-recreate
 Write-Host "OK  bolt-facade compose running on :$(Resolve-GodmodeValue $env:BOLTDIY_FACADE_PORT '3901')"
 
 # 2. OpenHands + adapter
@@ -422,8 +422,22 @@ if ((Resolve-GodmodeValue $env:DEVTOOLS_BRIDGE_ENABLED "true").ToLowerInvariant(
 
     if (-not $bridgeReachable) {
         $bridgeScript = Join-Path $RepoRoot "core_tools_bridge.py"
-        $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
-        if ((Test-Path $bridgeScript) -and $pythonCommand) {
+        $pythonExecutable = $null
+        $pythonArgumentsPrefix = @()
+
+        $pyLauncher = Get-Command py -ErrorAction SilentlyContinue
+        if ($pyLauncher) {
+            $pythonExecutable = $pyLauncher.Source
+            $pythonArgumentsPrefix = @("-3")
+        }
+        else {
+            $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
+            if ($pythonCommand) {
+                $pythonExecutable = $pythonCommand.Source
+            }
+        }
+
+        if ((Test-Path $bridgeScript) -and $pythonExecutable) {
             $bridgeEnv = @{
                 "DEVTOOLS_BRIDGE_HOST" = Resolve-GodmodeValue $env:DEVTOOLS_BRIDGE_HOST "0.0.0.0"
                 "DEVTOOLS_BRIDGE_PORT" = $bridgePort
@@ -435,12 +449,24 @@ if ((Resolve-GodmodeValue $env:DEVTOOLS_BRIDGE_ENABLED "true").ToLowerInvariant(
                 [System.Environment]::SetEnvironmentVariable($item.Key, $item.Value, "Process")
             }
 
-            Start-Process -FilePath $pythonCommand.Source -ArgumentList @($bridgeScript) -WindowStyle Hidden | Out-Null
+            $bridgeArgs = @()
+            if ($pythonArgumentsPrefix.Count -gt 0) {
+                $bridgeArgs += $pythonArgumentsPrefix
+            }
+            $bridgeArgs += @($bridgeScript)
+            Start-Process -FilePath $pythonExecutable -ArgumentList $bridgeArgs -WindowStyle Hidden | Out-Null
             Start-Sleep -Seconds 2
-            Write-Host "OK  Core tools bridge started on :$bridgePort"
+            $bridgeHealthCandidate = "http://$($runtimeHost):$bridgePort/health"
+            $bridgeStarted = Test-HttpEndpoint -Url $bridgeHealthCandidate -Label "Core Tools Bridge (post-start)" -MaxAttempts 6 -DelaySeconds 2
+            if ($bridgeStarted) {
+                Write-Host "OK  Core tools bridge started on :$bridgePort"
+            }
+            else {
+                Write-Host "WARN Core tools bridge process launched but health check did not pass"
+            }
         }
         else {
-            Write-Host "WARN Core tools bridge not started (python or script missing)"
+            Write-Host "WARN Core tools bridge not started (python launcher or script missing)"
         }
     }
     else {

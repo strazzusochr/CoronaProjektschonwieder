@@ -214,3 +214,10 @@ Historical note resolved during this proof:
 - 2026-04-10T23:58:01.267280+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=db87a311-dfdf-4504-9ddd-0ddd0d7a1d6a
 - 2026-04-11T00:30:08.260075+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=0cc7600a-e30f-4bc8-b425-2d483dcb2c2d
 - 2026-04-11T00:53:15.917436+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=e5e90850-19ef-4824-a9bb-d11e99eedac4
+- 2026-04-11T15:59:01.493459+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=f82bb6f4-7014-4b4c-bfdc-e6bf6b29eba5
+- 2026-04-11T16:05:35.208791+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=74938300-3431-49bd-9a0e-38a73847d959
+- 2026-04-11T16:06:11.020220+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=a52644f8-66ed-4797-be7e-734b1a5199e1
+- 2026-04-11T16:11:13.531253+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=333c5fa6-6ecd-42b9-a182-c6ef8c970734
+- 2026-04-11T16:12:55.650483+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=dd8d2c85-d614-472c-9965-97db31608c17
+- 2026-04-11T16:15:11.985548+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=406875da-369c-498e-bd2d-67bb11f16440
+- 2026-04-11T16:15:41.426588+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=fdb33702-4e0f-4f2d-9f6b-fcc85ad66537
