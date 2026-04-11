@@ -242,3 +242,4 @@ as `SKIPPED` by design in `.godmode_runtime/evidence/oracle_probe_latest.json`
 when Oracle is disabled placeholder mode; this is not a blocker for the active
 selfhosted core runtime.
 - 2026-04-11T16:58:05.948176+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=22abb979-41e5-4f30-afa0-adaf70761304
+- 2026-04-11T17:07:41.866813+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=68d03025-118f-47c1-a1b2-122395239729
