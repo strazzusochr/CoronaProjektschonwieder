@@ -53,12 +53,32 @@ def main() -> int:
     dispatch = post_json(f"{base_url}/dispatch", payload, timeout=45)
     proof = post_json(f"{base_url}/proof", proof_payload, timeout=45)
 
+    target_statuses = {
+        entry.get("target"): entry.get("status")
+        for entry in dispatch.get("results", [])
+        if isinstance(entry, dict)
+    }
+    n8n_ok = target_statuses.get("n8n") == "forwarded"
+    adapter_ok = target_statuses.get("openhands-adapter") == "forwarded"
+    dispatch_ok = dispatch.get("status") == "forwarded"
+    gate_status = "PASS" if dispatch_ok and n8n_ok and adapter_ok else "PARTIAL"
+
     result = {
         "timestamp": timestamp,
         "base_url": base_url,
         "health": health,
         "dispatch": dispatch,
         "proof": proof,
+        "gate": {
+            "status": gate_status,
+            "dispatch_status": dispatch.get("status"),
+            "target_statuses": target_statuses,
+            "requirements": {
+                "dispatch_forwarded": dispatch_ok,
+                "n8n_forwarded": n8n_ok,
+                "openhands_adapter_forwarded": adapter_ok,
+            },
+        },
     }
 
     EVIDENCE_DIR.mkdir(parents=True, exist_ok=True)
@@ -73,6 +93,7 @@ def main() -> int:
             {
                 "status": "ok",
                 "snapshot": str(out_file),
+                "gate_status": gate_status,
                 "dispatch_status": dispatch.get("status"),
                 "proof_status": proof.get("status"),
             },
@@ -84,4 +105,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

@@ -1,6 +1,6 @@
 # Selfhosted Core Runtime Beta Runbook
 
-Stand: 2026-04-10
+Stand: 2026-04-11
 
 This runbook defines the minimum operator path for running the GODMODE stack
 without Oracle and without pretending that external services are local.
@@ -10,6 +10,19 @@ without Oracle and without pretending that external services are local.
 - run the active stack as a provider-neutral `selfhosted` core runtime
 - keep Hugging Face Spaces as hosted facades where they already exist
 - keep Oracle as a future placeholder only
+
+## Canonical Hetzner Track
+
+- Active host target: `65.108.253.14`
+- Last verified rollout FQDN root: `65.108.253.14.nip.io`
+- Canonical deployment entry:
+  - `.\ops\deploy_hetzner_core.ps1 -HostIp 65.108.253.14 -SshUser root -FqdnRoot <fqdn> -TlsEmail <email>`
+- Canonical public ingress shape:
+  - `openhands.<fqdn>`
+  - `adapter.<fqdn>`
+  - `langgraph.<fqdn>`
+  - `n8n.<fqdn>`
+  - `bolt.<fqdn>`
 
 ## Beta Runtime Model
 
@@ -37,9 +50,9 @@ These values must be supplied by the operator in `.godmode_env`.
 
 - `CORE_RUNTIME_PROVIDER=selfhosted`
 - `CORE_RUNTIME_MODE=selfhosted`
-- `CORE_RUNTIME_HOST=<real host or DNS>`
-- `CORE_RUNTIME_PUBLIC_URL=<real base URL>`
-- `CORE_RUNTIME_SSH_HOST=<real SSH host if remote shell access is needed>`
+- `CORE_RUNTIME_HOST=65.108.253.14`
+- `CORE_RUNTIME_PUBLIC_URL=https://openhands.<fqdn>`
+- `CORE_RUNTIME_SSH_HOST=65.108.253.14`
 - `CORE_DOCKER_CONTEXT=<docker context name or default>`
 - `CORE_DEPLOY_PROFILE=selfhosted`
 
@@ -70,6 +83,8 @@ These values must be supplied by the operator in `.godmode_env`.
   health paths
 - Hugging Face Spaces remain valid hosted facades for `OpenHands`,
   `LangGraph`, `smolagents`, `Aider`, and the private pilot
+- canonical Hetzner deploy gate is runtime-proven with
+  `.godmode_runtime/evidence/hetzner_deploy_latest.json = PASS` (2026-04-11)
 
 ## What Still Depends On External Operators
 
@@ -78,6 +93,13 @@ These values must be supplied by the operator in `.godmode_env`.
 - hosted `bolt.diy`, which remains an external dependency
 - optional LiteLLM live proxy if the operator wants cost-based routing instead
   of direct provider URLs
+
+## Security Baseline (Hetzner)
+
+- Public allowlist: `22`, `80`, `443`
+- Public denylist: `3000`, `3001`, `3901`, `4000`, `5678`, `8080`, `11434`,
+  `4173`
+- Internal service communication stays local/docker-networked.
 
 ## Minimum Bring-Up Sequence
 
@@ -121,3 +143,6 @@ These values must be supplied by the operator in `.godmode_env`.
 - [ENV_REFERENCE.md](/d:/Web/docs/godmode_setup/ENV_REFERENCE.md)
 - [STACK_GAP_ROADMAP.md](/d:/Web/docs/godmode_setup/STACK_GAP_ROADMAP.md)
 - [STACK_OPERATIONS.md](/d:/Web/docs/godmode_setup/STACK_OPERATIONS.md)
+- [ops/deploy_hetzner_core.ps1](/d:/Web/docs/godmode_setup/ops/deploy_hetzner_core.ps1)
+- [HETZNER_SELFHOSTED_DEPLOY_RUNBOOK.md](/d:/Web/docs/godmode_setup/HETZNER_SELFHOSTED_DEPLOY_RUNBOOK.md)
+- [BEGINNER_DEV_PLAYBOOK_3D_AND_APPS.md](/d:/Web/docs/godmode_setup/BEGINNER_DEV_PLAYBOOK_3D_AND_APPS.md)

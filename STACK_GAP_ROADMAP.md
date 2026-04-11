@@ -1,6 +1,6 @@
 # GODMODE Guide-vs-Repo Gap Roadmap
 
-Stand: 2026-04-10
+Stand: 2026-04-11
 
 Provider-neutral migration note:
 - Oracle is no longer treated as an active required host in the canonical
@@ -20,7 +20,8 @@ The repository already contains meaningful implementation artifacts for
 broader and more ambitious than the current repo evidence:
 
 - several stack modules exist only as partial implementations or thin wrappers,
-- operator documentation now has a baseline, but deeper hosted/local runbooks are still incomplete,
+- operator documentation now has a baseline, including a canonical Hetzner
+  remote deploy entry, but deeper multi-provider runbooks are still incomplete,
 - external future-Oracle, Hugging Face, account, secret, and provisioning steps are mostly not verifiable from the repo alone,
 - `bolt.diy` now has a repo-authored local hybrid facade, while external
   hosted ownership and true external runtime behavior remain only partially
@@ -90,7 +91,9 @@ Gap notes:
    real hybrid facade but still depends on external hosted ownership for
    complete proof.
 3. `LangGraph` is presented in the guide as an 8-agent orchestrator, while the local code currently exposes a much smaller FastAPI + single-node flow.
-4. `OpenHands` and `LangGraph` now have baseline operator docs, but deeper deployment, verification, and integration runbooks are still missing.
+4. `OpenHands` and `LangGraph` now have baseline operator docs and a canonical
+   Hetzner deploy entry, but deeper multi-provider deployment and integration
+   runbooks are still missing.
 5. `walkthrough.md` previously carried stale frontend/build claims and should no longer serve as the detailed status source for stack maturity.
 6. External dependencies such as the future Oracle profile, Hugging Face Spaces, account provisioning, secrets, and hosted URLs are essential to the guide, but mostly unverifiable from the repo alone.
 
@@ -116,6 +119,9 @@ Gap notes:
   now exist as `pm2/ecosystem.config.cjs` and `PM2_SELFHOSTED_RUNBOOK.md`.
 - Closed 2026-04-10: a dedicated LiteLLM Compose runtime now exists at
   `litellm/docker-compose.yml`, so the router is no longer config-only.
+- Closed 2026-04-11: startup scripts now enforce n8n mission-workflow
+  import+publish+restart+webhook-smoke and use the shared `godmode_core`
+  network for stable service-to-service routing.
 
 ### P2 — Plan Deeper Integration And Missing Systems
 
@@ -125,7 +131,7 @@ Gap notes:
 - Upgrade the repo from "artifact collection" to "runnable platform" only after documentation and secret management are stabilized.
 - Add verification steps for hosted services so future docs can distinguish "exists in code" from "confirmed live".
 
-## Beta Closure Decisions 2026-04-10
+## Beta Closure Decisions 2026-04-11
 
 This section records what is good enough for the current beta and what remains
 outside the minimal beta scope.
@@ -138,9 +144,9 @@ outside the minimal beta scope.
 | smolagents | `partial` | current implementation is sufficient | keep current app plus HF facade; document that deeper browser-agent claims remain partial | deeper autonomous browser/runtime proof |
 | Aider | `partial` | current implementation is sufficient | keep local launcher plus safe HF facade | broader remote operator automation and richer hosted workflows |
 | LangGraph | `partial` | minimal implementation is sufficient | current planner/swarm/review service is enough for beta; do not fake the 8-agent guide version | actual multi-agent expansion if the product later requires it |
-| n8n | `partial` | minimal implementation required | keep local workflow JSONs, verified health, and concrete production webhook path | richer hosted imports, published workflow management, and operator credentials |
+| n8n | `partial` | minimal implementation required | keep local workflow JSONs, verified health, concrete production webhook path, and automated import/publish in startup scripts | hosted credentials and external environment-specific rollout |
 | Stack Integration | `partial` | minimal implementation required | keep the canonical mission payload, startup scripts, and verified local mission path | full cross-service end-to-end proof across every hosted subsystem |
-| Deployment runbooks | `missing` | minimal implementation required | add a dedicated selfhosted beta runbook and keep external hosted steps documented as operator work | environment-specific rollout guides per provider |
+| Deployment runbooks | `partial` | minimal implementation required | dedicated selfhosted beta runbook plus canonical Hetzner deploy script/runbook now exist; keep external hosted steps documented as operator work | environment-specific rollout guides per provider |
 | Superpowers / manifesto claims | `partial` | stub/claim visibility is sufficient | keep them explicitly non-blocking and never use them as runtime proof | real subsystem implementations and independent verification |
 
 ## Module Notes For Beta
@@ -167,8 +173,15 @@ outside the minimal beta scope.
   [SELFHOSTED_CORE_RUNTIME_BETA_RUNBOOK.md](/d:/Web/docs/godmode_setup/SELFHOSTED_CORE_RUNTIME_BETA_RUNBOOK.md)
   as the minimal operator runbook for a provider-neutral beta without Oracle.
 - The repo now includes
+  [HETZNER_SELFHOSTED_DEPLOY_RUNBOOK.md](/d:/Web/docs/godmode_setup/HETZNER_SELFHOSTED_DEPLOY_RUNBOOK.md)
+  plus `ops/deploy_hetzner_core.ps1` as the canonical remote deploy track for
+  host `65.108.253.14`.
+- The repo now includes
   [PM2_SELFHOSTED_RUNBOOK.md](/d:/Web/docs/godmode_setup/PM2_SELFHOSTED_RUNBOOK.md)
   plus `pm2/ecosystem.config.cjs` for tracked PM2 supervision.
+- The repo now includes
+  [BEGINNER_DEV_PLAYBOOK_3D_AND_APPS.md](/d:/Web/docs/godmode_setup/BEGINNER_DEV_PLAYBOOK_3D_AND_APPS.md)
+  as the beginner-safe operator/developer guide.
 
 ## Evidence Rules For Future Updates
 

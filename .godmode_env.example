@@ -24,6 +24,7 @@ export HF_VERIFY_STRICT="true"
 export HETZNER_HOST_IP="65.108.253.14"
 export HETZNER_FQDN_ROOT="replace-with-fqdn-root"
 export HETZNER_TLS_EMAIL="replace-with-tls-email"
+export HETZNER_API_TOKEN="replace-with-hetzner-api-token"
 
 # GitHub
 export GITHUB_TOKEN="replace-with-github-token"
@@ -42,7 +43,8 @@ export MODEL_ROUTER_NAME="smart-router"
 # bolt.diy hybrid facade
 export BOLTDIY_MODE="hybrid"
 export BOLTDIY_FACADE_PORT="3901"
-export BOLTDIY_FACADE_URL="http://host.docker.internal:3901"
+export BOLTDIY_FACADE_URL="https://bolt.replace-with-fqdn-root"
+export BOLTDIY_FACADE_INTERNAL_URL="http://bolt-facade-godmode:3901"
 export BOLTDIY_FORWARD_TIMEOUT="20"
 
 # DevTools / Playwright bridge
@@ -64,6 +66,8 @@ export CORE_RUNTIME_PUBLIC_URL="https://openhands.replace-with-fqdn-root"
 export CORE_RUNTIME_SSH_HOST="65.108.253.14"
 export CORE_DOCKER_CONTEXT="default"
 export CORE_DEPLOY_PROFILE="selfhosted"
+export GODMODE_CORE_NETWORK="godmode_core"
+export LOCAL_HEALTHCHECK_HOST="127.0.0.1"
 
 # Aider
 export AIDER_MODEL="openrouter/anthropic/claude-sonnet-4-5"
@@ -73,17 +77,20 @@ export AIDER_MAP_TOKENS="8192"
 # OpenHands
 export OPENHANDS_PORT="3000"
 export OPENHANDS_PUBLIC_URL="https://openhands.replace-with-fqdn-root"
-export OPENHANDS_API_URL="http://host.docker.internal:3000"
+export OPENHANDS_API_URL="https://openhands.replace-with-fqdn-root"
+export OPENHANDS_API_INTERNAL_URL="http://openhands-godmode:3000"
 export OPENHANDS_TRIGGER_URL=""
 export OPENHANDS_API_KEY="replace-with-openhands-token"
-export OPENHANDS_ADAPTER_URL="http://host.docker.internal:3001"
+export OPENHANDS_ADAPTER_URL="https://adapter.replace-with-fqdn-root"
+export OPENHANDS_ADAPTER_INTERNAL_URL="http://openhands-godmode-adapter:3001"
 export OPENHANDS_ADAPTER_PORT="3001"
 export OPENHANDS_LLM_MODEL="claude-sonnet-4-5"
-export OPENHANDS_LLM_BASE_URL="http://host.docker.internal:4000"
+export OPENHANDS_LLM_BASE_URL="http://litellm-godmode:4000"
 
 # LangGraph
 export LANGGRAPH_PORT="8080"
-export LANGGRAPH_API_URL="http://host.docker.internal:8080"
+export LANGGRAPH_API_URL="https://langgraph.replace-with-fqdn-root"
+export LANGGRAPH_API_INTERNAL_URL="http://langgraph-godmode-local:8080"
 export PROMPT_EVOLUTION_PATH="./langgraph/prompt_evolution.json"
 
 # n8n
@@ -91,10 +98,13 @@ export N8N_BASIC_AUTH_USER="replace-with-n8n-user"
 export N8N_BASIC_AUTH_PASSWORD="replace-with-n8n-password"
 export N8N_ENCRYPTION_KEY="replace-with-n8n-encryption-key"
 export N8N_PORT="5678"
+export N8N_API_URL="https://n8n.replace-with-fqdn-root/api/v1"
+export N8N_API_KEY="replace-with-n8n-api-key"
 # Must point to a currently active published production webhook.
 # Replace the example host with the real selfhosted endpoint before dispatch.
 export N8N_WEBHOOK_BASE_URL="https://n8n.replace-with-fqdn-root/"
 export N8N_WEBHOOK_URL="https://n8n.replace-with-fqdn-root/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission"
+export N8N_WEBHOOK_INTERNAL_URL="http://n8n-godmode:5678/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission"
 export N8N_EDITOR_BASE_URL="https://n8n.replace-with-fqdn-root"
 export MEMORY_VAULT_PATH="./memory_vault.md"
 

@@ -5,7 +5,7 @@
 - Repository verified: `D:\Web\docs\godmode_setup`
 - Frontend project verified: `D:\Web\docs\godmode_setup\CoronaProjektschonwieder`
 - Last fully reverified pushed platform snapshot during this proof: `62c5baa900a44203481c31dec00c87d33ee79db3`
-- Verification date: `2026-04-10`
+- Verification date: `2026-04-11`
 - Scope of this proof: record the successful local validation of the refreshed frontend proof, local stack runtime proof, local n8n hardening proof, restored Hugging Face owner-auth, private pilot resynchronization, and the provider-neutral core-runtime migration that keeps Oracle only as a disabled future profile
 
 ## Local Repairs Included In This Proof
@@ -17,13 +17,16 @@
 5. Replaced the unsupported `n8n-nodes-base.executeCommand` node in `n8n_memory_workflow.json` with a `code` node that appends directly to the mounted memory vault file.
 6. Added `n8n_memory_probe_workflow.json` as a manual proof workflow for the same memory pipeline.
 7. Hardened `n8n/docker-compose.yml` for local cross-compose routing and file persistence:
-   - `OPENHANDS_API_URL` default -> `http://host.docker.internal:3000`
-   - `OPENHANDS_ADAPTER_URL` default -> `http://host.docker.internal:3001`
-   - `LANGGRAPH_API_URL` default -> `http://host.docker.internal:8080`
+   - `OPENHANDS_API_URL` default -> `http://openhands-godmode:3000`
+   - `OPENHANDS_ADAPTER_URL` default -> `http://openhands-godmode-adapter:3001`
+   - `LANGGRAPH_API_URL` default -> `http://langgraph-godmode-local:8080`
    - `MEMORY_VAULT_PATH` default -> `/workspace/memory_vault.md`
    - added `NODE_FUNCTION_ALLOW_BUILTIN=fs,path`
    - added `N8N_BLOCK_ENV_ACCESS_IN_NODE=false`
+   - added shared external network `godmode_core`
    - mounted `../memory_vault.md:/workspace/memory_vault.md`
+8. Startup scripts now enforce n8n mission workflow import + publish + restart
+   + webhook smoke on every stack bring-up.
 
 ## Validation Commands
 
@@ -180,11 +183,10 @@ Additional caution that remains outside a clean beta-go:
 - the reserved Oracle future profile remains unreachable from this machine: ping is `False`, ports `22`, `3000`, `3001`, `4000`, `5678`, `8080`, and `11434` time out against `132.145.225.182`
 - the reserved Oracle host remains externally unreachable: ICMP and direct TCP probes to
   `132.145.225.182` still timed out on 2026-04-10
-- local n8n still reports `0 published workflows`, so operators must keep the
-  concrete registered route
+- local n8n canonical dispatch stays on the concrete registered route
   `/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission`
-  as the current canonical dispatch target until the publish layer is cleaned
-  up
+  even after automated publish/restart, so operators should keep this exact
+  route in dispatch configs
 
 Historical note resolved during this proof:
 
@@ -193,3 +195,5 @@ Historical note resolved during this proof:
 - 2026-04-10T18:09:13.577415+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=d3f25305-f01e-4f37-b3c2-c72b925d630b
 - 2026-04-10T18:10:53.143784+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=be417511-c385-4ca5-82d7-9e9d0b03b073
 - 2026-04-10T18:24:23.016873+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=7a471f42-d639-4a74-a52c-d072de1e7247
+- 2026-04-10T23:58:01.267280+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=db87a311-dfdf-4504-9ddd-0ddd0d7a1d6a
+- 2026-04-11T00:30:08.260075+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=0cc7600a-e30f-4bc8-b425-2d483dcb2c2d

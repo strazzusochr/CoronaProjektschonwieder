@@ -1,6 +1,6 @@
 # GODMODE Environment Reference
 
-Stand: 2026-04-10
+Stand: 2026-04-11
 
 This document defines the only tracked secret contract for the GODMODE stack.
 Real values live in `.godmode_env`. Tracked files must reference only env vars
@@ -52,6 +52,16 @@ Used by: Hugging Face Spaces and hosted wrappers.
 private-space 401/403 responses must fail the HF gate (`true`) or stay
 `NOT VERIFIED` (`false`).
 
+### Hetzner selfhosted deployment metadata
+
+- `HETZNER_HOST_IP`
+- `HETZNER_FQDN_ROOT`
+- `HETZNER_TLS_EMAIL`
+- `HETZNER_API_TOKEN`
+
+Used by: `ops/deploy_hetzner_core.ps1` as canonical deployment parameters for
+the active selfhosted core runtime target.
+
 ### GitHub
 
 - `GITHUB_TOKEN`
@@ -77,6 +87,7 @@ Used by: cost-aware routing, proxying, and provider compatibility layers.
 - `BOLTDIY_MODE`
 - `BOLTDIY_FACADE_PORT`
 - `BOLTDIY_FACADE_URL`
+- `BOLTDIY_FACADE_INTERNAL_URL`
 - `BOLTDIY_FORWARD_TIMEOUT`
 
 Used by: `bolt_facade/app.py`, `bolt_facade/docker-compose.yml`, pilot dispatch,
@@ -116,6 +127,8 @@ Default tracked port:
 - `CORE_RUNTIME_SSH_HOST`
 - `CORE_DOCKER_CONTEXT`
 - `CORE_DEPLOY_PROFILE`
+- `GODMODE_CORE_NETWORK`
+- `LOCAL_HEALTHCHECK_HOST`
 
 Used by: startup scripts, operator status output, and provider-neutral runtime
 selection.
@@ -128,11 +141,13 @@ Status model:
 - A locally verified operator setup may still override both values to `local`
   inside `.godmode_env` without changing the tracked template.
 - `CORE_RUNTIME_HOST` and `CORE_RUNTIME_PUBLIC_URL` are active and define where
-  local or selfhosted health probes should point. In the tracked example they
-  are placeholder selfhosted hostnames and must be replaced before remote use.
+  local or selfhosted health probes should point. The tracked selfhosted target
+  now uses Hetzner host IP `65.108.253.14`, while public ingress is mapped via
+  TLS FQDN endpoints (`openhands.*`, `adapter.*`, `langgraph.*`, `n8n.*`,
+  `bolt.*`).
 - `CORE_RUNTIME_SSH_HOST` is optional and only relevant for future remote
-  selfhosted execution; the tracked example value is a placeholder, not a live
-  verified host.
+  selfhosted execution; the tracked selfhosted example now aligns it to the
+  same Hetzner host IP.
 - `CORE_DOCKER_CONTEXT` is optional and allows Docker commands to target a
   non-default context without binding the stack to any specific provider.
 - `CORE_DEPLOY_PROFILE` is active and should describe the intended runtime
@@ -143,8 +158,10 @@ Remote beta audit note:
 
 - The tracked example intentionally favors a provider-neutral selfhosted remote
   profile because the current beta model no longer requires Oracle.
-- The example hostnames under `core-runtime.example.internal` and
-  `core-runtime-ssh.example.internal` are placeholders only.
+- The deploy automation entry is:
+  - `.\ops\deploy_hetzner_core.ps1 -HostIp 65.108.253.14 -SshUser root -FqdnRoot <fqdn> -TlsEmail <email>`
+- The tracked FQDN placeholders must still be replaced with real reachable DNS
+  records before remote rollout.
 - Real remote bring-up still requires operator-supplied DNS, reachability,
   authentication, and any reverse-proxy or TLS decisions.
 - For the exact minimum path, see
@@ -163,9 +180,11 @@ Used by: `aider_godmode.ps1`, pilot execution, and Aider cloud workflows.
 - `OPENHANDS_PORT`
 - `OPENHANDS_PUBLIC_URL`
 - `OPENHANDS_API_URL`
+- `OPENHANDS_API_INTERNAL_URL`
 - `OPENHANDS_TRIGGER_URL`
 - `OPENHANDS_API_KEY`
 - `OPENHANDS_ADAPTER_URL`
+- `OPENHANDS_ADAPTER_INTERNAL_URL`
 - `OPENHANDS_ADAPTER_PORT`
 - `OPENHANDS_LLM_MODEL`
 - `OPENHANDS_LLM_BASE_URL`
@@ -187,6 +206,7 @@ clients.
 
 - `LANGGRAPH_PORT`
 - `LANGGRAPH_API_URL`
+- `LANGGRAPH_API_INTERNAL_URL`
 - `PROMPT_EVOLUTION_PATH`
 
 Used by: local orchestration and prompt-evolution persistence.
@@ -210,28 +230,34 @@ Used by: local operator automation and OpenHands adapter endpoint forwarding.
 - `N8N_PORT`
 - `N8N_WEBHOOK_BASE_URL`
 - `N8N_WEBHOOK_URL`
+- `N8N_WEBHOOK_INTERNAL_URL`
 - `N8N_EDITOR_BASE_URL`
+- `N8N_API_URL`
+- `N8N_API_KEY`
 - `MEMORY_VAULT_PATH`
 - `BOLTDIY_FACADE_URL`
 
 Used by: `n8n/docker-compose.yml`, workflow imports, mission triggers, and
 memory persistence.
 
-Important 2026-04-10 audit note:
+Important 2026-04-11 audit note:
 
 - `N8N_WEBHOOK_BASE_URL` is the local base URL consumed by the n8n container
   itself via `WEBHOOK_URL`.
 - `N8N_WEBHOOK_URL` is the concrete mission-dispatch target used by pilot and
   operator tooling.
-- A generic local path like `http://localhost:5678/webhook/godmode-mission`
-  was not valid in the audited n8n `2.15.0` runtime.
 - The repo and runtime were hardened on 2026-04-10 so the active local mission
   dispatch path is now
   `http://localhost:5678/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission`,
   which returned HTTP `200`.
+- On 2026-04-11 this workflow was imported, published, and restarted by the
+  startup scripts, then re-smoked successfully via the same concrete path.
+- A short slug such as `/webhook/godmode-mission` may exist in some n8n
+  versions, but it is treated as fallback only. The long concrete route above
+  stays canonical for evidence.
 - In the tracked selfhosted example template, the same path now points to the
-  placeholder remote host `core-runtime.example.internal`. That value is not a
-  live runtime claim and must be replaced before a real remote rollout.
+  placeholder FQDN `n8n.replace-with-fqdn-root`. That value is not a live
+  runtime claim and must be replaced before a real remote rollout.
 - Do not collapse base URL and dispatch URL into the same variable again: that
   caused a real runtime drift between local compose wiring and pilot dispatch.
 
@@ -319,5 +345,8 @@ Minimum practical set:
 - [START_GODMODE.ps1](/d:/Web/docs/godmode_setup/START_GODMODE.ps1)
 - [aider_godmode.ps1](/d:/Web/docs/godmode_setup/aider_godmode.ps1)
 - [STACK_OPERATIONS.md](/d:/Web/docs/godmode_setup/STACK_OPERATIONS.md)
+- [ops/deploy_hetzner_core.ps1](/d:/Web/docs/godmode_setup/ops/deploy_hetzner_core.ps1)
+- [HETZNER_SELFHOSTED_DEPLOY_RUNBOOK.md](/d:/Web/docs/godmode_setup/HETZNER_SELFHOSTED_DEPLOY_RUNBOOK.md)
 - [verify_hf_runtime.py](/d:/Web/docs/godmode_setup/verify_hf_runtime.py)
 - [oracle_probe.py](/d:/Web/docs/godmode_setup/oracle_probe.py)
+- [BEGINNER_DEV_PLAYBOOK_3D_AND_APPS.md](/d:/Web/docs/godmode_setup/BEGINNER_DEV_PLAYBOOK_3D_AND_APPS.md)

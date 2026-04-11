@@ -1,6 +1,6 @@
 # GODMODE Stack Operations
 
-Stand: 2026-04-10
+Stand: 2026-04-11
 
 This document explains what the repository can actually start, wire, and
 operate today.
@@ -19,10 +19,14 @@ For the detailed horizontal/vertical phase control model, use
 - `SUPERPOWERS_STATUS.md`: implemented vs partial superpower map
 - `SELFHOSTED_CORE_RUNTIME_BETA_RUNBOOK.md`: minimal operator runbook for the
   provider-neutral beta core runtime
+- `HETZNER_SELFHOSTED_DEPLOY_RUNBOOK.md`: canonical remote rollout runbook for
+  host `65.108.253.14`
 - `PM2_SELFHOSTED_RUNBOOK.md`: tracked PM2 supervision profile for host-side
   tooling
 - `ORACLE_DUAL_TRACK_RUNBOOK.md`: Oracle recovery and gate rules for the
   parallel dual-track model
+- `BEGINNER_DEV_PLAYBOOK_3D_AND_APPS.md`: step-by-step guide for 3D games,
+  normal apps, and Open-Source-AI usage
 
 ## Hosted Sync 2026-04-10
 
@@ -45,9 +49,9 @@ For the detailed horizontal/vertical phase control model, use
   webhook node name plus env split on 2026-04-10, the local production mission
   URL
   `POST /webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission`
-  returned HTTP `200`. The runtime still logs `0 published workflows`, so the
-  stable proof currently depends on the concrete registered path rather than
-  the short generic slug.
+  returned HTTP `200`. On 2026-04-11 the mission workflow was imported,
+  published, restarted, and re-smoked as active runtime path; the concrete
+  registered route remains the canonical dispatch target.
 - `Future Oracle profile`: the reserved host values in `.godmode_env` remain a
   documented future profile only. `Test-Connection` to the current
   `ORACLE_IP` (`132.145.225.182`) was `False` on 2026-04-10, direct TCP probes
@@ -70,14 +74,28 @@ For the detailed horizontal/vertical phase control model, use
 It also recovers or persists a stable local `n8n` encryption key, prints the
 current local entrypoints, performs HTTP health checks, and reminds operators
 that Aider is started separately through `aider_godmode.ps1`.
+It now also enforces n8n mission-workflow import + publish + restart + webhook
+smoke as part of startup.
 
 ### Selfhosted core shell startup
 
 `START_GODMODE.sh` performs the same orchestration for a Linux/selfhosted core
 environment, including stable `n8n` key handling, optional Docker context
 selection, and post-start health checks, and prints local plus hosted
-endpoints. The reserved Oracle variables now stay disabled future-profile
-inputs unless an operator deliberately reactivates that profile later.
+endpoints. It also enforces the same n8n import/publish/smoke sequence.
+The reserved Oracle variables now stay disabled future-profile inputs unless an
+operator deliberately reactivates that profile later.
+
+### Canonical remote deploy entry
+
+`ops/deploy_hetzner_core.ps1` is now the single canonical remote deployment
+entry for the active Hetzner selfhosted track (`65.108.253.14`), including:
+
+- SSH preflight and port inventory evidence
+- remote bootstrap (`Docker`, `Nginx`, `Certbot`, `UFW`)
+- repo sync plus server-side `.godmode_env` rendering
+- stack bring-up via `START_GODMODE.sh`
+- HTTPS ingress for `openhands`, `adapter`, `langgraph`, `n8n`, and `bolt`
 
 ## Component Reality Map
 

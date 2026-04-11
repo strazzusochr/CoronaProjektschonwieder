@@ -37,6 +37,7 @@ GODMODE_GOAL_PATH = Path(
 BOLTDIY_MODE = os.environ.get("BOLTDIY_MODE", "hybrid").strip().lower()
 BOLTDIY_FORWARD_TIMEOUT = int(os.environ.get("BOLTDIY_FORWARD_TIMEOUT", "20"))
 BOLTDIY_SPACE_URL = os.environ.get("BOLTDIY_SPACE_URL", "").strip()
+BOLTDIY_SPACE_TOKEN = os.environ.get("BOLTDIY_SPACE_TOKEN", os.environ.get("HF_TOKEN", "")).strip()
 N8N_WEBHOOK_URL = os.environ.get("N8N_WEBHOOK_URL", "").strip()
 OPENHANDS_ADAPTER_URL = os.environ.get("OPENHANDS_ADAPTER_URL", "").strip()
 
@@ -78,17 +79,56 @@ def _append_line(path: Path, line: str) -> None:
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    def _safe_clone(value: Any, seen: set[int] | None = None) -> Any:
+        if seen is None:
+            seen = set()
+
+        if isinstance(value, dict):
+            marker = id(value)
+            if marker in seen:
+                return "<circular-ref>"
+            seen.add(marker)
+            cloned = {str(k): _safe_clone(v, seen) for k, v in value.items()}
+            seen.remove(marker)
+            return cloned
+
+        if isinstance(value, list):
+            marker = id(value)
+            if marker in seen:
+                return ["<circular-ref>"]
+            seen.add(marker)
+            cloned = [_safe_clone(item, seen) for item in value]
+            seen.remove(marker)
+            return cloned
+
+        return value
+
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="\n") as handle:
-        json.dump(payload, handle, ensure_ascii=True, indent=2)
+        json.dump(_safe_clone(payload), handle, ensure_ascii=True, indent=2)
 
 
-def _post_json(url: str, payload: dict[str, Any], timeout: int) -> dict[str, Any]:
+def _auth_headers() -> dict[str, str]:
+    headers: dict[str, str] = {}
+    if BOLTDIY_SPACE_TOKEN:
+        headers["Authorization"] = f"Bearer {BOLTDIY_SPACE_TOKEN}"
+    return headers
+
+
+def _post_json(
+    url: str,
+    payload: dict[str, Any],
+    timeout: int,
+    headers: dict[str, str] | None = None,
+) -> dict[str, Any]:
     body = json.dumps(payload, ensure_ascii=True).encode("utf-8")
+    request_headers = {"Content-Type": "application/json"}
+    if headers:
+        request_headers.update(headers)
     req = request.Request(
         url=url,
         data=body,
-        headers={"Content-Type": "application/json"},
+        headers=request_headers,
         method="POST",
     )
     try:
@@ -122,8 +162,8 @@ def _post_json(url: str, payload: dict[str, Any], timeout: int) -> dict[str, Any
         }
 
 
-def _probe_url(url: str, timeout: int) -> dict[str, Any]:
-    req = request.Request(url=url, method="GET")
+def _probe_url(url: str, timeout: int, headers: dict[str, str] | None = None) -> dict[str, Any]:
+    req = request.Request(url=url, method="GET", headers=headers or {})
     try:
         with request.urlopen(req, timeout=timeout) as response:
             return {
@@ -170,6 +210,28 @@ def _space_candidates(space_url: str) -> dict[str, str]:
     return {"api": hf_space_host, "web": hf_web}
 
 
+def _n8n_webhook_candidates(webhook_url: str) -> list[str]:
+    clean = webhook_url.strip().rstrip("/")
+    if not clean:
+        return []
+
+    candidates: list[str] = [clean]
+    long_suffix = "/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission"
+    short_suffix = "/webhook/godmode-mission"
+
+    if short_suffix in clean:
+        candidates.append(clean.replace(short_suffix, long_suffix))
+    elif long_suffix in clean:
+        candidates.append(clean.replace(long_suffix, short_suffix))
+    elif "/webhook/" in clean:
+        base = clean.split("/webhook/")[0]
+        candidates.append(f"{base}{long_suffix}")
+        candidates.append(f"{base}{short_suffix}")
+
+    # Preserve order while removing duplicates
+    return list(dict.fromkeys(candidates))
+
+
 def _dispatch_external_bolt(payload: MissionPayload) -> dict[str, Any]:
     if BOLTDIY_MODE != "hybrid":
         return {
@@ -189,22 +251,32 @@ def _dispatch_external_bolt(payload: MissionPayload) -> dict[str, Any]:
     api_base = candidates["api"].rstrip("/")
     attempts: list[dict[str, Any]] = []
 
+    auth = _auth_headers()
+    candidate_paths = ["/dispatch", "/trigger", "/api/dispatch", "/api/trigger"]
     if api_base:
-        attempts.append(_post_json(f"{api_base}/dispatch", payload.model_dump(), BOLTDIY_FORWARD_TIMEOUT))
-        if attempts[-1]["status"] != "forwarded":
-            attempts.append(_post_json(f"{api_base}/trigger", payload.model_dump(), BOLTDIY_FORWARD_TIMEOUT))
+        for path in candidate_paths:
+            attempt = _post_json(
+                f"{api_base}{path}",
+                payload.model_dump(),
+                BOLTDIY_FORWARD_TIMEOUT,
+                headers=auth,
+            )
+            attempts.append(attempt)
+            if attempt.get("status") == "forwarded":
+                break
 
     if any(item["status"] == "forwarded" for item in attempts):
         forwarded = [item for item in attempts if item["status"] == "forwarded"][0]
         return {
             "target": "bolt-external",
             "status": "forwarded",
+            "token_present": bool(BOLTDIY_SPACE_TOKEN),
             "attempts": attempts,
             "active_url": forwarded["url"],
         }
 
     probe_url = candidates["web"] or candidates["api"]
-    probe = _probe_url(probe_url, BOLTDIY_FORWARD_TIMEOUT) if probe_url else {
+    probe = _probe_url(probe_url, BOLTDIY_FORWARD_TIMEOUT, headers=auth) if probe_url else {
         "reachable": False,
         "error": "no_probe_url",
         "http_status": None,
@@ -217,6 +289,7 @@ def _dispatch_external_bolt(payload: MissionPayload) -> dict[str, Any]:
     return {
         "target": "bolt-external",
         "status": terminal_status,
+        "token_present": bool(BOLTDIY_SPACE_TOKEN),
         "attempts": attempts,
         "probe": probe,
     }
@@ -237,9 +310,35 @@ def _dispatch_n8n(payload: MissionPayload) -> dict[str, Any]:
             "reason": "N8N_WEBHOOK_URL is empty",
         }
 
-    response = _post_json(N8N_WEBHOOK_URL, payload.model_dump(), BOLTDIY_FORWARD_TIMEOUT)
-    response["target"] = "n8n"
-    return response
+    attempts: list[dict[str, Any]] = []
+    for candidate in _n8n_webhook_candidates(N8N_WEBHOOK_URL):
+        attempt = _post_json(candidate, payload.model_dump(), BOLTDIY_FORWARD_TIMEOUT)
+        attempts.append(attempt)
+        if attempt.get("status") == "forwarded":
+            return {
+                "target": "n8n",
+                "status": attempt.get("status"),
+                "url": attempt.get("url"),
+                "http_status": attempt.get("http_status"),
+                "response": attempt.get("response"),
+                "attempts": attempts,
+            }
+
+    first_attempt = attempts[0] if attempts else {
+        "status": "blocked",
+        "url": N8N_WEBHOOK_URL,
+        "error": "no webhook candidates",
+        "http_status": None,
+    }
+    return {
+        "target": "n8n",
+        "status": first_attempt.get("status"),
+        "url": first_attempt.get("url"),
+        "http_status": first_attempt.get("http_status"),
+        "error": first_attempt.get("error"),
+        "response": first_attempt.get("response"),
+        "attempts": attempts,
+    }
 
 
 def _dispatch_openhands(payload: MissionPayload) -> dict[str, Any]:
@@ -273,7 +372,8 @@ def health() -> dict[str, Any]:
         probe_target = candidates["web"] or candidates["api"]
         external_probe = {
             "status": "probed",
-            "probe": _probe_url(probe_target, BOLTDIY_FORWARD_TIMEOUT) if probe_target else {},
+            "token_present": bool(BOLTDIY_SPACE_TOKEN),
+            "probe": _probe_url(probe_target, BOLTDIY_FORWARD_TIMEOUT, headers=_auth_headers()) if probe_target else {},
         }
 
     return {

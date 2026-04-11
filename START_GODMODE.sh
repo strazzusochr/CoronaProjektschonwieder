@@ -58,6 +58,16 @@ test_http_endpoint() {
   return 1
 }
 
+ensure_core_network() {
+  local network_name="${GODMODE_CORE_NETWORK:-godmode_core}"
+  if ! "${docker_cmd[@]}" network inspect "$network_name" >/dev/null 2>&1; then
+    "${docker_cmd[@]}" network create "$network_name" >/dev/null
+    echo "OK  Core network created: $network_name"
+  else
+    echo "OK  Core network present: $network_name"
+  fi
+}
+
 export CORE_RUNTIME_PROVIDER="${CORE_RUNTIME_PROVIDER:-local}"
 export CORE_RUNTIME_MODE="${CORE_RUNTIME_MODE:-local}"
 export CORE_RUNTIME_HOST="${CORE_RUNTIME_HOST:-127.0.0.1}"
@@ -65,10 +75,12 @@ export CORE_RUNTIME_PUBLIC_URL="${CORE_RUNTIME_PUBLIC_URL:-http://$CORE_RUNTIME_
 export CORE_RUNTIME_SSH_HOST="${CORE_RUNTIME_SSH_HOST:-}"
 export CORE_DOCKER_CONTEXT="${CORE_DOCKER_CONTEXT:-default}"
 export CORE_DEPLOY_PROFILE="${CORE_DEPLOY_PROFILE:-local}"
+export GODMODE_CORE_NETWORK="${GODMODE_CORE_NETWORK:-godmode_core}"
 export LITELLM_PORT="${LITELLM_PORT:-4000}"
 export BOLTDIY_MODE="${BOLTDIY_MODE:-hybrid}"
 export BOLTDIY_FACADE_PORT="${BOLTDIY_FACADE_PORT:-3901}"
 export BOLTDIY_FACADE_URL="${BOLTDIY_FACADE_URL:-http://$CORE_RUNTIME_HOST:$BOLTDIY_FACADE_PORT}"
+export BOLTDIY_FACADE_INTERNAL_URL="${BOLTDIY_FACADE_INTERNAL_URL:-http://bolt-facade-godmode:3901}"
 export BOLTDIY_FORWARD_TIMEOUT="${BOLTDIY_FORWARD_TIMEOUT:-20}"
 export DEVTOOLS_BRIDGE_ENABLED="${DEVTOOLS_BRIDGE_ENABLED:-true}"
 export DEVTOOLS_BRIDGE_HOST="${DEVTOOLS_BRIDGE_HOST:-0.0.0.0}"
@@ -82,14 +94,92 @@ export ORACLE_PLACEHOLDER="${ORACLE_PLACEHOLDER:-true}"
 export ORACLE_RESERVED_FOR_FUTURE="${ORACLE_RESERVED_FOR_FUTURE:-true}"
 export OPENHANDS_PORT="${OPENHANDS_PORT:-3000}"
 export OPENHANDS_ADAPTER_PORT="${OPENHANDS_ADAPTER_PORT:-3001}"
+export OPENHANDS_API_INTERNAL_URL="${OPENHANDS_API_INTERNAL_URL:-http://openhands-godmode:3000}"
+export OPENHANDS_ADAPTER_INTERNAL_URL="${OPENHANDS_ADAPTER_INTERNAL_URL:-http://openhands-godmode-adapter:3001}"
+export OPENHANDS_LLM_BASE_URL="${OPENHANDS_LLM_BASE_URL:-http://litellm-godmode:4000}"
 export N8N_PORT="${N8N_PORT:-5678}"
+export N8N_WEBHOOK_URL="${N8N_WEBHOOK_URL:-http://$CORE_RUNTIME_HOST:$N8N_PORT/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission}"
+export N8N_WEBHOOK_INTERNAL_URL="${N8N_WEBHOOK_INTERNAL_URL:-http://n8n-godmode:5678/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission}"
 export LANGGRAPH_PORT="${LANGGRAPH_PORT:-8080}"
+export LANGGRAPH_API_INTERNAL_URL="${LANGGRAPH_API_INTERNAL_URL:-http://langgraph-godmode-local:8080}"
 export N8N_ENCRYPTION_KEY="${N8N_ENCRYPTION_KEY:-$(get_stable_n8n_key)}"
 
 docker_cmd=(docker)
 if [[ "$CORE_DOCKER_CONTEXT" != "default" ]]; then
   docker_cmd+=(--context "$CORE_DOCKER_CONTEXT")
 fi
+
+sync_n8n_workflow() {
+  local workflow_file="$REPO_ROOT/n8n_mission_workflow.json"
+  local container_name="n8n-godmode"
+  local health_host="${LOCAL_HEALTHCHECK_HOST:-127.0.0.1}"
+  local webhook_candidates=(
+    "http://$health_host:$N8N_PORT/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission"
+    "http://$health_host:$N8N_PORT/webhook/godmode-mission"
+  )
+  local timestamp
+  local payload
+  local curl_auth=()
+
+  if [[ ! -f "$workflow_file" ]]; then
+    echo "WARN n8n workflow sync skipped (missing $workflow_file)"
+    return 1
+  fi
+
+  if ! "${docker_cmd[@]}" ps --format '{{.Names}}' | grep -Fxq "$container_name"; then
+    echo "WARN n8n workflow sync skipped ($container_name not running)"
+    return 1
+  fi
+
+  "${docker_cmd[@]}" cp "$workflow_file" "$container_name:/tmp/n8n_mission_workflow.json"
+  "${docker_cmd[@]}" exec "$container_name" n8n import:workflow --input=/tmp/n8n_mission_workflow.json >/dev/null
+  "${docker_cmd[@]}" exec "$container_name" n8n publish:workflow --id=godmodeMissionTrigger01 >/dev/null
+  "${docker_cmd[@]}" restart "$container_name" >/dev/null
+
+  if [[ -n "${N8N_BASIC_AUTH_USER:-}" && -n "${N8N_BASIC_AUTH_PASSWORD:-}" ]]; then
+    curl_auth=(-u "$N8N_BASIC_AUTH_USER:$N8N_BASIC_AUTH_PASSWORD")
+  fi
+
+  local health_url="http://$health_host:$N8N_PORT/healthz"
+  local health_ok=0
+  for attempt in $(seq 1 30); do
+    if curl -fsS "${curl_auth[@]}" "$health_url" >/dev/null 2>&1; then
+      health_ok=1
+      break
+    fi
+    sleep 2
+  done
+  if [[ "$health_ok" -ne 1 ]]; then
+    echo "WARN n8n health did not recover after publish/restart"
+    return 1
+  fi
+
+  timestamp="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  payload="$(printf '{"agent":"GODMODE-Init","task":"n8n webhook activation smoke","source":"start_godmode","repo":"%s","ref":"main","status":"triggered","timestamp":"%s"}' "${GITHUB_REPO_URL:-https://github.com/strazzusochr/CoronaProjektschonwieder}" "$timestamp")"
+
+  local smoke_ok=0
+  local attempt
+  local webhook_url
+  for webhook_url in "${webhook_candidates[@]}"; do
+    for attempt in $(seq 1 10); do
+      if curl -fsS "${curl_auth[@]}" -H "Content-Type: application/json" -d "$payload" "$webhook_url" >/dev/null 2>&1; then
+        smoke_ok=1
+        break
+      fi
+      sleep 2
+    done
+    if [[ "$smoke_ok" -eq 1 ]]; then
+      break
+    fi
+  done
+  if [[ "$smoke_ok" -ne 1 ]]; then
+    echo "WARN n8n mission webhook smoke failed after activation"
+    return 1
+  fi
+  echo "OK  n8n mission workflow synced + active + webhook smoke passed"
+}
+
+ensure_core_network
 
 cd "$REPO_ROOT/openhands" && "${docker_cmd[@]}" compose up -d
 echo "OK  OpenHands compose running on :$OPENHANDS_PORT"
@@ -150,6 +240,7 @@ PY
   fi
 fi
 test_http_endpoint "$LOCAL_N8N_URL" "n8n" "$N8N_AUTH_HEADER"
+sync_n8n_workflow
 if [[ "$DEVTOOLS_BRIDGE_ENABLED" == "true" ]]; then
   test_http_endpoint "$LOCAL_DEVTOOLS_URL" "Core Tools Bridge" || true
 fi

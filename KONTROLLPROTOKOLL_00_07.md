@@ -1,6 +1,6 @@
 # GODMODE Kontrollprotokoll 00-07
 
-Stand: 2026-04-10
+Stand: 2026-04-11
 
 Dieses Dokument ist das kanonische Abnahme- und Steuerprotokoll fuer den
 GODMODE-Stack in `d:\Web\docs\godmode_setup`.
@@ -9,6 +9,14 @@ Provider-neutral migration note:
 - Oracle is no longer an active required host in the canonical runtime model.
 - Remaining Oracle references in this protocol are historical audit evidence
   or future-profile placeholders unless a line explicitly says otherwise.
+
+Hetzner selfhosted track note (2026-04-11):
+- Canonical deploy entry exists as `ops/deploy_hetzner_core.ps1` for target
+  host `65.108.253.14`.
+- Latest rollout evidence from this workstation is
+  `.godmode_runtime/evidence/hetzner_deploy_latest.json` with `PASS`.
+- HTTPS probes for `openhands`, `adapter`, `langgraph`, `n8n`, `bolt` returned
+  `200`; direct service ports remain externally closed as required.
 
 Es kombiniert vier Sichten in einer Datei:
 
@@ -56,7 +64,7 @@ Lesart:
 
 | Kontrollbereich | Phase 00 | Phase 01 | Phase 02 | Phase 03 | Phase 04 | Phase 05 | Phase 06 | Phase 07 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Architektur & Voraussetzungen / master env/startup | `implemented`; `00.1`, `00.2`, `00.3`; `.godmode_env.example`, `ENV_REFERENCE.md`, `PROVENANCE_MATRIX.md` | `partial`; `01.1`; `openhands/docker-compose.yml` | `external`; `02.1`, `02.2`; `BOLTDIY_EXTERNAL_INTEGRATION.md` | `partial`; `03.3`; `hf_smolagents/README.md` | `partial`; `04.1`; `aider_godmode.ps1` | `partial`; `05.1`; `langgraph/docker-compose.yml` | `partial`; `06.1`; `n8n/docker-compose.yml` | `implemented`; `07.1`; `START_GODMODE.ps1`, `START_GODMODE.sh` |
+| Architektur & Voraussetzungen / master env/startup | `implemented`; `00.1`, `00.2`, `00.3`; `.godmode_env.example`, `ENV_REFERENCE.md`, `PROVENANCE_MATRIX.md` | `partial`; `01.1`; `openhands/docker-compose.yml` | `external`; `02.1`, `02.2`; `BOLTDIY_EXTERNAL_INTEGRATION.md` | `partial`; `03.3`; `hf_smolagents/README.md` | `partial`; `04.1`; `aider_godmode.ps1` | `partial`; `05.1`; `langgraph/docker-compose.yml` | `partial`; `06.1`; `n8n/docker-compose.yml` | `implemented`; `07.1`; `START_GODMODE.ps1`, `START_GODMODE.sh`, `ops/deploy_hetzner_core.ps1` |
 | OpenHands - Das Gehirn des Systems | `partial`; `00.3`; `STACK_GAP_ROADMAP.md` | `partial`; `01.1`, `01.2`, `01.3`, `01.4`; `openhands/adapter.py`, `hf_openhands/README.md` | `external`; `02.3`; `BOLTDIY_EXTERNAL_INTEGRATION.md` | `missing`; `03.4`; no direct repo proof | `missing`; `04.3`; no direct repo proof | `partial`; `05.3`; `MISSION_PAYLOAD_CONTRACT.md` | `partial`; `06.4`; `n8n_mission_workflow.json` | `partial`; `07.2`; `hf_pilot_actual/app.py` |
 | bolt.diy - Die Web IDE im Browser | `partial`; `00.3`; `STACK_GAP_ROADMAP.md`, `bolt_facade/docker-compose.yml` | `partial`; `01.4`; `BOLTDIY_EXTERNAL_INTEGRATION.md`, `bolt_facade/app.py` | `implemented`; `02.1`, `02.2`, `02.3`; `bolt_facade/app.py`, `verify_bolt_facade.py` | `partial`; `03.4`; local facade exists, external runtime remains hybrid | `partial`; `04.3`; pilot uses bolt facade dispatch first when configured | `partial`; `05.3`; no full hosted bolt runtime proof | `partial`; `06.4`; n8n mission workflow has dedicated bolt-facade dispatch path | `partial`; `07.2`; local dispatch/fallback is real, external bolt runtime still partially blocked |
 | smolagents - HuggingFace Native Agents | `partial`; `00.2`; `PROVENANCE_MATRIX.md` | `missing`; `01.4`; no direct repo proof | `external`; `02.3`; no local bolt.diy bridge | `implemented`; `03.1`, `03.2`, `03.3`, `03.4`; `hf_smolagents/app.py`, `hf_smolagents/README.md` | `missing`; `04.3`; no direct repo proof | `partial`; `05.3`; no verified live LangGraph bridge | `missing`; `06.4`; no direct repo proof | `partial`; `07.2`; integration intent only |
@@ -93,7 +101,8 @@ Lesart:
   `external`-Markierungen
 - Repo-Evidenz: `.godmode_env.example`, `ENV_REFERENCE.md`,
   `PROVENANCE_MATRIX.md`, `MISSION_PAYLOAD_CONTRACT.md`, `FINAL_PROOF.md`
-- Externe Abhaengigkeiten: reale Tokens, HF-Settings, Oracle-Hostzugriff
+- Externe Abhaengigkeiten: reale Tokens, HF-Settings, gueltige Hetzner-SSH-
+  Credentials fuer `65.108.253.14`, optionaler Oracle-Zukunftsprofil-Zugriff
 - Abweichungen/Risiken: lokale Secrets und Hosted-Zustaende sind nicht allein
   aus dem Repo beweisbar
 - Exit-Gate: aktive Wahrheitsquellen sind dokumentiert und alle nicht-beweisbaren
@@ -274,9 +283,11 @@ Lesart:
   keine verschleierte Hosted-Annahme
 - Repo-Evidenz: `n8n/docker-compose.yml`, `n8n_mission_workflow.json`,
   `n8n_memory_workflow.json`, `MISSION_PAYLOAD_CONTRACT.md`
-- Externe Abhaengigkeiten: importierte Live-Workflows, n8n-UI, Credentials
-- Abweichungen/Risiken: die Repo-Artefakte belegen die Richtung, aber nicht den
-  bereits laufenden produktiven Workflow
+- Externe Abhaengigkeiten: hosted Credentials, n8n-UI, umgebungsspezifische
+  externe rollout-Parameter
+- Abweichungen/Risiken: lokale Import/Publish/Restart-Smoke-Strecke ist jetzt
+  im Startup verankert; hosted und accountgebundene n8n-Pfade bleiben trotzdem
+  extern
 - Exit-Gate: Mission- und Memory-Pfad sind repo-seitig nachvollziehbar und
   externe Operatorarbeit ist klar markiert
 
@@ -460,5 +471,7 @@ Lesart:
 - `STACK_GAP_ROADMAP.md` bleibt das Soll-Ist- und Priorisierungsdokument.
 - `STACK_OPERATIONS.md` bleibt die kurze Betriebs- und Startsicht.
 - `walkthrough.md` bleibt der knappe High-Level-Einstieg.
+- `BEGINNER_DEV_PLAYBOOK_3D_AND_APPS.md` bleibt die Dummy-sichere
+  Schritt-fuer-Schritt-Anleitung fuer 3D games und normale apps.
 - Dieses Dokument ist die zentrale 00-07-Kontrollmatrix und darf keine zweite
   Statussprache neben `implemented`, `partial`, `missing`, `external` einfuehren.

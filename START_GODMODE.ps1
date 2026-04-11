@@ -75,6 +75,124 @@ function Test-HttpEndpoint {
     return $false
 }
 
+function Ensure-CoreNetwork {
+    param(
+        [string[]]$DockerArgs
+    )
+
+    $networkName = Resolve-GodmodeValue $env:GODMODE_CORE_NETWORK "godmode_core"
+    docker @DockerArgs network inspect $networkName *> $null
+    if ($LASTEXITCODE -ne 0) {
+        docker @DockerArgs network create $networkName | Out-Null
+        Write-Host "OK  Core network created: $networkName"
+    }
+    else {
+        Write-Host "OK  Core network present: $networkName"
+    }
+}
+
+function Sync-N8nMissionWorkflow {
+    param(
+        [string[]]$DockerArgs,
+        [string]$RepoRootPath,
+        [string]$HealthHost,
+        [string]$Port
+    )
+
+    $workflowPath = Join-Path $RepoRootPath "n8n_mission_workflow.json"
+    if (-not (Test-Path $workflowPath)) {
+        throw "n8n workflow sync failed: missing $workflowPath"
+    }
+
+    $containerName = "n8n-godmode"
+    $runningNames = docker @DockerArgs ps --format "{{.Names}}"
+    if ($LASTEXITCODE -ne 0 -or -not ($runningNames -contains $containerName)) {
+        throw "n8n workflow sync failed: container $containerName not running"
+    }
+
+    docker @DockerArgs cp $workflowPath "${containerName}:/tmp/n8n_mission_workflow.json" | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "n8n workflow sync failed during docker cp"
+    }
+
+    docker @DockerArgs exec $containerName n8n import:workflow --input=/tmp/n8n_mission_workflow.json | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "n8n workflow sync failed during import"
+    }
+
+    docker @DockerArgs exec $containerName n8n publish:workflow --id=godmodeMissionTrigger01 | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "n8n workflow activation failed"
+    }
+
+    docker @DockerArgs restart $containerName | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "n8n container restart failed after publish"
+    }
+
+    $timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    $payload = @{
+        agent = "GODMODE-Init"
+        task = "n8n webhook activation smoke"
+        source = "start_godmode"
+        repo = Resolve-GodmodeValue $env:GITHUB_REPO_URL "https://github.com/strazzusochr/CoronaProjektschonwieder"
+        ref = "main"
+        status = "triggered"
+        timestamp = $timestamp
+    } | ConvertTo-Json -Compress
+
+    $headers = @{
+        "Content-Type" = "application/json"
+    }
+    if ($env:N8N_BASIC_AUTH_USER -and $env:N8N_BASIC_AUTH_PASSWORD) {
+        $pair = [Convert]::ToBase64String(
+            [Text.Encoding]::ASCII.GetBytes("$($env:N8N_BASIC_AUTH_USER):$($env:N8N_BASIC_AUTH_PASSWORD)")
+        )
+        $headers["Authorization"] = "Basic $pair"
+    }
+
+    $healthUrl = "http://${HealthHost}:$Port/healthz"
+    for ($attempt = 1; $attempt -le 30; $attempt++) {
+        try {
+            Invoke-WebRequest -UseBasicParsing -Uri $healthUrl -Headers $headers -TimeoutSec 10 | Out-Null
+            break
+        }
+        catch {
+            if ($attempt -eq 30) {
+                throw "n8n health did not recover after publish/restart"
+            }
+            Start-Sleep -Seconds 2
+        }
+    }
+
+    $webhookCandidates = @(
+        "http://${HealthHost}:$Port/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission",
+        "http://${HealthHost}:$Port/webhook/godmode-mission"
+    )
+    $smokePassed = $false
+    foreach ($webhookUrl in $webhookCandidates) {
+        for ($attempt = 1; $attempt -le 10; $attempt++) {
+            try {
+                Invoke-WebRequest -UseBasicParsing -Method POST -Uri $webhookUrl -Headers $headers -Body $payload -TimeoutSec 20 | Out-Null
+                $smokePassed = $true
+                break
+            }
+            catch {
+                if ($attempt -lt 10) {
+                    Start-Sleep -Seconds 2
+                }
+            }
+        }
+        if ($smokePassed) {
+            break
+        }
+    }
+    if (-not $smokePassed) {
+        throw "n8n mission webhook smoke failed after activation"
+    }
+    Write-Host "OK  n8n mission workflow synced + active + webhook smoke passed"
+}
+
 if (Test-Path $EnvFile) {
     Get-Content $EnvFile | ForEach-Object {
         if ($_ -match '^export\s+([^=]+)=(.*)$') {
@@ -109,6 +227,14 @@ if (-not $env:CORE_DEPLOY_PROFILE) {
     $env:CORE_DEPLOY_PROFILE = "local"
 }
 
+if (-not $env:GODMODE_CORE_NETWORK) {
+    $env:GODMODE_CORE_NETWORK = "godmode_core"
+}
+
+if (-not $env:LOCAL_HEALTHCHECK_HOST) {
+    $env:LOCAL_HEALTHCHECK_HOST = "127.0.0.1"
+}
+
 if (-not $env:LITELLM_PORT) {
     $env:LITELLM_PORT = "4000"
 }
@@ -122,13 +248,37 @@ if (-not $env:BOLTDIY_FACADE_PORT) {
 }
 
 if (-not $env:BOLTDIY_FACADE_URL) {
-    $host = Resolve-GodmodeValue $env:CORE_RUNTIME_HOST "127.0.0.1"
+    $runtimeHostForBoltFacade = Resolve-GodmodeValue $env:CORE_RUNTIME_HOST "127.0.0.1"
     $port = Resolve-GodmodeValue $env:BOLTDIY_FACADE_PORT "3901"
-    $env:BOLTDIY_FACADE_URL = "http://${host}:${port}"
+    $env:BOLTDIY_FACADE_URL = "http://${runtimeHostForBoltFacade}:${port}"
+}
+
+if (-not $env:BOLTDIY_FACADE_INTERNAL_URL) {
+    $env:BOLTDIY_FACADE_INTERNAL_URL = "http://bolt-facade-godmode:3901"
 }
 
 if (-not $env:BOLTDIY_FORWARD_TIMEOUT) {
     $env:BOLTDIY_FORWARD_TIMEOUT = "20"
+}
+
+if (-not $env:OPENHANDS_API_INTERNAL_URL) {
+    $env:OPENHANDS_API_INTERNAL_URL = "http://openhands-godmode:3000"
+}
+
+if (-not $env:OPENHANDS_ADAPTER_INTERNAL_URL) {
+    $env:OPENHANDS_ADAPTER_INTERNAL_URL = "http://openhands-godmode-adapter:3001"
+}
+
+if (-not $env:OPENHANDS_LLM_BASE_URL) {
+    $env:OPENHANDS_LLM_BASE_URL = "http://litellm-godmode:4000"
+}
+
+if (-not $env:LANGGRAPH_API_INTERNAL_URL) {
+    $env:LANGGRAPH_API_INTERNAL_URL = "http://langgraph-godmode-local:8080"
+}
+
+if (-not $env:N8N_WEBHOOK_INTERNAL_URL) {
+    $env:N8N_WEBHOOK_INTERNAL_URL = "http://n8n-godmode:5678/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission"
 }
 
 if (-not $env:DEVTOOLS_BRIDGE_ENABLED) {
@@ -176,8 +326,16 @@ if ($env:CORE_DOCKER_CONTEXT -and $env:CORE_DOCKER_CONTEXT -ne "default") {
     $dockerContextArgs = @("--context", $env:CORE_DOCKER_CONTEXT)
 }
 
+Ensure-CoreNetwork -DockerArgs $dockerContextArgs
+
 if (-not $env:N8N_ENCRYPTION_KEY) {
     $env:N8N_ENCRYPTION_KEY = Get-StableN8nEncryptionKey
+}
+
+if (-not $env:N8N_WEBHOOK_URL) {
+    $localWebhookHost = Resolve-GodmodeValue $env:LOCAL_HEALTHCHECK_HOST "127.0.0.1"
+    $localWebhookPort = Resolve-GodmodeValue $env:N8N_PORT "5678"
+    $env:N8N_WEBHOOK_URL = "http://${localWebhookHost}:$localWebhookPort/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission"
 }
 
 # 0. LiteLLM router
@@ -250,13 +408,14 @@ if ((Resolve-GodmodeValue $env:DEVTOOLS_BRIDGE_ENABLED "true").ToLowerInvariant(
 }
 
 # 4. Health verification
-$localLiteLLMUrl = "http://${runtimeHost}:$(Resolve-GodmodeValue $env:LITELLM_PORT '4000')/"
-$localOpenHandsUrl = "http://${runtimeHost}:$(Resolve-GodmodeValue $env:OPENHANDS_PORT '3000')"
-$localAdapterUrl = "http://${runtimeHost}:$(Resolve-GodmodeValue $env:OPENHANDS_ADAPTER_PORT '3001')/health"
-$localLangGraphUrl = "http://${runtimeHost}:$(Resolve-GodmodeValue $env:LANGGRAPH_PORT '8080')/health"
-$localN8nUrl = "http://${runtimeHost}:$(Resolve-GodmodeValue $env:N8N_PORT '5678')/healthz"
-$localBoltFacadeUrl = "http://${runtimeHost}:$(Resolve-GodmodeValue $env:BOLTDIY_FACADE_PORT '3901')/health"
-$localBridgeUrl = "http://${runtimeHost}:$(Resolve-GodmodeValue $env:DEVTOOLS_BRIDGE_PORT '3911')/health"
+$localHealthHost = Resolve-GodmodeValue $env:LOCAL_HEALTHCHECK_HOST "127.0.0.1"
+$localLiteLLMUrl = "http://${localHealthHost}:$(Resolve-GodmodeValue $env:LITELLM_PORT '4000')/"
+$localOpenHandsUrl = "http://${localHealthHost}:$(Resolve-GodmodeValue $env:OPENHANDS_PORT '3000')"
+$localAdapterUrl = "http://${localHealthHost}:$(Resolve-GodmodeValue $env:OPENHANDS_ADAPTER_PORT '3001')/health"
+$localLangGraphUrl = "http://${localHealthHost}:$(Resolve-GodmodeValue $env:LANGGRAPH_PORT '8080')/health"
+$localN8nUrl = "http://${localHealthHost}:$(Resolve-GodmodeValue $env:N8N_PORT '5678')/healthz"
+$localBoltFacadeUrl = "http://${localHealthHost}:$(Resolve-GodmodeValue $env:BOLTDIY_FACADE_PORT '3901')/health"
+$localBridgeUrl = "http://${localHealthHost}:$(Resolve-GodmodeValue $env:DEVTOOLS_BRIDGE_PORT '3911')/health"
 
 $null = Test-HttpEndpoint -Url $localLiteLLMUrl -Label "LiteLLM"
 $null = Test-HttpEndpoint -Url $localBoltFacadeUrl -Label "bolt-facade"
@@ -272,6 +431,7 @@ if ($env:N8N_BASIC_AUTH_USER -and $env:N8N_BASIC_AUTH_PASSWORD) {
     $n8nHeaders["Authorization"] = "Basic $pair"
 }
 $null = Test-HttpEndpoint -Url $localN8nUrl -Label "n8n" -Headers $n8nHeaders
+Sync-N8nMissionWorkflow -DockerArgs $dockerContextArgs -RepoRootPath $RepoRoot -HealthHost $localHealthHost -Port (Resolve-GodmodeValue $env:N8N_PORT "5678")
 
 if ((Resolve-GodmodeValue $env:DEVTOOLS_BRIDGE_ENABLED "true").ToLowerInvariant() -eq "true") {
     $null = Test-HttpEndpoint -Url $localBridgeUrl -Label "Core Tools Bridge"

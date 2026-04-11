@@ -10,8 +10,8 @@ services:
       - BOLTDIY_MODE=${BOLTDIY_MODE:-hybrid}
       - BOLTDIY_FORWARD_TIMEOUT=${BOLTDIY_FORWARD_TIMEOUT:-20}
       - BOLTDIY_SPACE_URL=${BOLTDIY_SPACE_URL:-}
-      - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://host.docker.internal:5678/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission}
-      - OPENHANDS_ADAPTER_URL=${OPENHANDS_ADAPTER_URL:-http://host.docker.internal:3001}
+      - N8N_WEBHOOK_URL=${N8N_WEBHOOK_INTERNAL_URL:-http://n8n-godmode:5678/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission}
+      - OPENHANDS_ADAPTER_URL=${OPENHANDS_ADAPTER_INTERNAL_URL:-http://openhands-godmode-adapter:3001}
       - MEMORY_VAULT_PATH=/workspace/memory_vault.md
       - FINAL_PROOF_PATH=/workspace/FINAL_PROOF.md
       - GODMODE_GOAL_PATH=/workspace/GODMODE_GOAL.md
@@ -25,6 +25,8 @@ services:
       - ../.godmode_runtime:/workspace/runtime
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - core
     command: >
       sh -lc "pip install --no-cache-dir -r /app/requirements.txt &&
       uvicorn app:app --host 0.0.0.0 --port 3901 --app-dir /app"
@@ -40,3 +42,8 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+
+networks:
+  core:
+    external: true
+    name: ${GODMODE_CORE_NETWORK:-godmode_core}

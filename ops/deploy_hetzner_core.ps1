@@ -247,16 +247,25 @@ function Build-HetznerEnvMap {
     Set-EnvValue -Map $map -Key "CORE_RUNTIME_SSH_HOST" -Value $HostIp
     Set-EnvValue -Map $map -Key "CORE_DEPLOY_PROFILE" -Value "selfhosted"
     Set-EnvValue -Map $map -Key "CORE_DOCKER_CONTEXT" -Value "default"
+    Set-EnvValue -Map $map -Key "GODMODE_CORE_NETWORK" -Value "godmode_core"
+    Set-EnvValue -Map $map -Key "LOCAL_HEALTHCHECK_HOST" -Value "127.0.0.1"
 
     Set-EnvValue -Map $map -Key "OPENHANDS_PUBLIC_URL" -Value ("https://{0}" -f $openhandsHost)
-    Set-EnvValue -Map $map -Key "OPENHANDS_API_URL" -Value "http://host.docker.internal:3000"
-    Set-EnvValue -Map $map -Key "OPENHANDS_ADAPTER_URL" -Value "http://host.docker.internal:3001"
-    Set-EnvValue -Map $map -Key "LANGGRAPH_API_URL" -Value "http://host.docker.internal:8080"
-    Set-EnvValue -Map $map -Key "BOLTDIY_FACADE_URL" -Value "http://host.docker.internal:3901"
+    Set-EnvValue -Map $map -Key "OPENHANDS_API_URL" -Value ("https://{0}" -f $openhandsHost)
+    Set-EnvValue -Map $map -Key "OPENHANDS_API_INTERNAL_URL" -Value "http://openhands-godmode:3000"
+    Set-EnvValue -Map $map -Key "OPENHANDS_ADAPTER_URL" -Value ("https://{0}" -f $adapterHost)
+    Set-EnvValue -Map $map -Key "OPENHANDS_ADAPTER_INTERNAL_URL" -Value "http://openhands-godmode-adapter:3001"
+    Set-EnvValue -Map $map -Key "OPENHANDS_LLM_BASE_URL" -Value "http://litellm-godmode:4000"
+    Set-EnvValue -Map $map -Key "LANGGRAPH_API_URL" -Value ("https://{0}" -f $langgraphHost)
+    Set-EnvValue -Map $map -Key "LANGGRAPH_API_INTERNAL_URL" -Value "http://langgraph-godmode-local:8080"
+    Set-EnvValue -Map $map -Key "BOLTDIY_FACADE_URL" -Value ("https://{0}" -f $boltHost)
+    Set-EnvValue -Map $map -Key "BOLTDIY_FACADE_INTERNAL_URL" -Value "http://bolt-facade-godmode:3901"
 
     Set-EnvValue -Map $map -Key "N8N_EDITOR_BASE_URL" -Value ("https://{0}" -f $n8nHost)
     Set-EnvValue -Map $map -Key "N8N_WEBHOOK_BASE_URL" -Value ("https://{0}/" -f $n8nHost)
     Set-EnvValue -Map $map -Key "N8N_WEBHOOK_URL" -Value ("https://{0}/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission" -f $n8nHost)
+    Set-EnvValue -Map $map -Key "N8N_WEBHOOK_INTERNAL_URL" -Value "http://n8n-godmode:5678/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission"
+    Set-EnvValue -Map $map -Key "N8N_API_URL" -Value ("https://{0}/api/v1" -f $n8nHost)
 
     Set-EnvValue -Map $map -Key "ORACLE_ENABLED" -Value "false"
     Set-EnvValue -Map $map -Key "ORACLE_PLACEHOLDER" -Value "true"
