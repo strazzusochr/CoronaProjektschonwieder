@@ -179,6 +179,39 @@ sync_n8n_workflow() {
   echo "OK  n8n mission workflow synced + active + webhook smoke passed"
 }
 
+sync_n8n_memory_workflow() {
+  local workflow_file="$REPO_ROOT/n8n_memory_probe_workflow.json"
+  local container_name="n8n-godmode"
+  local compose_file="$REPO_ROOT/n8n/docker-compose.yml"
+
+  if [[ ! -f "$workflow_file" ]]; then
+    echo "WARN n8n memory workflow sync skipped (missing $workflow_file)"
+    return 1
+  fi
+
+  if ! "${docker_cmd[@]}" ps --format '{{.Names}}' | grep -Fxq "$container_name"; then
+    echo "WARN n8n memory workflow sync skipped ($container_name not running)"
+    return 1
+  fi
+
+  "${docker_cmd[@]}" cp "$workflow_file" "$container_name:/tmp/n8n_memory_probe_workflow.json"
+  "${docker_cmd[@]}" exec "$container_name" n8n import:workflow --input=/tmp/n8n_memory_probe_workflow.json >/dev/null
+
+  local execution_output=""
+  if ! execution_output="$("${docker_cmd[@]}" compose -f "$compose_file" run --rm n8n execute --id=godmodeMemoryProbe01 --rawOutput 2>&1)"; then
+    echo "WARN n8n memory workflow execute failed"
+    return 1
+  fi
+
+  if [[ "$execution_output" == *'"status": "saved"'* || "$execution_output" == *'"status":"saved"'* ]]; then
+    echo "OK  n8n memory workflow synced + probe saved to memory vault"
+    return 0
+  fi
+
+  echo "WARN n8n memory workflow ran but save marker was not detected"
+  return 1
+}
+
 ensure_core_network
 
 cd "$REPO_ROOT/openhands" && "${docker_cmd[@]}" compose up -d
@@ -241,6 +274,7 @@ PY
 fi
 test_http_endpoint "$LOCAL_N8N_URL" "n8n" "$N8N_AUTH_HEADER"
 sync_n8n_workflow
+sync_n8n_memory_workflow
 if [[ "$DEVTOOLS_BRIDGE_ENABLED" == "true" ]]; then
   test_http_endpoint "$LOCAL_DEVTOOLS_URL" "Core Tools Bridge" || true
 fi

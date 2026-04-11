@@ -16,7 +16,7 @@ For the detailed horizontal/vertical phase control model, use
 - `ENV_REFERENCE.md`: shared environment variable contract
 - `PROVENANCE_MATRIX.md`: canonical vs archive source map
 - `MISSION_PAYLOAD_CONTRACT.md`: canonical dispatcher schema
-- `SUPERPOWERS_STATUS.md`: implemented vs partial superpower map
+- `SUPERPOWERS_STATUS.md`: canonical 12-superpower status map (repo-local audit)
 - `SELFHOSTED_CORE_RUNTIME_BETA_RUNBOOK.md`: minimal operator runbook for the
   provider-neutral beta core runtime
 - `HETZNER_SELFHOSTED_DEPLOY_RUNBOOK.md`: canonical remote rollout runbook for
@@ -75,14 +75,16 @@ It also recovers or persists a stable local `n8n` encryption key, prints the
 current local entrypoints, performs HTTP health checks, and reminds operators
 that Aider is started separately through `aider_godmode.ps1`.
 It now also enforces n8n mission-workflow import + publish + restart + webhook
-smoke as part of startup.
+smoke, plus n8n memory-probe import + execute (saved-marker check) as part of
+startup.
 
 ### Selfhosted core shell startup
 
 `START_GODMODE.sh` performs the same orchestration for a Linux/selfhosted core
 environment, including stable `n8n` key handling, optional Docker context
 selection, and post-start health checks, and prints local plus hosted
-endpoints. It also enforces the same n8n import/publish/smoke sequence.
+endpoints. It also enforces the same n8n mission import/publish/smoke sequence
+plus memory-probe import/execute.
 The reserved Oracle variables now stay disabled future-profile inputs unless an
 operator deliberately reactivates that profile later.
 
@@ -155,8 +157,9 @@ entry for the active Hetzner selfhosted track (`65.108.253.14`), including:
 - Local deployment: `n8n/docker-compose.yml`
 - Workflow evidence: `n8n_memory_workflow.json`
 - Mission intake workflow: `n8n_mission_workflow.json`
-- Current state: automation direction is real, but production workflows and
-  hosted credentials are only partially proven from the repo
+- Current state: mission and memory workflows are now imported/executed as part
+  of startup and are runtime-proven locally; hosted credentials remain an
+  external operator concern
 
 ### LiteLLM
 
@@ -201,6 +204,8 @@ Currently evidenced:
 - the canonical mission payload contract is shared across pilot, n8n, and adapter
 - the frontend verification path is locally proven through build, Playwright,
   and AI-browser debug
+- the 12-superpower local gate is now audited through `verify_superpowers.py`
+  with snapshot output in `.godmode_runtime/evidence/superpowers_audit_latest.json`
 
 Not yet fully materialized as local end-to-end integrations:
 

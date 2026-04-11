@@ -38,8 +38,11 @@ und die richtigen Open-Source-AI-Bausteine auswaehlen.
    - `py -3 verify_bolt_facade.py`
    - `py -3 verify_hf_runtime.py`
    - `py -3 oracle_probe.py`
+   - `py -3 verify_superpowers.py`
 
 Wenn alle lokalen Gates gruen sind, bist du beta-ready fuer den Core-Track.
+Wenn `verify_superpowers.py` auf `12/12 VERIFIED` steht, ist der lokale
+Superpower-Track voll verdrahtet.
 
 ## 2) Wie Du Taeglich Arbeitest
 

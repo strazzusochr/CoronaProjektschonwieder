@@ -440,10 +440,11 @@ Lesart:
 - Phasenbezug: `00`, `01`, `02`, `03`, `04`, `05`, `06`, `07`
 - Relevante Schritte: `00.3`, `01.2`, `02.2`, `02.3`, `03.1`, `03.2`, `04.1`,
   `04.2`, `05.2`, `06.2`, `06.3`, `07.2`, `07.4`
-- Heutiger Ist-Stand: mehrere Superpowers sind als Code oder Vertrag
-  `implemented`, einige bleiben `partial`, vor allem dort, wo hosted Runtime
-  oder Operatorarbeit noetig ist
-- Offene Luecken: nicht jede Superpower ist als live End-to-End-Strecke belegt
+- Heutiger Ist-Stand: die repo-lokale Superpowerschicht ist per
+  `verify_superpowers.py` mit `12/12 VERIFIED` auditiert und in
+  `.godmode_runtime/evidence/superpowers_audit_latest.json` belegt
+- Offene Luecken: hosted/private externe Ziele bleiben separater Track und sind
+  nicht Teil des lokalen 12/12-Superpower-Gates
 - Kanonische Quelle: `SUPERPOWERS_STATUS.md`, `hf_smolagents/app.py`,
   `langgraph/system.py`, `n8n_*_workflow.json`, `litellm_config.yaml`
 
@@ -451,17 +452,17 @@ Lesart:
 
 | Superpower | Status | Phasenbezug | Evidenz | Operativer Nutzen | Offene Luecke |
 | --- | --- | --- | --- | --- | --- |
-| 1. OpenHands Architect Mode | `partial` | `01`, `07` | `SUPERPOWERS_STATUS.md`, `hf_openhands/README.md` | standardisierte selbstpruefende Aufgabenfuehrung | upstream UI- und Runtime-Beweis bleibt teilweise extern |
+| 1. OpenHands Architect Mode | `implemented` | `01`, `07` | `verify_superpowers.py`, `SUPERPOWERS_STATUS.md`, `openhands/adapter.py` | standardisierte selbstpruefende Aufgabenfuehrung mit verifiziertem lokalem Missionsvertrag | hosted/upstream UI-Verhalten bleibt operatorabhaengig, aber nicht blocker fuer lokalen Gate-Status |
 | 2. Aider Ultracheap | `implemented` | `04`, `07` | `aider_godmode.ps1`, `SUPERPOWERS_STATUS.md` | guenstiger Planungs- und Implementierungspfad | live Cloud-Nachweis bleibt getrennt vom Launcher-Vertrag |
 | 3. smolagents Web-Crawler | `implemented` | `03`, `07` | `hf_smolagents/app.py` | Web-Recherche und agentische Recherchepfade | live hosted Browserzugriff bleibt teilweise extern |
 | 4. LangGraph Self-Evolving | `implemented` | `05` | `langgraph/system.py`, `SUPERPOWERS_STATUS.md` | Prompt-Evolution und Meta-Optimierung | groesseres Guide-Zielbild bleibt offen |
-| 5. n8n Phantom Trigger | `partial` | `06`, `07` | `n8n_mission_workflow.json`, `SUPERPOWERS_STATUS.md` | eventartiger Missionsstart | produktiver importierter Workflow bleibt extern |
-| 6. OpenHands + bolt.diy Feedback Loop | `partial` | `02`, `07` | `bolt_facade/app.py`, `verify_bolt_facade.py`, `MISSION_PAYLOAD_CONTRACT.md` | Lokaler Rueckkanal zwischen Facade, n8n und Agentik ist real | externer bolt-Hosted-Pfad bleibt teilweise blocked/not verified |
+| 5. n8n Phantom Trigger | `implemented` | `06`, `07` | `verify_superpowers.py`, `n8n_mission_workflow.json`, `SUPERPOWERS_STATUS.md` | eventartiger Missionsstart ist lokal reproduzierbar mit `200`-Webhook-Beleg | hosted rollout bleibt separater Betriebs-Track |
+| 6. OpenHands + bolt.diy Feedback Loop | `implemented` | `02`, `07` | `verify_superpowers.py`, `bolt_facade/app.py`, `verify_bolt_facade.py`, `MISSION_PAYLOAD_CONTRACT.md` | Lokaler Rueckkanal zwischen Facade, n8n und Agentik ist real und forward-verifiziert | externer bolt-Hosted-Pfad bleibt separat dokumentiert |
 | 7. LiteLLM Router | `implemented` | `00`, `07` | `litellm_config.yaml`, `.godmode_env.example` | gemeinsamer Modellrouter mit Fallback-Pfad | live Routing-Zustand haengt von echten Secrets ab |
 | 8. Aider Repo-Map | `implemented` | `04` | `aider_godmode.ps1`, `SUPERPOWERS_STATUS.md` | grosse Repo-Kontexte bleiben steuerbar | kein extra hosted Beweis noetig |
 | 9. Vision Agent | `implemented` | `03`, `07` | `hf_smolagents/app.py` | visuelle Debug- und Pruefpfade | live Browser-/Screenshot-Strecken bleiben teilweise extern |
-| 10. Parallele Agent-Swarms | `implemented` | `05`, `07` | `langgraph/system.py`, `SUPERPOWERS_STATUS.md` | parallele Analyse- und Reviewpfade | End-to-End-Nachweis ueber mehrere Dienste bleibt `partial` |
-| 11. n8n AI Memory | `partial` | `06`, `07` | `n8n_memory_workflow.json`, `memory_vault.md` | persistente Lern- und Audit-Ablage | produktiver Import und Laufbeweis bleiben extern |
+| 10. Parallele Agent-Swarms | `implemented` | `05`, `07` | `verify_superpowers.py`, `langgraph/system.py`, `SUPERPOWERS_STATUS.md` | parallele Analyse- und Reviewpfade sind lokal reproduzierbar | externe Multi-Host-Strecken bleiben eigener Integrations-Track |
+| 11. n8n AI Memory | `implemented` | `06`, `07` | `verify_superpowers.py`, `n8n_memory_workflow.json`, `memory_vault.md` | persistente Lern- und Audit-Ablage ist via Import+Execute live belegt | hosted rollout bleibt separater Betriebs-Track |
 | 12. Context Window Injection | `implemented` | `05`, `07` | `langgraph/system.py`, `hf_smolagents/app.py` | gemeinsamer GODMODE-Kontext ueber Agentenschichten | hosted Konsistenz bleibt operatorabhaengig |
 
 ## Kontrollregeln fuer Pflege und Fortschreibung

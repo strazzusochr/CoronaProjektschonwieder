@@ -193,6 +193,47 @@ function Sync-N8nMissionWorkflow {
     Write-Host "OK  n8n mission workflow synced + active + webhook smoke passed"
 }
 
+function Sync-N8nMemoryWorkflow {
+    param(
+        [string[]]$DockerArgs,
+        [string]$RepoRootPath
+    )
+
+    $workflowPath = Join-Path $RepoRootPath "n8n_memory_probe_workflow.json"
+    if (-not (Test-Path $workflowPath)) {
+        throw "n8n memory workflow sync failed: missing $workflowPath"
+    }
+
+    $containerName = "n8n-godmode"
+    $runningNames = docker @DockerArgs ps --format "{{.Names}}"
+    if ($LASTEXITCODE -ne 0 -or -not ($runningNames -contains $containerName)) {
+        throw "n8n memory workflow sync failed: container $containerName not running"
+    }
+
+    docker @DockerArgs cp $workflowPath "${containerName}:/tmp/n8n_memory_probe_workflow.json" | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "n8n memory workflow sync failed during docker cp"
+    }
+
+    docker @DockerArgs exec $containerName n8n import:workflow --input=/tmp/n8n_memory_probe_workflow.json | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "n8n memory workflow import failed"
+    }
+
+    $composeFile = Join-Path $RepoRootPath "n8n/docker-compose.yml"
+    $executeOutput = docker @DockerArgs compose -f $composeFile run --rm n8n execute --id=godmodeMemoryProbe01 --rawOutput 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        throw "n8n memory workflow execute failed"
+    }
+
+    $outputText = ($executeOutput | Out-String)
+    if ($outputText -notmatch '"status"\s*:\s*"saved"') {
+        throw "n8n memory workflow execute returned no saved marker"
+    }
+
+    Write-Host "OK  n8n memory workflow synced + probe saved to memory vault"
+}
+
 if (Test-Path $EnvFile) {
     Get-Content $EnvFile | ForEach-Object {
         if ($_ -match '^export\s+([^=]+)=(.*)$') {
@@ -432,6 +473,7 @@ if ($env:N8N_BASIC_AUTH_USER -and $env:N8N_BASIC_AUTH_PASSWORD) {
 }
 $null = Test-HttpEndpoint -Url $localN8nUrl -Label "n8n" -Headers $n8nHeaders
 Sync-N8nMissionWorkflow -DockerArgs $dockerContextArgs -RepoRootPath $RepoRoot -HealthHost $localHealthHost -Port (Resolve-GodmodeValue $env:N8N_PORT "5678")
+Sync-N8nMemoryWorkflow -DockerArgs $dockerContextArgs -RepoRootPath $RepoRoot
 
 if ((Resolve-GodmodeValue $env:DEVTOOLS_BRIDGE_ENABLED "true").ToLowerInvariant() -eq "true") {
     $null = Test-HttpEndpoint -Url $localBridgeUrl -Label "Core Tools Bridge"

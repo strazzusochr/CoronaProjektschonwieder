@@ -47,7 +47,7 @@ broader and more ambitious than the current repo evidence:
 | LangGraph — Der 8-Agent Orchestrator | `partial` | `langgraph/system.py`; `hf_langgraph_space/app.py`; `hf_langgraph/README.md`; `STACK_OPERATIONS.md`; `START_GODMODE.sh` starts a LangGraph API | Repo has a working LangGraph-shaped service, but not the 8-agent orchestrator promised by the guide. Current implementation is a much smaller single-flow planner/swarm/review pipeline. |
 | n8n — Die Automation Engine | `partial` | `n8n/docker-compose.yml`; `n8n_memory_workflow.json`; `n8n_mission_workflow.json`; `hf_pilot_actual/app.py` | Repo contains real automation artifacts and canonical mission payloads, but live production import and operator credentialing remain external. |
 | Stack Integration — Alles zusammenschalten | `partial` | `START_GODMODE.sh`; `START_GODMODE.ps1`; `MISSION_PAYLOAD_CONTRACT.md`; `hf_pilot_actual/app.py`; `openhands/adapter.py` | The repo now includes a concrete payload contract and adapter path, but full live end-to-end proof across every subsystem is still partially external. |
-| ULTIMATE SUPERKRÄFTE, GEHEIMZAUBER & MAGISCHE FÄHIGKEITEN | `partial` | `hf_smolagents/app.py` includes `VisualDebugTool`; `autonomy_guard.py`; `memory_vault.md`; `n8n_memory_workflow.json`; `GODMODE_BIBLE_V1.html`; `GODMODE_BIBLE_FINAL.html` | Some advanced capabilities exist as code or manifests, but many "superpowers" are still manifesto-level descriptions rather than verified subsystems. |
+| ULTIMATE SUPERKRÄFTE, GEHEIMZAUBER & MAGISCHE FÄHIGKEITEN | `implemented` | `verify_superpowers.py`; `.godmode_runtime/evidence/superpowers_audit_latest.json`; `SUPERPOWERS_STATUS.md`; `hf_smolagents/app.py`; `langgraph/system.py`; `n8n_*_workflow.json` | The repo now includes a dedicated 12-superpower audit with runtime evidence and strict 12/12 local verification. Hosted/private external tracks remain documented separately. |
 
 ## Cross-Cutting Building Blocks
 
@@ -147,7 +147,7 @@ outside the minimal beta scope.
 | n8n | `partial` | minimal implementation required | keep local workflow JSONs, verified health, concrete production webhook path, and automated import/publish in startup scripts | hosted credentials and external environment-specific rollout |
 | Stack Integration | `partial` | minimal implementation required | keep the canonical mission payload, startup scripts, and verified local mission path | full cross-service end-to-end proof across every hosted subsystem |
 | Deployment runbooks | `partial` | minimal implementation required | dedicated selfhosted beta runbook plus canonical Hetzner deploy script/runbook now exist; keep external hosted steps documented as operator work | environment-specific rollout guides per provider |
-| Superpowers / manifesto claims | `partial` | stub/claim visibility is sufficient | keep them explicitly non-blocking and never use them as runtime proof | real subsystem implementations and independent verification |
+| Superpowers / manifesto claims | `implemented` | current implementation is sufficient | keep `verify_superpowers.py` + `SUPERPOWERS_STATUS.md` as canonical local proof path | hosted/private external expansion remains a separate track |
 
 ## Module Notes For Beta
 

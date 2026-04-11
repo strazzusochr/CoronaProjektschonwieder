@@ -27,6 +27,9 @@
    - mounted `../memory_vault.md:/workspace/memory_vault.md`
 8. Startup scripts now enforce n8n mission workflow import + publish + restart
    + webhook smoke on every stack bring-up.
+9. Added `verify_superpowers.py` as strict local 12-superpower runtime gate.
+10. Startup scripts now enforce n8n memory-probe workflow import + execute and
+    require a `"status":"saved"` marker.
 
 ## Validation Commands
 
@@ -63,6 +66,7 @@ docker exec n8n-godmode n8n import:workflow --input=/backups/n8n_memory_workflow
 docker exec n8n-godmode n8n import:workflow --input=/backups/n8n_memory_probe_workflow.json
 curl -X POST http://127.0.0.1:5678/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission ...
 docker compose run --rm n8n execute --id godmodeMemoryProbe01 --rawOutput
+py -3 verify_superpowers.py
 ```
 
 ## Validation Results
@@ -154,6 +158,16 @@ BEFORE=2026-04-10T09:24:10.1002036+02:00|875
 AFTER=2026-04-10T09:55:15.2038860+02:00|987
 ```
 
+### Superpowers Gate Proof
+
+```text
+py -3 verify_superpowers.py
+summary: VERIFIED=12, PARTIAL=0, BLOCKED=0, NOT VERIFIED=0
+strict_percent_verified_only=100.0
+operational_percent_verified_plus_partial=100.0
+verdict=PASS
+```
+
 ## Outcome
 
 - The frontend local proof is current again.
@@ -162,6 +176,8 @@ AFTER=2026-04-10T09:55:15.2038860+02:00|987
 - The canonical Aider hosted URL in the shared environment template now points at the safe space.
 - The proof now reflects current Vite, Vitest, Playwright and dist artifact state.
 - Local n8n mission intake and local memory append are both now concretely evidenced.
+- The local superpower gate is now fully audited at `12/12 VERIFIED` with
+  dedicated evidence in `.godmode_runtime/evidence/superpowers_audit_latest.json`.
 - HF owner-auth is restored to `Wrzzzrzr`.
 - The private pilot space is reachable again with authenticated `/health`, reports `status=healthy`, runs on Space SHA `4155ac58e5beb277eea3f352241ccd7e3857341d`, and during the latest authenticated recheck mirrored the last fully reverified GitHub `main` snapshot `62c5baa900a44203481c31dec00c87d33ee79db3`.
 - The reserved Oracle host remains externally unreachable from this machine; `Test-Connection` to `132.145.225.182` is `False`, TCP probes to ports `22`, `3000`, `3001`, `4000`, `5678`, `8080`, and `11434` all time out, and a short traceroute reaches `140.91.199.85` before timing out upstream of the host. This is now recorded as a future-profile note, not an active blocker for the provider-neutral beta path.
@@ -197,3 +213,4 @@ Historical note resolved during this proof:
 - 2026-04-10T18:24:23.016873+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=7a471f42-d639-4a74-a52c-d072de1e7247
 - 2026-04-10T23:58:01.267280+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=db87a311-dfdf-4504-9ddd-0ddd0d7a1d6a
 - 2026-04-11T00:30:08.260075+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=0cc7600a-e30f-4bc8-b425-2d483dcb2c2d
+- 2026-04-11T00:53:15.917436+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=e5e90850-19ef-4824-a9bb-d11e99eedac4

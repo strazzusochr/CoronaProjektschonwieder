@@ -1,22 +1,31 @@
 # GODMODE Superpowers Status
 
-Stand: 2026-04-10
+Stand: 2026-04-11 (Audit-Snapshot)
+
+Primary evidence:
+- `.godmode_runtime/evidence/superpowers_audit_latest.json`
+- last strict score: `12/12 VERIFIED (100.0%)`
+- last operational score: `12/12 (100.0%)`
+
+Important scope note:
+- This file reports **repo-local/runtime-local superpower verification**.
+- External/private services (for example hosted bolt/Oracle/private HF targets) keep their own `BLOCKED/NOT VERIFIED` tracking in forensic/runtime docs.
 
 | Superpower | Status | Evidence |
 | --- | --- | --- |
-| 1. OpenHands Architect Mode | `partial` | OpenHands runtime exists locally, `hf_openhands/` is now deployed live to `wrzzzrzr-openhands-godmode.hf.space`, and the hosted wrapper answers HTTP `200`; the upstream UI/task preset still depends on operator behavior. |
-| 2. Aider Ultracheap | `implemented` | `aider_godmode.ps1` now defaults to architect + weak-model planning + repo-map flags, uses the current official Docker image, and the new safe HF surface is deployed at `wrzzzrzr-aider-godmode-safe.hf.space`. |
-| 3. smolagents Web-Crawler | `implemented` | `hf_smolagents/app.py` now boots against the current `smolagents` API, installs from the trimmed core requirements, exposes a runnable local Gradio UI, and is deployed as `wrzzzrzr-smolagents-godmode.hf.space`. |
-| 4. LangGraph Self-Evolving | `implemented` | `langgraph/system.py` persists prompt evolution to `prompt_evolution.json`. |
-| 5. n8n Phantom Trigger | `partial` | `n8n_mission_workflow.json` defines webhook-triggered mission intake, pending live import and operator hookup. |
-| 6. OpenHands + bolt.diy Feedback Loop | `partial` | `BOLTDIY_EXTERNAL_INTEGRATION.md` and the mission payload contract define the loop; external bolt.diy service remains outside this repo. |
-| 7. LiteLLM Router | `implemented` | `litellm_config.yaml` plus `litellm/docker-compose.yml` now provide both the router contract and a concrete runtime path on port `4000`. |
-| 8. Aider Repo-Map | `implemented` | `aider_godmode.ps1` now defaults to repo-map refresh and high map-token capacity. |
-| 9. Vision Agent | `implemented` | `hf_smolagents/app.py` includes `VisualDebugTool`, and the missing-screenshot error path is locally verified instead of crashing. |
-| 10. Parallele Agent-Swarms | `implemented` | `langgraph/system.py` runs a parallel swarm branch using a thread pool. |
-| 11. n8n AI Memory | `partial` | `n8n_memory_workflow.json` is now env-safe and writes to `MEMORY_VAULT_PATH`, pending live n8n import. |
-| 12. Context Window Injection | `implemented` | `langgraph/system.py` and `hf_smolagents/app.py` inject shared GODMODE context. |
+| 1. OpenHands Architect Mode | `VERIFIED` | `openhands/adapter.py` mission contract + local adapter health + `/trigger` runtime proof in `superpowers_audit_latest.json`. |
+| 2. Aider Ultracheap | `VERIFIED` | `aider_godmode.ps1` defaults include `--architect`, weak-model editor path, and auto-lint map workflow. |
+| 3. smolagents Web-Crawler | `VERIFIED` | `hf_smolagents/app.py` includes `DuckDuckGoSearchTool`, `VisitWebpageTool`, manager/web/code agent wiring. |
+| 4. LangGraph Self-Evolving | `VERIFIED` | `langgraph/system.py` + live `POST /run` proof with prompt-evolution path in audit snapshot. |
+| 5. n8n Phantom Trigger | `VERIFIED` | canonical mission webhook `POST /webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission` responds `200` in audit snapshot. |
+| 6. OpenHands + bolt.diy Feedback Loop | `VERIFIED` | local hybrid dispatch path `bolt-facade -> n8n -> openhands-adapter` forwarded and logged in snapshot; external hosted bolt remains separate track. |
+| 7. LiteLLM Router | `VERIFIED` | live router checks for `/`, `/health`, `/v1/models` with authenticated runtime evidence. |
+| 8. Aider Repo-Map | `VERIFIED` | `aider_godmode.ps1` includes repo-map token sizing + forced map refresh. |
+| 9. Vision Agent | `VERIFIED` | `hf_smolagents/app.py` contains `VisualDebugTool` and guarded screenshot-analysis behavior. |
+| 10. Parallele Agent-Swarms | `VERIFIED` | `langgraph/system.py` uses `ThreadPoolExecutor(max_workers=3)` for parallel branch execution. |
+| 11. n8n AI Memory | `VERIFIED` | `n8n_memory_probe_workflow.json` imported + executed; memory append proof captured in audit snapshot and `memory_vault.md`. |
+| 12. Context Window Injection | `VERIFIED` | shared `GODMODE_CONTEXT` injection verified in `langgraph/system.py` and `hf_smolagents/app.py`. |
 
-Hosted note: the historical `Wrzzzrzr/aider-web-ide` Space remains paused by a
-legacy Hugging Face abuse flag tied to the old `ttyd` variant. The canonical
-hosted Aider surface is now `Wrzzzrzr/aider-godmode-safe`.
+Hosted note:
+- Historical `Wrzzzrzr/aider-web-ide` stays paused (`LEGACY` due old ttyd abuse flag).
+- Canonical hosted Aider surface is `Wrzzzrzr/aider-godmode-safe`.
