@@ -44,3 +44,7 @@ HETZNER_DEPLOY 2026-04-11T16:37:41.0134243Z status=PASS host=65.108.253.14 profi
 HF_RUNTIME 2026-04-11T16:15:50.521159+00:00 core_gate=PASS private_gate=PASS evidence=.godmode_runtime/evidence/hf_runtime_latest.json
 SUPERPOWERS 2026-04-11T16:15:50.536895+00:00 verified=12/12 strict=100 evidence=.godmode_runtime/evidence/superpowers_audit_latest.json
 ORACLE_PROBE 2026-04-11T16:37:51.233961+00:00 status=BLOCKED evidence=.godmode_runtime/evidence/oracle_probe_latest.json
+ORACLE_PROBE 2026-04-11T16:58:04.870319+00:00 status=SKIPPED evidence=.godmode_runtime/evidence/oracle_probe_latest.json
+BOLT_DISPATCH 2026-04-11T16:58:05.054558+00:00 status=forwarded call_id=e6741eb2-210d-4797-a4d6-2e554c28b4bb
+BOLT_PROOF 2026-04-11T16:58:05.948176+00:00 result=PASS proof_id=22abb979-41e5-4f30-afa0-adaf70761304
+BOLT_DISPATCH 2026-04-11T16:58:08.352799+00:00 status=forwarded call_id=d1f39323-8e97-47e5-a8c0-9903b8dc94a9

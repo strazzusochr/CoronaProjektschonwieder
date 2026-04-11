@@ -220,3 +220,10 @@
   trigger=local-only
 - 2026-04-11T16:37:41.0134243Z HETZNER_DEPLOY: status=PASS host=65.108.253.14 fqdn_root=65.108.253.14.nip.io evidence=.godmode_runtime/evidence/hetzner_deploy_latest.json
 - 2026-04-11T16:37:51.233961+00:00 ORACLE_PROBE: status=BLOCKED evidence=.godmode_runtime/evidence/oracle_probe_latest.json
+- 2026-04-11T16:58:04.870319+00:00 ORACLE_PROBE: status=SKIPPED mode=oracle-disabled-placeholder evidence=.godmode_runtime/evidence/oracle_probe_latest.json
+- 2026-04-11T16:58:05.054558+00:00 BOLT_DISPATCH: status=forwarded source=hf_pilot_actual repo=https://github.com/strazzusochr/CoronaProjektschonwieder call_id=e6741eb2-210d-4797-a4d6-2e554c28b4bb
+- 2026-04-11T16:58:05.948176+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=22abb979-41e5-4f30-afa0-adaf70761304
+- 2026-04-11T16:58:08.352799+00:00 BOLT_DISPATCH: status=forwarded source=verify_superpowers repo=https://github.com/strazzusochr/CoronaProjektschonwieder call_id=d1f39323-8e97-47e5-a8c0-9903b8dc94a9
+- 2026-04-11T16:58:33.167Z MEMORY_PROBE: adapter=healthy
+  openhands=http://localhost:3000
+  trigger=local-only

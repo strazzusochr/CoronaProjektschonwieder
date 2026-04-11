@@ -30,6 +30,7 @@ def probe_tcp(host: str, port: int, timeout: float = 4.0) -> dict[str, Any]:
 def main() -> int:
     timestamp = now_iso()
     verify_enabled = os.environ.get("ORACLE_VERIFY_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
+    verify_force = os.environ.get("ORACLE_VERIFY_FORCE", "false").strip().lower() in {"1", "true", "yes", "on"}
     oracle_ip = os.environ.get("ORACLE_IP", "").strip()
     oracle_enabled = os.environ.get("ORACLE_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
     oracle_placeholder = os.environ.get("ORACLE_PLACEHOLDER", "true").strip().lower() in {"1", "true", "yes", "on"}
@@ -39,6 +40,15 @@ def main() -> int:
             "timestamp": timestamp,
             "status": "SKIPPED",
             "reason": "ORACLE_VERIFY_ENABLED is false",
+        }
+    elif (not oracle_enabled) and oracle_placeholder and (not verify_force):
+        payload = {
+            "timestamp": timestamp,
+            "status": "SKIPPED",
+            "reason": "Oracle profile is disabled placeholder (future profile only)",
+            "oracle_enabled": oracle_enabled,
+            "oracle_placeholder": oracle_placeholder,
+            "hint": "Set ORACLE_VERIFY_FORCE=true to force network probing.",
         }
     elif not oracle_ip or "replace-with" in oracle_ip or "placeholder" in oracle_ip:
         payload = {
@@ -77,4 +87,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

@@ -237,6 +237,8 @@ Historical note resolved during this proof:
 - HF runtime strict gate is currently `PASS` for core + private spaces:
   `.godmode_runtime/evidence/hf_runtime_latest.json`.
 
-Note: Oracle future-profile probe remains a separate track and is still reported
-as `BLOCKED` in `.godmode_runtime/evidence/oracle_probe_latest.json`; this is
-not a blocker for the active selfhosted core runtime.
+Note: Oracle future-profile probe remains a separate track and is now reported
+as `SKIPPED` by design in `.godmode_runtime/evidence/oracle_probe_latest.json`
+when Oracle is disabled placeholder mode; this is not a blocker for the active
+selfhosted core runtime.
+- 2026-04-11T16:58:05.948176+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=22abb979-41e5-4f30-afa0-adaf70761304
