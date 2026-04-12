@@ -1,7 +1,7 @@
 {
-  "name": "corona-v4-vienna-3d",
+  "name": "godmode-arena-lab",
   "private": true,
-  "version": "4.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

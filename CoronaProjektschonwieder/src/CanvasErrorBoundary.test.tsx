@@ -1,5 +1,4 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
 import { CanvasErrorBoundary } from './CanvasErrorBoundary';
 
 function BrokenScene(): never {
@@ -13,13 +12,13 @@ describe('CanvasErrorBoundary', () => {
 
     window.addEventListener('error', suppressWindowError);
 
-    render(
+  render(
       <CanvasErrorBoundary fallback={<div>Viewport fallback active</div>}>
         <BrokenScene />
       </CanvasErrorBoundary>
     );
 
-    expect(screen.getByText(/viewport fallback active/i)).toBeInTheDocument();
+    expect(screen.getByText(/viewport fallback active/i)).toBeTruthy();
 
     window.removeEventListener('error', suppressWindowError);
     consoleErrorSpy.mockRestore();

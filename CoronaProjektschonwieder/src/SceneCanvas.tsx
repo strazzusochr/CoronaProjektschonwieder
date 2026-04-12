@@ -1,97 +1,200 @@
-import { Canvas } from '@react-three/fiber';
-import { Float, OrbitControls, Sky, Stars } from '@react-three/drei';
+import { OrbitControls, Sky, Stars } from '@react-three/drei';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { useRef } from 'react';
+import type { Mesh } from 'three';
 
-function GroundPlane() {
+type Difficulty = 'rookie' | 'veteran' | 'nightmare';
+type Theme = 'neon' | 'sunset';
+
+type SceneCanvasProps = {
+  paused: boolean;
+  difficulty: Difficulty;
+  wave: number;
+  autoRotate: boolean;
+  showGrid: boolean;
+  showAtmosphere: boolean;
+  theme: Theme;
+};
+
+type DroneProps = {
+  index: number;
+  wave: number;
+  speedMultiplier: number;
+  paused: boolean;
+  color: string;
+};
+
+function difficultySpeed(difficulty: Difficulty) {
+  if (difficulty === 'nightmare') {
+    return 1.8;
+  }
+
+  if (difficulty === 'veteran') {
+    return 1.3;
+  }
+
+  return 1;
+}
+
+function themeColors(theme: Theme) {
+  if (theme === 'sunset') {
+    return {
+      background: '#1f0d0a',
+      fog: '#24110f',
+      floor: '#3a1f18',
+      accentA: '#f59c69',
+      accentB: '#f4d094',
+    };
+  }
+
+  return {
+    background: '#050816',
+    fog: '#050816',
+    floor: '#12152d',
+    accentA: '#5f83ff',
+    accentB: '#52d7ff',
+  };
+}
+
+function ArenaFloor({ color }: { color: string }) {
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
-      <planeGeometry args={[48, 48]} />
-      <meshStandardMaterial color="#261914" roughness={0.96} metalness={0.04} />
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
+      <cylinderGeometry args={[8.2, 8.2, 0.2, 48]} />
+      <meshStandardMaterial color={color} roughness={0.84} metalness={0.06} />
     </mesh>
   );
 }
 
-function CathedralPlaceholder() {
+function Drone({ index, wave, speedMultiplier, paused, color }: DroneProps) {
+  const meshRef = useRef<Mesh>(null);
+  const radius = 2.6 + (index % 4) * 0.9;
+  const angleOffset = index * (Math.PI / 3.5);
+
+  useFrame(({ clock }, delta) => {
+    if (!meshRef.current || paused) {
+      return;
+    }
+
+    const time = clock.getElapsedTime() * speedMultiplier;
+    const dynamicRadius = radius + (wave - 1) * 0.18;
+    meshRef.current.position.x = Math.cos(time + angleOffset) * dynamicRadius;
+    meshRef.current.position.z = Math.sin(time + angleOffset) * dynamicRadius;
+    meshRef.current.position.y = 1 + Math.sin(time * 2 + angleOffset) * 0.35;
+    meshRef.current.rotation.x += delta * 1.3 * speedMultiplier;
+    meshRef.current.rotation.y += delta * 0.9 * speedMultiplier;
+  });
+
   return (
-    <Float speed={1.6} rotationIntensity={0.12} floatIntensity={0.28}>
-      <group position={[0, 1.8, 0]}>
-        <mesh castShadow receiveShadow position={[0, 0, 0]}>
-          <boxGeometry args={[3.4, 2.2, 1.8]} />
-          <meshStandardMaterial color="#c98149" roughness={0.56} metalness={0.1} />
-        </mesh>
-
-        <mesh castShadow receiveShadow position={[0, 2.1, 0]}>
-          <boxGeometry args={[1.4, 2.4, 1.15]} />
-          <meshStandardMaterial color="#e1b479" roughness={0.46} metalness={0.08} />
-        </mesh>
-
-        <mesh castShadow receiveShadow position={[-1.1, 2.25, 0]}>
-          <cylinderGeometry args={[0.34, 0.48, 3.1, 6]} />
-          <meshStandardMaterial color="#93613d" roughness={0.54} metalness={0.12} />
-        </mesh>
-
-        <mesh castShadow receiveShadow position={[1.1, 2.25, 0]}>
-          <cylinderGeometry args={[0.34, 0.48, 3.1, 6]} />
-          <meshStandardMaterial color="#93613d" roughness={0.54} metalness={0.12} />
-        </mesh>
-
-        <mesh castShadow position={[0, 4.2, 0]}>
-          <coneGeometry args={[0.5, 1.7, 6]} />
-          <meshStandardMaterial color="#f3d3a4" roughness={0.38} metalness={0.12} />
-        </mesh>
-      </group>
-    </Float>
+    <mesh ref={meshRef} castShadow receiveShadow>
+      <icosahedronGeometry args={[0.34, 0]} />
+      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.32} roughness={0.44} metalness={0.38} />
+    </mesh>
   );
 }
 
-function CityEnvironment() {
+function DroneSwarm({
+  wave,
+  difficulty,
+  paused,
+  accentA,
+  accentB,
+}: {
+  wave: number;
+  difficulty: Difficulty;
+  paused: boolean;
+  accentA: string;
+  accentB: string;
+}) {
+  const count = Math.min(4 + wave, 12);
+  const speedMultiplier = difficultySpeed(difficulty);
+  const drones = [];
+
+  for (let index = 0; index < count; index += 1) {
+    drones.push(
+      <Drone
+        key={index}
+        index={index}
+        wave={wave}
+        speedMultiplier={speedMultiplier}
+        paused={paused}
+        color={index % 2 === 0 ? accentA : accentB}
+      />
+    );
+  }
+
+  return <>{drones}</>;
+}
+
+function ArenaScene({
+  paused,
+  difficulty,
+  wave,
+  showGrid,
+  showAtmosphere,
+  theme,
+}: Omit<SceneCanvasProps, 'autoRotate'>) {
+  const colors = themeColors(theme);
+
   return (
     <>
-      <color attach="background" args={['#050816']} />
-      <fog attach="fog" args={['#050816', 10, 34]} />
-      <Sky
-        distance={450000}
-        sunPosition={[5, 2, 6]}
-        turbidity={6}
-        rayleigh={2.9}
-        mieCoefficient={0.006}
-        mieDirectionalG={0.9}
-      />
-      <Stars radius={120} depth={60} count={5000} factor={3.4} saturation={0} fade speed={0.7} />
-      <ambientLight intensity={0.55} color="#f4d6b1" />
-      <hemisphereLight intensity={1.05} color="#9eb6ff" groundColor="#22130f" />
+      <color attach="background" args={[colors.background]} />
+      {showAtmosphere ? <fog attach="fog" args={[colors.fog, 8, 28]} /> : null}
+      {showAtmosphere ? (
+        <>
+          <Sky distance={450000} sunPosition={[4, 2, 6]} turbidity={5} rayleigh={2.1} mieCoefficient={0.005} mieDirectionalG={0.92} />
+          <Stars radius={120} depth={50} count={4200} factor={3} saturation={0} fade speed={0.55} />
+        </>
+      ) : null}
+      <ambientLight intensity={0.55} />
+      <hemisphereLight intensity={1.1} color={colors.accentA} groundColor="#1a1412" />
       <directionalLight
         castShadow
-        color="#ffd7ae"
-        intensity={3.1}
-        position={[7, 11, 5]}
+        intensity={2.6}
+        position={[8, 10, 6]}
+        color={colors.accentB}
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
       />
-      <spotLight color="#ffb974" intensity={24} angle={0.34} penumbra={0.5} position={[-6, 8, 6]} />
-      <GroundPlane />
-      <CathedralPlaceholder />
-      <gridHelper args={[28, 28, '#725646', '#37271e']} position={[0, 0.01, 0]} />
+      <spotLight intensity={20} angle={0.38} penumbra={0.45} position={[-7, 7, 6]} color={colors.accentA} />
+      <ArenaFloor color={colors.floor} />
+      <mesh position={[0, 0.6, 0]} receiveShadow castShadow>
+        <torusGeometry args={[1.6, 0.25, 20, 70]} />
+        <meshStandardMaterial color={colors.accentB} roughness={0.3} metalness={0.45} />
+      </mesh>
+      <DroneSwarm wave={wave} difficulty={difficulty} paused={paused} accentA={colors.accentA} accentB={colors.accentB} />
+      {showGrid ? <gridHelper args={[20, 20, colors.accentA, '#2b2421']} position={[0, 0.01, 0]} /> : null}
     </>
   );
 }
 
-export default function SceneCanvas() {
+export default function SceneCanvas({
+  paused,
+  difficulty,
+  wave,
+  autoRotate,
+  showGrid,
+  showAtmosphere,
+  theme,
+}: SceneCanvasProps) {
   return (
     <div className="scene-canvas-shell">
-      <Canvas
-        className="scene-canvas"
-        camera={{ position: [7.5, 5.5, 7.5], fov: 42 }}
-        dpr={[1, 1.5]}
-        shadows
-        gl={{ antialias: true, alpha: false }}
-      >
-        <CityEnvironment />
+      <Canvas className="scene-canvas" camera={{ position: [6.5, 4.8, 6.5], fov: 44 }} dpr={[1, 1.5]} shadows gl={{ antialias: true, alpha: false }}>
+        <ArenaScene
+          paused={paused}
+          difficulty={difficulty}
+          wave={wave}
+          showGrid={showGrid}
+          showAtmosphere={showAtmosphere}
+          theme={theme}
+        />
         <OrbitControls
           enablePan={false}
-          minDistance={5}
+          minDistance={4}
           maxDistance={16}
           minPolarAngle={Math.PI / 4}
-          maxPolarAngle={Math.PI / 2.1}
+          maxPolarAngle={Math.PI / 2.05}
+          autoRotate={autoRotate && !paused}
+          autoRotateSpeed={difficultySpeed(difficulty)}
         />
       </Canvas>
     </div>
