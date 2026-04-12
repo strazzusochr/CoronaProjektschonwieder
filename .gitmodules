@@ -1,0 +1,21 @@
+[submodule "hf_aider"]
+	path = hf_aider
+	url = https://huggingface.co/spaces/Wrzzzrzr/aider-godmode-safe
+[submodule "hf_langgraph"]
+	path = hf_langgraph
+	url = https://huggingface.co/spaces/Wrzzzrzr/langgraph-godmode
+[submodule "hf_langgraph_space"]
+	path = hf_langgraph_space
+	url = https://huggingface.co/spaces/Wrzzzrzr/langgraph-godmode
+[submodule "hf_openhands"]
+	path = hf_openhands
+	url = https://huggingface.co/spaces/Wrzzzrzr/openhands-godmode
+[submodule "hf_openhands_clone"]
+	path = hf_openhands_clone
+	url = https://huggingface.co/spaces/Wrzzzrzr/openhands-godmode
+[submodule "hf_pilot_actual"]
+	path = hf_pilot_actual
+	url = https://huggingface.co/spaces/Wrzzzrzr/godmode-pilot
+[submodule "hf_pilot_clone"]
+	path = hf_pilot_clone
+	url = https://huggingface.co/spaces/Wrzzzrzr/godmode-pilot
