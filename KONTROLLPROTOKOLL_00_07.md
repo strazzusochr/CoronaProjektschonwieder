@@ -1,6 +1,6 @@
 # GODMODE Kontrollprotokoll 00-07
 
-Stand: 2026-04-11
+Stand: 2026-04-12
 
 Superbrain Merge 2026-04-12:
 - Neues kanonisches Merge-Protokoll: `AGENT_SUPERBRAIN_KONTROLLPROTOKOLL.md`.
@@ -13,6 +13,8 @@ Superbrain Merge 2026-04-12:
   `beta_core=100% (GO)`, `ga_full=100% (GO)`.
 - Hinweis zur 96.15%-Zeile: der einzelne Legacy-Eintrag bleibt absichtlich
   `LEGACY` und wird nicht kuenstlich als `VERIFIED` markiert.
+- End-to-End Snapshot (`.godmode_runtime/evidence/e2e_flows_ae_latest.json`):
+  `flow_percent=100%`, `verified_flows=5/5`, alle Flows `A..E=VERIFIED`.
 
 Dieses Dokument ist das kanonische Abnahme- und Steuerprotokoll fuer den
 GODMODE-Stack in `d:\Web\docs\godmode_setup`.
@@ -22,7 +24,7 @@ Provider-neutral migration note:
 - Remaining Oracle references in this protocol are historical audit evidence
   or future-profile placeholders unless a line explicitly says otherwise.
 
-Hetzner selfhosted track note (2026-04-11):
+Hetzner selfhosted track note (2026-04-12):
 - Canonical deploy entry exists as `ops/deploy_hetzner_core.ps1` for target
   host `65.108.253.14`.
 - Latest rollout evidence from this workstation is
