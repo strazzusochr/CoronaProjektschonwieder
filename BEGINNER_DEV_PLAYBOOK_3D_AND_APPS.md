@@ -1,196 +1,334 @@
-# Beginner Dev Playbook (3D Games + Normal Apps)
+# GODMODE Beginner Playbook (Zero To 3D + Apps)
 
-Stand: 2026-04-11
+Stand: 2026-04-12  
+Zielgruppe: absolute Einsteiger ohne Vorerfahrung
 
-Dieses Playbook ist fuer Einsteiger geschrieben. Ziel: Du kannst das GODMODE-
-System lokal und selfhosted bedienen, 3D-Webgames bauen, normale Apps bauen,
-und die richtigen Open-Source-AI-Bausteine auswaehlen.
+---
 
-## 0) Was Dieses System Fuer Dich Macht
+## 0) Erstmal Ruhe: Was ist hier gerade passiert?
 
-- Startet einen lokalen Dev-Stack mit:
-  - OpenHands
-  - OpenHands-Adapter
-  - n8n
-  - LangGraph
-  - LiteLLM
-  - bolt-facade
-- Nutzt einen einheitlichen Missionsvertrag:
-  - `agent/task/source/repo/ref/status/timestamp`
-- Schreibt Evidence (Beweise) nach `.godmode_runtime/evidence/`.
+Du hast jetzt ein komplexes Multi-Tool-System. Das ist normal, dass es sich
+am Anfang chaotisch anfühlt.
 
-## 1) Schnellstart (15 Minuten)
+Die gute Nachricht:
 
-1. Oeffne ein Terminal im Repo:
-   - `d:\Web\docs\godmode_setup`
-2. Starte den Stack (Windows):
-   - `powershell -ExecutionPolicy Bypass -File .\START_GODMODE.ps1`
-3. Warte auf die Health-Ausgaben (`200`).
-4. Frontend-Checks:
-   - `cd .\CoronaProjektschonwieder`
-   - `npm install`
-   - `npm test`
-   - `npm run build`
-   - `npm run test:browser`
-5. Zurueck ins Root:
-   - `cd ..`
-6. Laufzeitbeweise erzeugen:
-   - `py -3 verify_bolt_facade.py`
-   - `py -3 verify_hf_runtime.py`
-   - `py -3 oracle_probe.py`
-   - `py -3 verify_superpowers.py`
+- Das 3D-Projekt ist stabil ersetzt durch **Godmode Arena Lab**.
+- Build und Browser-Tests laufen grün.
+- Du musst nicht alles gleichzeitig lernen.
 
-Wenn alle lokalen Gates gruen sind, bist du beta-ready fuer den Core-Track.
-Wenn `verify_superpowers.py` auf `12/12 VERIFIED` steht, ist der lokale
-Superpower-Track voll verdrahtet.
+Dieses Playbook zeigt dir eine feste Reihenfolge.
 
-## 2) Wie Du Taeglich Arbeitest
+---
 
-1. Ziel in 1 Satz definieren (z. B. "Neues Gegner-Verhalten in 3D Szene").
-2. Kleine Aufgabe als Mission formulieren.
-3. Code lokal aendern.
-4. Unit-Tests laufen lassen.
-5. Build laufen lassen.
-6. Browser-Smoke laufen lassen.
-7. Evidence-Skripte laufen lassen.
-8. Doku-Eintrag aktualisieren (nur Fakten, keine Wunschtexte).
-9. Committen.
-10. Pushen.
+## 1) Sicherheits-Notfall (bitte als Erstes)
 
-## 3) Pfad A: 3D Web Game Bauen
+Du hast in der Chat-Historie echte Zugangsdaten gepostet (Passwort/Token).  
+Bitte **sofort rotieren**:
 
-### Schritt-fuer-Schritt
+1. Hetzner Root-Passwort ändern.
+2. Hetzner API-Token neu erzeugen und alten deaktivieren.
+3. HF-Token neu erzeugen und alten deaktivieren.
+4. Alle neuen Secrets nur lokal in `.godmode_env` halten (nicht committen).
 
-1. Szene-Komponente in `CoronaProjektschonwieder/src` anlegen oder erweitern.
-2. Kamera + Licht zuerst stabil machen.
-3. Danach Gameplay-Objekte, Kollision, UI-Overlay.
-4. Immer nach jeder groesseren Aenderung:
-   - `npm test`
-   - `npm run build`
-   - `npm run test:browser`
-5. Wenn 3D-Canvas schwarz ist:
-   - Canvas-Size pruefen
-   - Kamera-Position pruefen
-   - Licht pruefen
-   - Console-Fehler pruefen
+Regel:
 
-### Offizielle Primärquellen
+- Niemals Tokens/Passwörter in Markdown, Git-Commit, Screenshot oder Chat posten.
 
-- Three.js Docs:
-  - https://threejs.org/docs/
-- React Three Fiber Intro:
-  - https://r3f.docs.pmnd.rs/getting-started/introduction
-- MDN WebGL:
-  - https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API
+---
 
-## 4) Pfad B: Normale App (UI + API + Workflow)
+## 2) Einfache Systemkarte (ohne Fachchinesisch)
 
-### Schritt-fuer-Schritt
+Du hast 3 Ebenen:
 
-1. UI-Komponente bauen.
-2. API-Endpunkt definieren.
-3. Payload strikt am Missionsvertrag halten.
-4. n8n-Workflow testen (Webhook + Response).
-5. Adapter/Dispatch pruefen.
-6. Evidence-Datei kontrollieren.
+1. **Dein lokaler Rechner (Entwicklung)**
+- Hier schreibst du Code.
+- Hier laufen `npm test`, `npm run build`, `npm run test:browser`.
 
-### Offizielle Primärquellen
+2. **Lokaler GODMODE-Stack (Docker)**
+- OpenHands, Adapter, n8n, LangGraph, LiteLLM, bolt-facade.
+- Dient als Integrationsschicht und Automation.
 
-- React Lernbereich:
-  - https://react.dev/learn
-- TypeScript Docs:
-  - https://www.typescriptlang.org/docs/
-- Vite Guide:
-  - https://vite.dev/guide/
-- Playwright Intro:
-  - https://playwright.dev/docs/intro
+3. **Remote/Cloud**
+- Hetzner Selfhosted (Core-Deploy).
+- Hugging Face Spaces (einige öffentlich, einige privat/blockiert).
+- Optional Oracle-Track (aktuell kein Core-Blocker).
 
-## 5) Open-Source AI Richtig Waehlen
+Merksatz:
 
-### Schnellmatrix
+- Lokal entwickeln -> lokal testen -> dann deployen.
 
-- "Ich will Codefix + Repo-Arbeit":
-  - Aider + OpenHands Adapter
-- "Ich will Agent-Orchestrierung":
-  - LangGraph + n8n
-- "Ich will Web/Recherche/Tool-Aufgaben":
-  - smolagents
-- "Ich will Modell-Routing/Fallback":
-  - LiteLLM
+---
 
-### Quellen
+## 3) Was ist was? (Programm-Landkarte)
 
-- Hugging Face Spaces Overview:
-  - https://huggingface.co/docs/hub/en/spaces-overview
-- Hugging Face Docker Spaces:
-  - https://huggingface.co/docs/hub/en/spaces-sdks-docker
-- Docker Compose File Reference:
-  - https://docs.docker.com/compose/compose-file/
-- n8n Webhook Workflow-Development:
-  - https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.webhook/workflow-development/
+### 3D App (Godmode Arena Lab)
 
-## 6) Wenn Etwas Kaputt Ist (Dummy-Diagnose)
+- Pfad: `CoronaProjektschonwieder/`
+- Zweck: dein eigentlicher 3D-Frontend-Code.
+- Wichtigste Dateien:
+  - `src/App.tsx` (UI + Buttons + Spielzustand)
+  - `src/SceneCanvas.tsx` (Three.js Szene)
+  - `tests/app.spec.ts` (Browser-End-to-End)
 
-### A) `git` blockiert (`index.lock` / another git process)
+### OpenHands
 
-1. Laufende git-Prozesse beenden.
-2. Pruefen, ob `.git/index.lock` existiert.
-3. Wenn vorhanden und kein git mehr laeuft: Lock-Datei entfernen.
+- Zweck: Coding-Agent Runtime.
+- Lokal: `http://127.0.0.1:3000`
 
-### B) n8n Webhook `404 not registered`
+### OpenHands Adapter
 
-1. `START_GODMODE.ps1` erneut ausfuehren.
-2. Sicherstellen, dass Mission-Workflow importiert/published wurde.
-3. Webhook direkt testen:
-   - `POST http://127.0.0.1:5678/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission`
+- Zweck: Brücke/Dispatch zwischen Mission-Payload und OpenHands.
+- Lokal: `http://127.0.0.1:3001`
 
-### C) bolt dispatch rot
+### bolt-facade
 
-1. `py -3 verify_bolt_facade.py`
-2. `n8n` und `openhands-adapter` Status in Snapshot pruefen.
-3. Externes bolt bleibt erlaubt `BLOCKED`, solange lokaler Fallback+Flow gruen ist.
+- Zweck: Hybrid-Dispatch (lokal + externer Forward).
+- Lokal: `http://127.0.0.1:3901`
 
-### D) Oracle rot
+### n8n
 
-- Erwartbar im Beta-Core:
-  - Oracle darf `BLOCKED` sein, solange Core-Track `PASS` ist.
+- Zweck: Workflow-Automation/Webhook-Flow.
+- Lokal: `http://127.0.0.1:5678`
 
-## 7) Deployment (Selfhosted Hetzner)
+### LangGraph
 
-Kanonischer Deploy:
+- Zweck: Agent-Orchestrierung / Flow-Logik.
+- Lokal: `http://127.0.0.1:8080`
+
+### LiteLLM
+
+- Zweck: Modell-Routing/Fallback.
+- Lokal: `http://127.0.0.1:4000`
+
+---
+
+## 4) Account- und Login-Checkliste (damit nichts „mystisch“ ist)
+
+Du brauchst typischerweise:
+
+1. GitHub
+- Repo-Zugriff und Push.
+
+2. Hugging Face
+- Spaces, ggf. private Zugriffstoken.
+
+3. Hetzner
+- Server + API Token.
+
+4. Vercel (wenn Frontend dort deployt wird)
+- Build/Hosting.
+
+5. Optional Oracle
+- Nur wenn dieser Track später aktiv genutzt wird.
+
+Wichtig:
+
+- Das Repo erstellt nicht „heimlich“ neue Web-Accounts mit Passwort für dich.
+- Aber Integrationen erwarten, dass deine eigenen Tokens gesetzt sind.
+- Wo liegen lokale Secrets?
+  - `d:\Web\docs\godmode_setup\.godmode_env` (lokal, nicht committen)
+  - ggf. HF Cache: `%USERPROFILE%\.cache\huggingface\token`
+
+---
+
+## 5) Ein Programm für alles: Control Center
+
+Neu verfügbar:
+
+- `ops/GODMODE_CONTROL_CENTER.ps1`
+
+Start:
+
+```powershell
+cd d:\Web\docs\godmode_setup
+powershell -ExecutionPolicy Bypass -File .\ops\GODMODE_CONTROL_CENTER.ps1
+```
+
+Menü:
+
+1. kompletten lokalen Stack starten  
+2. 3D Dev-Server starten  
+3. komplette 3D Qualitätstests fahren  
+4. Runtime-Verifikation fahren  
+5. Status + URLs zeigen
+
+Du kannst auch direkt ohne Menü starten:
+
+```powershell
+.\ops\GODMODE_CONTROL_CENTER.ps1 -Action start-stack
+.\ops\GODMODE_CONTROL_CENTER.ps1 -Action dev-3d
+.\ops\GODMODE_CONTROL_CENTER.ps1 -Action gates-3d
+.\ops\GODMODE_CONTROL_CENTER.ps1 -Action verify-runtime
+.\ops\GODMODE_CONTROL_CENTER.ps1 -Action status
+```
+
+---
+
+## 6) Schritt-für-Schritt: Erstes 3D Web Game bauen
+
+### Schritt A: Projekt starten
+
+1. Terminal öffnen.
+2. In Repo wechseln:
+
+```powershell
+cd d:\Web\docs\godmode_setup
+```
+
+3. Dev-Server starten:
+
+```powershell
+.\ops\GODMODE_CONTROL_CENTER.ps1 -Action dev-3d
+```
+
+4. Browser öffnen: `http://127.0.0.1:5173`
+
+### Schritt B: Spielgefühl ändern
+
+1. Öffne `CoronaProjektschonwieder/src/SceneCanvas.tsx`.
+2. Passe z. B. diese Dinge an:
+- Anzahl Gegner (Drone count)
+- Bewegungs-Speed (difficultySpeed)
+- Lichtfarbe (themeColors)
+- Kamera/OrbitControls
+
+3. Speichern -> Browser aktualisiert automatisch.
+
+### Schritt C: UI/Gameplay ändern
+
+1. Öffne `CoronaProjektschonwieder/src/App.tsx`.
+2. Passe an:
+- Buttons (Pause/Resume/Reset)
+- Score/Wave/Lives Logik
+- Default-Werte
+
+3. Speichern, im Browser testen.
+
+### Schritt D: Qualität sichern
+
+Im Root:
+
+```powershell
+.\ops\GODMODE_CONTROL_CENTER.ps1 -Action gates-3d
+```
+
+Das läuft:
+
+- `npm test`
+- `npm run build`
+- `npm run test:browser`
+
+Nur wenn alles grün ist, committen.
+
+---
+
+## 7) Schritt-für-Schritt: normale App statt 3D
+
+Wenn du statt Game lieber klassische Web-App willst:
+
+1. In `App.tsx` UI-Form/Felder bauen.
+2. In Backend/Bridge Mission-Payload anlegen:
+- Vertrag: `agent/task/source/repo/ref/status/timestamp`
+3. n8n-Webhook anbinden.
+4. Browser-Tests schreiben.
+5. Gates fahren.
+
+Gleiches Qualitätsprinzip wie beim 3D-Spiel.
+
+---
+
+## 8) Was muss vor Deploy erfüllt sein?
+
+Minimal:
+
+1. `npm test` grün
+2. `npm run build` grün
+3. `npm run test:browser` grün
+4. Keine roten Konsolenfehler
+5. Keine kaputten Netzwerk-Calls im Test
+
+Optional Runtime-Beweis:
+
+```powershell
+.\ops\GODMODE_CONTROL_CENTER.ps1 -Action verify-runtime
+```
+
+---
+
+## 9) Hetzner Deploy (wenn du wirklich live gehen willst)
+
+Kanonischer Befehl:
 
 ```powershell
 .\ops\deploy_hetzner_core.ps1 `
   -HostIp 65.108.253.14 `
   -SshUser root `
-  -FqdnRoot 65.108.253.14.nip.io `
-  -TlsEmail strazzusochr@gmail.com `
-  -SshPassword <local-only> `
-  -SshHostKey "ssh-ed25519 255 <fingerprint>"
+  -FqdnRoot <deine-domain> `
+  -TlsEmail strazzusochr@gmail.com
 ```
 
-Danach Evidence pruefen:
+Danach prüfen:
 
 - `.godmode_runtime/evidence/hetzner_deploy_latest.json`
-- Erwartung:
-  - `status=PASS`
-  - HTTPS auf allen 5 Subdomains `200`
-  - Service-Ports extern geschlossen
+- HTTPS Endpunkte erreichbar
+- nur 22/80/443 extern offen
 
-## 8) Wahrheitssystem (wichtig)
+---
 
-Immer diese Regel:
+## 10) Wenn etwas kaputt ist: Anfänger-Diagnose
 
-- Repo- und Runtime-Beweise schlagen jede Wunsch-Doku.
-- Wenn etwas nicht beweisbar ist:
-  - `PARTIAL`, `BLOCKED` oder `NOT VERIFIED` markieren
-  - niemals schoenreden.
+### Problem: Build rot
 
-## 9) Nächste Lernspur (empfohlen)
+1. `npm install` neu
+2. `npm run build`
+3. Fehlerzeile in Datei springen
+4. kleinsten möglichen Fix machen
 
-1. Ein kleines 3D-Level bauen (Spawn + HUD + Hit-Feedback).
-2. Einen n8n-Missionsflow fuer dieses Level anhaengen.
-3. Einmal selfhosted deployen.
-4. Evidence sammeln und sauber dokumentieren.
+### Problem: Browser-Test rot
 
-Damit lernst du in echter Reihenfolge: Build -> Runtime -> Proof -> Betrieb.
+1. `npm run test:browser`
+2. Screenshot unter `test-results/` prüfen
+3. In Konsole nach JS-Error schauen
+
+### Problem: Port belegt
+
+Wenn `4173` belegt ist, laufenden Preview-Prozess beenden und Test neu.
+
+### Problem: Git blockiert
+
+Wenn `index.lock` Fehler:
+
+1. alle laufenden Git-Prozesse schließen
+2. `.git/index.lock` löschen (nur wenn kein Git mehr läuft)
+
+---
+
+## 11) Dein täglicher Minimal-Flow (ohne Stress)
+
+1. `status` im Control Center.
+2. `dev-3d` starten.
+3. Kleine Änderung machen.
+4. `gates-3d` laufen lassen.
+5. Commit + Push.
+6. Erst dann nächsten Schritt.
+
+So kommst du stabil voran, ohne Chaos.
+
+---
+
+## 12) Primärquellen (offizielle Doku)
+
+- React: https://react.dev/learn
+- TypeScript: https://www.typescriptlang.org/docs/
+- Vite: https://vite.dev/guide/
+- Three.js: https://threejs.org/docs/
+- React Three Fiber: https://r3f.docs.pmnd.rs/getting-started/introduction
+- Playwright: https://playwright.dev/docs/intro
+- Docker Compose: https://docs.docker.com/compose/compose-file/
+- n8n Webhook Node: https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.webhook/workflow-development/
+- Hugging Face Spaces: https://huggingface.co/docs/hub/en/spaces-overview
+
+---
+
+Wenn du willst, ist der nächste Schritt:  
+Wir reduzieren das jetzt noch weiter auf **nur 3 feste Knöpfe** (`Develop`, `Test`, `Deploy`) im Control Center.
