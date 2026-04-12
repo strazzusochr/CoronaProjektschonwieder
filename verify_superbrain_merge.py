@@ -340,6 +340,7 @@ def main() -> int:
             "external_percent": external_pct,
             "doc_percent": doc_pct,
             "beta_core_percent": beta_core_pct,
+            "ga_full_percent": ga_full_pct,
         },
         "freigabe": {
             "beta_core_go": all(
