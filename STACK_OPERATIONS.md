@@ -28,6 +28,11 @@ For the detailed horizontal/vertical phase control model, use
 - `BEGINNER_DEV_PLAYBOOK_3D_AND_APPS.md`: step-by-step guide for 3D games,
   normal apps, and Open-Source-AI usage
 
+Token fallback note:
+- startup scripts now auto-load `HF_TOKEN` from local cache
+  (`~/.cache/huggingface/token`) when `.godmode_env` leaves it empty, and map
+  it to `BOLTDIY_SPACE_TOKEN` unless explicitly overridden.
+
 ## Hosted Sync 2026-04-10
 
 - `OpenHands`: `https://wrzzzrzr-openhands-godmode.hf.space` rebuilt from
@@ -119,7 +124,8 @@ entry for the active Hetzner selfhosted track (`65.108.253.14`), including:
 - Current state: dispatch order is now fixed to
   `bolt-facade -> n8n -> openhands-adapter`; external bolt forwarding can be
   blocked while still persisting local audit artifacts and forwarding to local
-  targets
+  targets; if `BOLTDIY_SPACE_URL` is not set, the facade resolves the canonical
+  target from `BOLTDIY_SPACE_ID` (`Wrzzzrzr/bolt-diy-godmode` by default)
 
 ### Core tools bridge
 
@@ -127,7 +133,7 @@ entry for the active Hetzner selfhosted track (`65.108.253.14`), including:
 - Adapter forwarding: `openhands/adapter.py`
 - Current state: explicit local endpoints now exist for
   `POST /run_playwright`, `POST /run_devtools`, `POST /snapshot_devtools`,
-  plus `GET /health`
+  plus `GET /health` and `GET /metrics`
 
 ### Aider
 
@@ -211,7 +217,8 @@ Not yet fully materialized as local end-to-end integrations:
 
 - `Aider <-> OpenHands` proof at runtime
 - `smolagents <-> LangGraph` proof at runtime
-- live `bolt.diy` verification inside this repo
+- consistently reachable external `bolt.diy` dispatch in environments without
+  valid token/space access
 - a generic published n8n slug without workflow-id/node-name path segments
 
 ## Runtime Gate Evidence

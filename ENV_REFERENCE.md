@@ -44,6 +44,7 @@ Used by: `OpenHands`, `LangGraph`, `smolagents`, Aider, and hosted integrations.
 - `HF_LANGGRAPH_SPACE_URL`
 - `HF_PILOT_SPACE_URL`
 - `BOLTDIY_SPACE_URL`
+- `BOLTDIY_SPACE_ID`
 - `HF_VERIFY_STRICT`
 
 Used by: Hugging Face Spaces and hosted wrappers.
@@ -89,6 +90,8 @@ Used by: cost-aware routing, proxying, and provider compatibility layers.
 - `BOLTDIY_FACADE_URL`
 - `BOLTDIY_FACADE_INTERNAL_URL`
 - `BOLTDIY_FORWARD_TIMEOUT`
+- `BOLTDIY_SPACE_ID`
+- `BOLTDIY_SPACE_TOKEN`
 
 Used by: `bolt_facade/app.py`, `bolt_facade/docker-compose.yml`, pilot dispatch,
 and n8n bridge routing.
@@ -99,6 +102,11 @@ Default tracked mode:
 - dispatch order is fixed to: `bolt-facade -> n8n -> openhands-adapter`
 - when external `bolt.diy` forwarding is blocked, the facade persists a local
   audit artifact instead of silently dropping the dispatch
+- if `BOLTDIY_SPACE_URL` is empty, the facade resolves the external target from
+  `BOLTDIY_SPACE_ID` (default `Wrzzzrzr/bolt-diy-godmode`)
+- startup scripts autoload `HF_TOKEN` from the local Hugging Face cache file
+  (`~/.cache/huggingface/token`) when `HF_TOKEN` is unset
+- if `BOLTDIY_SPACE_TOKEN` is unset, startup scripts default it to `HF_TOKEN`
 
 ### DevTools / Playwright bridge
 
@@ -219,6 +227,7 @@ Runtime endpoints:
 - `POST /run_devtools`
 - `POST /snapshot_devtools`
 - `GET /health`
+- `GET /metrics`
 
 Used by: local operator automation and OpenHands adapter endpoint forwarding.
 
@@ -335,6 +344,8 @@ Minimum practical set:
 - `BOLTDIY_MODE=hybrid`
 - `BOLTDIY_FACADE_URL`
 - `BOLTDIY_SPACE_URL`
+- `BOLTDIY_SPACE_ID`
+- `BOLTDIY_SPACE_TOKEN`
 - `N8N_WEBHOOK_URL`
 - `OPENHANDS_ADAPTER_URL`
 

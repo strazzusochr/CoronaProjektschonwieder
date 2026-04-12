@@ -18,6 +18,16 @@ function Resolve-GodmodeValue {
     return $Value
 }
 
+function Get-HfCachedToken {
+    $tokenFile = Join-Path $HOME ".cache\huggingface\token"
+    if (-not (Test-Path $tokenFile)) {
+        return ""
+    }
+
+    $token = (Get-Content $tokenFile -Raw).Trim()
+    return $token
+}
+
 function Get-StableN8nEncryptionKey {
     if (-not (Test-Path $RuntimeDir)) {
         New-Item -ItemType Directory -Path $RuntimeDir | Out-Null
@@ -300,6 +310,26 @@ if (-not $env:BOLTDIY_FACADE_INTERNAL_URL) {
 
 if (-not $env:BOLTDIY_FORWARD_TIMEOUT) {
     $env:BOLTDIY_FORWARD_TIMEOUT = "20"
+}
+
+if (-not $env:BOLTDIY_SPACE_ID) {
+    $env:BOLTDIY_SPACE_ID = "Wrzzzrzr/bolt-diy-godmode"
+}
+
+if (-not $env:BOLTDIY_SPACE_URL -and $env:BOLTDIY_SPACE_ID -match ".+/.+") {
+    $env:BOLTDIY_SPACE_URL = "https://huggingface.co/spaces/$($env:BOLTDIY_SPACE_ID)"
+}
+
+if (-not $env:HF_TOKEN) {
+    $cachedToken = Get-HfCachedToken
+    if ($cachedToken) {
+        $env:HF_TOKEN = $cachedToken
+        Write-Host "OK  HF token loaded from local Hugging Face cache"
+    }
+}
+
+if (-not $env:BOLTDIY_SPACE_TOKEN -and $env:HF_TOKEN) {
+    $env:BOLTDIY_SPACE_TOKEN = $env:HF_TOKEN
 }
 
 if (-not $env:OPENHANDS_API_INTERNAL_URL) {

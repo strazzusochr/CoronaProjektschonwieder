@@ -18,6 +18,7 @@ export HF_OPENHANDS_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/openhands-
 export HF_LANGGRAPH_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/langgraph-godmode"
 export HF_PILOT_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/godmode-pilot"
 export BOLTDIY_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/bolt-diy-godmode"
+export BOLTDIY_SPACE_ID="Wrzzzrzr/bolt-diy-godmode"
 export HF_VERIFY_STRICT="true"
 
 # Hetzner selfhosted deployment metadata

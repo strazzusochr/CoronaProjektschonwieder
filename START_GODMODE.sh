@@ -82,6 +82,15 @@ export BOLTDIY_FACADE_PORT="${BOLTDIY_FACADE_PORT:-3901}"
 export BOLTDIY_FACADE_URL="${BOLTDIY_FACADE_URL:-http://$CORE_RUNTIME_HOST:$BOLTDIY_FACADE_PORT}"
 export BOLTDIY_FACADE_INTERNAL_URL="${BOLTDIY_FACADE_INTERNAL_URL:-http://bolt-facade-godmode:3901}"
 export BOLTDIY_FORWARD_TIMEOUT="${BOLTDIY_FORWARD_TIMEOUT:-20}"
+export BOLTDIY_SPACE_ID="${BOLTDIY_SPACE_ID:-Wrzzzrzr/bolt-diy-godmode}"
+if [[ -z "${BOLTDIY_SPACE_URL:-}" ]]; then
+  export BOLTDIY_SPACE_URL="https://huggingface.co/spaces/$BOLTDIY_SPACE_ID"
+fi
+if [[ -z "${HF_TOKEN:-}" && -f "$HOME/.cache/huggingface/token" ]]; then
+  export HF_TOKEN="$(tr -d '\r\n' < "$HOME/.cache/huggingface/token")"
+  echo "OK  HF token loaded from local Hugging Face cache"
+fi
+export BOLTDIY_SPACE_TOKEN="${BOLTDIY_SPACE_TOKEN:-${HF_TOKEN:-}}"
 export DEVTOOLS_BRIDGE_ENABLED="${DEVTOOLS_BRIDGE_ENABLED:-true}"
 export DEVTOOLS_BRIDGE_HOST="${DEVTOOLS_BRIDGE_HOST:-0.0.0.0}"
 export DEVTOOLS_BRIDGE_PORT="${DEVTOOLS_BRIDGE_PORT:-3911}"

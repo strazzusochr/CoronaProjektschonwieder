@@ -29,6 +29,14 @@ Beta-Gate closure note (2026-04-11):
 - Browser smoke retry passed after resolving port contention with PM2 preview:
   `proofs/browser_smoke_retry_2026-04-11T18-40-20Z.log`.
 
+Bolt external runtime note (2026-04-12):
+- External dispatch to `Wrzzzrzr/bolt-diy-godmode` is re-verified as
+  `forwarded` (HTTP `200`) in
+  `.godmode_runtime/evidence/bolt_facade_api_2026-04-12T08-18-28-084409+00-00.json`.
+- Startup scripts now default `BOLTDIY_SPACE_ID` and can auto-load `HF_TOKEN`
+  from local cache (`~/.cache/huggingface/token`) when `.godmode_env` does not
+  set it, then map it to `BOLTDIY_SPACE_TOKEN` for bolt facade dispatch.
+
 Es kombiniert vier Sichten in einer Datei:
 
 - horizontal: Phasen `00` bis `07` gegen Stack-Domaenen und Missionsartefakte

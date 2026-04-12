@@ -246,3 +246,6 @@ selfhosted core runtime.
 - 2026-04-11T18:34:52.032692+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=bc82cf97-b44d-4927-be8c-75c11ef0561d
 - 2026-04-11T18:40:04.564739+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=62e96cfc-a63c-4a94-8b4d-5763bc6a6890
 - 2026-04-11T18:43:56.217045+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=811dd253-86db-41b1-a87d-4d89b5547acc
+- 2026-04-12T08:13:59.438187+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=ebb2e6c8-b82d-43f4-ad7b-176c937617f8
+- 2026-04-12T08:16:57.935613+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=19bd8038-ea6f-452f-9807-9d0124c32a77
+- 2026-04-12T08:18:29.112970+00:00 BOLT_PROOF: result=PASS scenario=bolt-facade-api-smoke proof_id=7520c53e-76dd-4429-a06d-4e0f7f7946da

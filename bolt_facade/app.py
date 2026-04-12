@@ -37,6 +37,7 @@ GODMODE_GOAL_PATH = Path(
 BOLTDIY_MODE = os.environ.get("BOLTDIY_MODE", "hybrid").strip().lower()
 BOLTDIY_FORWARD_TIMEOUT = int(os.environ.get("BOLTDIY_FORWARD_TIMEOUT", "20"))
 BOLTDIY_SPACE_URL = os.environ.get("BOLTDIY_SPACE_URL", "").strip()
+BOLTDIY_SPACE_ID = os.environ.get("BOLTDIY_SPACE_ID", "Wrzzzrzr/bolt-diy-godmode").strip()
 _BOLTDIY_SPACE_TOKEN_RAW = os.environ.get("BOLTDIY_SPACE_TOKEN", "").strip()
 BOLTDIY_SPACE_TOKEN = _BOLTDIY_SPACE_TOKEN_RAW or os.environ.get("HF_TOKEN", "").strip()
 N8N_WEBHOOK_URL = os.environ.get("N8N_WEBHOOK_URL", "").strip()
@@ -220,6 +221,20 @@ def _space_candidates(space_url: str) -> dict[str, str]:
     return {"api": hf_space_host, "web": hf_web}
 
 
+def _resolve_boltdiy_space_url() -> str:
+    if BOLTDIY_SPACE_URL:
+        return BOLTDIY_SPACE_URL
+
+    if "/" in BOLTDIY_SPACE_ID:
+        owner, space = BOLTDIY_SPACE_ID.split("/", 1)
+        owner = owner.strip()
+        space = space.strip()
+        if owner and space:
+            return f"https://huggingface.co/spaces/{owner}/{space}"
+
+    return ""
+
+
 def _n8n_webhook_candidates(webhook_url: str) -> list[str]:
     clean = webhook_url.strip().rstrip("/")
     if not clean:
@@ -250,14 +265,16 @@ def _dispatch_external_bolt(payload: MissionPayload) -> dict[str, Any]:
             "reason": f"BOLTDIY_MODE={BOLTDIY_MODE}",
         }
 
-    if not BOLTDIY_SPACE_URL:
+    resolved_space_url = _resolve_boltdiy_space_url()
+
+    if not resolved_space_url:
         return {
             "target": "bolt-external",
             "status": "blocked",
-            "reason": "BOLTDIY_SPACE_URL is empty",
+            "reason": "BOLTDIY_SPACE_URL and BOLTDIY_SPACE_ID are empty/invalid",
         }
 
-    candidates = _space_candidates(BOLTDIY_SPACE_URL)
+    candidates = _space_candidates(resolved_space_url)
     api_base = candidates["api"].rstrip("/")
     attempts: list[dict[str, Any]] = []
 
@@ -373,12 +390,13 @@ def root() -> dict[str, Any]:
 @app.get("/health")
 def health() -> dict[str, Any]:
     _ensure_dirs()
-    candidates = _space_candidates(BOLTDIY_SPACE_URL)
+    resolved_space_url = _resolve_boltdiy_space_url()
+    candidates = _space_candidates(resolved_space_url)
     external_probe = {
         "status": "disabled",
         "probe": {},
     }
-    if BOLTDIY_MODE == "hybrid" and BOLTDIY_SPACE_URL:
+    if BOLTDIY_MODE == "hybrid" and resolved_space_url:
         probe_target = candidates["web"] or candidates["api"]
         external_probe = {
             "status": "probed",
@@ -392,7 +410,8 @@ def health() -> dict[str, Any]:
         "mode": BOLTDIY_MODE,
         "dispatch_order": ["bolt-facade", "n8n", "openhands-adapter"],
         "targets": {
-            "bolt_space_url": BOLTDIY_SPACE_URL or "",
+            "bolt_space_url": resolved_space_url or "",
+            "bolt_space_id": BOLTDIY_SPACE_ID or "",
             "n8n_webhook_url": N8N_WEBHOOK_URL or "",
             "openhands_adapter_url": OPENHANDS_ADAPTER_URL or "",
         },
