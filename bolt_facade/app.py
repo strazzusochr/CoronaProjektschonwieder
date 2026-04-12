@@ -708,13 +708,32 @@ def _dispatch_smolagents(payload: MissionPayload) -> dict[str, Any]:
 
 
 def _dispatch_hf_aider(payload: MissionPayload) -> dict[str, Any]:
+    def _aider_label(agent_value: str) -> str:
+        value = (agent_value or "").lower()
+        if "review" in value:
+            return "Aider-Review"
+        if "core" in value:
+            return "Aider-Core"
+        return "Aider-Cloud"
+
     attempts: list[dict[str, Any]] = []
     if HF_AIDER_DISPATCH_URL:
         attempts.append(_post_json(HF_AIDER_DISPATCH_URL, payload.model_dump(), BOLTDIY_FORWARD_TIMEOUT))
     if HF_AIDER_URL:
         base = HF_AIDER_URL.rstrip("/")
+        gradio_data = [payload.task, payload.repo, payload.ref, _aider_label(payload.agent)]
         attempts.extend(
             [
+                _post_json(
+                    f"{base}/gradio_api/run/build_outputs",
+                    {"data": gradio_data},
+                    BOLTDIY_FORWARD_TIMEOUT,
+                ),
+                _post_json(
+                    f"{base}/gradio_api/call/build_outputs",
+                    {"data": gradio_data},
+                    BOLTDIY_FORWARD_TIMEOUT,
+                ),
                 _post_json(f"{base}/mission", payload.model_dump(), BOLTDIY_FORWARD_TIMEOUT),
                 _post_json(f"{base}/trigger", payload.model_dump(), BOLTDIY_FORWARD_TIMEOUT),
                 _post_json(f"{base}/api/mission", payload.model_dump(), BOLTDIY_FORWARD_TIMEOUT),

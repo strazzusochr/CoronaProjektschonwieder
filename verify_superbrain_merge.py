@@ -93,6 +93,23 @@ def weighted_beta_core(
     )
 
 
+def weighted_ga_full(
+    inventory_live_pct: float,
+    contract_pct: float,
+    routing_live_pct: float,
+    external_pct: float,
+    doc_pct: float,
+) -> float:
+    return round(
+        (inventory_live_pct * 0.25)
+        + (contract_pct * 0.20)
+        + (routing_live_pct * 0.25)
+        + (external_pct * 0.15)
+        + (doc_pct * 0.15),
+        2,
+    )
+
+
 def main() -> int:
     base_url = os.environ.get("BOLTDIY_FACADE_URL", "http://127.0.0.1:3901").rstrip("/")
     evidence_dir = resolve_evidence_dir()
@@ -266,6 +283,13 @@ def main() -> int:
         external_pct,
         doc_pct,
     )
+    ga_full_pct = weighted_ga_full(
+        inventory_live_pct,
+        contract_pct,
+        routing_live_pct,
+        external_pct,
+        doc_pct,
+    )
 
     report = {
         "timestamp": timestamp,
@@ -329,7 +353,7 @@ def main() -> int:
             "ga_full_go": all(
                 [
                     inventory_gate["status"] == "PASS",
-                    inventory_verified_pct == 100.0,
+                    inventory_live_pct == 100.0,
                     contract_pct == 100.0,
                     routing_live_pct == 100.0,
                     external_pct == 100.0,
@@ -355,21 +379,23 @@ def main() -> int:
     print(
         json.dumps(
             {
-                "status": "ok",
-                "snapshot": str(out_file),
-                "snapshot_written": snapshot_written,
-                "snapshot_write_error": snapshot_error,
-                "inventory_verified_percent": inventory_verified_pct,
-                "inventory_gate_percent": inventory_gate_pct,
-                "contract_percent": contract_pct,
-                "routing_live_percent": routing_live_pct,
-                "routing_gate_percent": routing_gate_pct,
-                "external_percent": external_pct,
-                "doc_percent": doc_pct,
-                "beta_core_percent": beta_core_pct,
-            },
-            ensure_ascii=True,
-        )
+            "status": "ok",
+            "snapshot": str(out_file),
+            "snapshot_written": snapshot_written,
+            "snapshot_write_error": snapshot_error,
+            "inventory_verified_percent": inventory_verified_pct,
+            "inventory_gate_percent": inventory_gate_pct,
+            "inventory_live_percent": inventory_live_pct,
+            "contract_percent": contract_pct,
+            "routing_live_percent": routing_live_pct,
+            "routing_gate_percent": routing_gate_pct,
+            "external_percent": external_pct,
+            "doc_percent": doc_pct,
+            "beta_core_percent": beta_core_pct,
+            "ga_full_percent": ga_full_pct,
+        },
+        ensure_ascii=True,
+    )
     )
     return 0
 

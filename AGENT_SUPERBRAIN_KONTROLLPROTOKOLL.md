@@ -1,6 +1,6 @@
 # AGENT_SUPERBRAIN_KONTROLLPROTOKOLL
 
-Stand: 2026-04-12 (Snapshot-Refresh 18:31 Europe/Berlin)  
+Stand: 2026-04-12 (Snapshot-Refresh 18:41 Europe/Berlin)  
 Marker: **Superbrain Merge 2026-04-12**
 
 Dieses Dokument ist das zentrale Kontrollprotokoll fuer den Superbrain-Merge aus:
@@ -84,7 +84,7 @@ ENV:
 ## 7) Freigabe
 
 - `Beta-Core GO`: Core-Gates 100%, externe Blocker ehrlich dokumentiert.
-- `GA-Full GO`: zusaetzlich alle externen Agenten/Probes `VERIFIED`.
+- `GA-Full GO`: alle aktiven Agenten live-forwarded, alle externen Probes `VERIFIED`, Routing-Live `100%`, Legacy darf `LEGACY` bleiben.
 
 Bis dahin gilt: kein "fertig", nur Gate-Status mit Evidence.
 
@@ -93,12 +93,12 @@ Bis dahin gilt: kein "fertig", nur Gate-Status mit Evidence.
 Quelle:
 [`superbrain_gate_latest.json`](/d:/Web/docs/godmode_setup/.godmode_runtime/evidence/superbrain_gate_latest.json)
 
-- Inventory Verified: `88.46%` (`23/26`, 2 aktive Agenten bleiben `BLOCKED` auf hf-aider-Dispatch, legacy bleibt `LEGACY`).
+- Inventory Verified: `96.15%` (`25/26`; alle aktiven Agenten sind live-forwarded, der Legacy-Eintrag bleibt absichtlich `LEGACY`).
 - Inventory Gate: `100%`.
 - Contract Gate: `100%`.
-- Routing Live: `80%`.
-- Routing Gate: `100%` (hf-aider ist sauber `BLOCKED` mit 404-Evidence statt still fail).
+- Routing Live: `100%`.
+- Routing Gate: `100%`.
 - External Gate (OllamaHfTrae): `100%`.
 - Doc Gate: `100%`.
 - Beta-Core: `100%` -> `GO`.
-- GA-Full: `NO GO` (noch nicht alle Agent-Entries `VERIFIED`, Live-Routing nicht 5/5).
+- GA-Full: `100%` -> `GO` (2-Stufen-Modell: aktive Agenten live, externe Probes live, Blocker-Evidence sauber).

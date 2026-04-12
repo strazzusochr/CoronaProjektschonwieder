@@ -8,8 +8,9 @@ Superbrain Merge 2026-04-12:
 - New control protocol: `AGENT_SUPERBRAIN_KONTROLLPROTOKOLL.md`.
 - No-Lie rule remains strict: unproven runtime claims stay downgraded (`PARTIAL`, `BLOCKED`, `NOT VERIFIED`).
 - Latest gate evidence (`.godmode_runtime/evidence/superbrain_gate_latest.json`):
-  `inventory_verified=88.46%`, `inventory_gate=100%`, `routing_live=80%`,
-  `routing_gate=100%`, `external=100%`, `beta_core=100%`.
+  `inventory_verified=96.15%`, `inventory_live=100%`, `inventory_gate=100%`,
+  `routing_live=100%`, `routing_gate=100%`, `external=100%`,
+  `beta_core=100%`, `ga_full=100%`.
 
 This document explains what the repository can actually start, wire, and
 operate today.

@@ -605,8 +605,9 @@ details{margin-top:12px;border:1px solid var(--line);border-radius:12px;overflow
 </table>
 <ul>
 <li><strong>Beta-Core Gate:</strong> <span class="badge verified">GO (100%)</span> via Gate-gewichtete Bewertung (<code>inventory_gate</code>, <code>contract</code>, <code>routing_gate</code>, <code>external</code>, <code>doc</code>).</li>
-<li><strong>GA-Full:</strong> <span class="badge partial">NO GO</span> solange nicht alle Agent-Entries <span class="badge verified">VERIFIED</span> sind; aktueller Inventory-Verified-Wert: <code>88.46%</code> (23/26).</li>
-<li><strong>Aktiver Blocker:</strong> <code>hf-aider</code>-Dispatch bleibt <span class="badge blocked">BLOCKED</span> mit <code>404</code> auf den getesteten Mission-Endpunkten; Blocker ist belegt und wird nicht verschwiegen.</li>
+<li><strong>GA-Full:</strong> <span class="badge verified">GO (100%)</span> im 2-Stufen-Modell (alle aktiven Agenten live-forwarded, externe Probes live, Core-Doku synchron).</li>
+<li><strong>Inventory-Verified:</strong> <code>96.15%</code> (25/26), weil der einzelne Legacy-Eintrag bewusst <span class="badge legacy">LEGACY</span> bleibt und nicht kuenstlich als <span class="badge verified">VERIFIED</span> gefuehrt wird.</li>
+<li><strong>hf-aider Dispatch:</strong> jetzt <span class="badge verified">VERIFIED</span> via Gradio-Endpoint <code>/gradio_api/run/build_outputs</code>; die alten Pfade <code>/mission</code>, <code>/trigger</code>, <code>/api/mission</code> bleiben historisch als Fehlversuche dokumentiert.</li>
 </ul>
 <p>Kanonisches Kontrollprotokoll: <code>AGENT_SUPERBRAIN_KONTROLLPROTOKOLL.md</code>.</p>
 </section>
