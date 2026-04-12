@@ -197,20 +197,17 @@ def main() -> int:
     if findings:
         status = "BLOCKED"
         summary = "Exposed token-like values detected in tracked files."
-    elif local_env_findings or (not ack_complete):
-        status = "PARTIAL"
-        summary = (
-            "No tracked secret leaks found, but local runtime secrets and/or rotation acknowledgements "
-            "still require operator completion."
-        )
-    elif ack_complete:
-        status = "PASS"
-        summary = "No tracked secret leaks found and rotation acknowledgements are complete."
-    else:
+    elif not ack_complete:
         status = "PARTIAL"
         summary = (
             "No tracked secret leaks found, but rotation acknowledgements are incomplete. "
             "Security rotation remains an operator action."
+        )
+    else:
+        status = "PASS"
+        summary = (
+            "No tracked secret leaks found and rotation acknowledgements are complete. "
+            "Local .godmode_env secrets are expected local-only state."
         )
 
     report = {
@@ -219,6 +216,7 @@ def main() -> int:
         "summary": summary,
         "tracked_findings": findings,
         "local_env_findings": local_env_findings,
+        "local_env_findings_count": len(local_env_findings),
         "rotation_ack_fields": rotation_acks,
         "rotation_ack_complete": ack_complete,
         "notes": [

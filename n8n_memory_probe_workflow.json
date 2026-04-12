@@ -1,7 +1,7 @@
 {
   "id": "godmodeMemoryProbe01",
   "name": "GODMODE AI Memory Probe",
-  "active": false,
+  "active": true,
   "settings": {},
   "pinData": {},
   "versionId": "6f6cc8ef-4f7f-4e5d-a15f-1b1e22b08cc1",
@@ -19,7 +19,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $env.OPENHANDS_ADAPTER_URL + '/health' }}",
+        "url": "={{ ($env.OPENHANDS_ADAPTER_INTERNAL_URL || $env.OPENHANDS_ADAPTER_URL || 'http://openhands-godmode-adapter:3001') + '/health' }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

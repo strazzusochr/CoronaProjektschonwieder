@@ -58,6 +58,20 @@ test_http_endpoint() {
   return 1
 }
 
+assert_required_env() {
+  local name="$1"
+  local reason="$2"
+  local value="${!name:-}"
+  if [[ -z "$value" ]]; then
+    echo "Preflight failed: missing required variable '$name'. $reason" >&2
+    exit 1
+  fi
+  if [[ "$value" == replace-with* || "$value" == changeme* || "$value" == your-* || "$value" == \<* || "$value" == "unset" ]]; then
+    echo "Preflight failed: variable '$name' still has placeholder-like content. $reason" >&2
+    exit 1
+  fi
+}
+
 ensure_core_network() {
   local network_name="${GODMODE_CORE_NETWORK:-godmode_core}"
   if ! "${docker_cmd[@]}" network inspect "$network_name" >/dev/null 2>&1; then
@@ -113,7 +127,13 @@ export OPENHANDS_PORT="${OPENHANDS_PORT:-3000}"
 export OPENHANDS_ADAPTER_PORT="${OPENHANDS_ADAPTER_PORT:-3001}"
 export OPENHANDS_API_INTERNAL_URL="${OPENHANDS_API_INTERNAL_URL:-http://openhands-godmode:3000}"
 export OPENHANDS_ADAPTER_INTERNAL_URL="${OPENHANDS_ADAPTER_INTERNAL_URL:-http://openhands-godmode-adapter:3001}"
+export OPENHANDS_ADAPTER_URL="${OPENHANDS_ADAPTER_URL:-$OPENHANDS_ADAPTER_INTERNAL_URL}"
+export OPENHANDS_PUBLIC_URL="${OPENHANDS_PUBLIC_URL:-http://127.0.0.1:$OPENHANDS_PORT}"
+export OPENHANDS_LLM_MODEL="${OPENHANDS_LLM_MODEL:-smart-router}"
 export OPENHANDS_LLM_BASE_URL="${OPENHANDS_LLM_BASE_URL:-http://litellm-godmode:4000}"
+export OPENHANDS_LLM_API_KEY="${OPENHANDS_LLM_API_KEY:-${LITELLM_API_KEY:-}}"
+export OPENHANDS_FILE_STORE="${OPENHANDS_FILE_STORE:-local}"
+export OPENHANDS_FILE_STORE_PATH="${OPENHANDS_FILE_STORE_PATH:-/.openhands-state}"
 export N8N_PORT="${N8N_PORT:-5678}"
 export N8N_WEBHOOK_URL="${N8N_WEBHOOK_URL:-http://$CORE_RUNTIME_HOST:$N8N_PORT/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission}"
 export N8N_WEBHOOK_INTERNAL_URL="${N8N_WEBHOOK_INTERNAL_URL:-http://n8n-godmode:5678/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission}"
@@ -124,6 +144,13 @@ export N8N_ENCRYPTION_KEY="${N8N_ENCRYPTION_KEY:-$(get_stable_n8n_key)}"
 docker_cmd=(docker)
 if [[ "$CORE_DOCKER_CONTEXT" != "default" ]]; then
   docker_cmd+=(--context "$CORE_DOCKER_CONTEXT")
+fi
+
+assert_required_env "OPENHANDS_LLM_MODEL" "OpenHands must start with a deterministic default model for one-click usage."
+assert_required_env "OPENHANDS_LLM_BASE_URL" "OpenHands needs a preconfigured LLM base URL to avoid manual provider setup."
+assert_required_env "OPENHANDS_LLM_API_KEY" "OpenHands needs a non-empty API key value for automatic provider bootstrapping."
+if [[ "$OPENHANDS_LLM_BASE_URL" == *"litellm-godmode"* || "$OPENHANDS_LLM_BASE_URL" == *":4000"* ]]; then
+  assert_required_env "LITELLM_API_KEY" "LiteLLM is the configured OpenHands backend, so LITELLM_API_KEY must be present."
 fi
 
 sync_n8n_workflow() {
@@ -197,12 +224,17 @@ sync_n8n_workflow() {
 }
 
 sync_n8n_memory_workflow() {
-  local workflow_file="$REPO_ROOT/n8n_memory_probe_workflow.json"
+  local probe_workflow_file="$REPO_ROOT/n8n_memory_probe_workflow.json"
+  local system_workflow_file="$REPO_ROOT/n8n_memory_workflow.json"
   local container_name="n8n-godmode"
   local compose_file="$REPO_ROOT/n8n/docker-compose.yml"
 
-  if [[ ! -f "$workflow_file" ]]; then
-    echo "WARN n8n memory workflow sync skipped (missing $workflow_file)"
+  if [[ ! -f "$probe_workflow_file" ]]; then
+    echo "WARN n8n memory workflow sync skipped (missing $probe_workflow_file)"
+    return 1
+  fi
+  if [[ ! -f "$system_workflow_file" ]]; then
+    echo "WARN n8n memory workflow sync skipped (missing $system_workflow_file)"
     return 1
   fi
 
@@ -211,8 +243,12 @@ sync_n8n_memory_workflow() {
     return 1
   fi
 
-  "${docker_cmd[@]}" cp "$workflow_file" "$container_name:/tmp/n8n_memory_probe_workflow.json"
+  "${docker_cmd[@]}" cp "$probe_workflow_file" "$container_name:/tmp/n8n_memory_probe_workflow.json"
+  "${docker_cmd[@]}" cp "$system_workflow_file" "$container_name:/tmp/n8n_memory_workflow.json"
   "${docker_cmd[@]}" exec "$container_name" n8n import:workflow --input=/tmp/n8n_memory_probe_workflow.json >/dev/null
+  "${docker_cmd[@]}" exec "$container_name" n8n import:workflow --input=/tmp/n8n_memory_workflow.json >/dev/null
+  "${docker_cmd[@]}" exec "$container_name" n8n publish:workflow --id=godmodeMemoryProbe01 >/dev/null
+  "${docker_cmd[@]}" exec "$container_name" n8n publish:workflow --id=godmodeMemorySystem01 >/dev/null
 
   local execution_output=""
   if ! execution_output="$("${docker_cmd[@]}" compose -f "$compose_file" run --rm n8n execute --id=godmodeMemoryProbe01 --rawOutput 2>&1)"; then
@@ -229,10 +265,56 @@ sync_n8n_memory_workflow() {
   return 1
 }
 
+patch_openhands_frontend_bootstrap() {
+  local container_name="openhands-godmode"
+  if ! "${docker_cmd[@]}" ps --format '{{.Names}}' | grep -Fxq "$container_name"; then
+    echo "WARN OpenHands frontend patch skipped ($container_name not running)"
+    return 1
+  fi
+
+  cat <<'PY' | "${docker_cmd[@]}" exec -i "$container_name" python - >/dev/null
+import pathlib
+import sys
+
+assets_dir = pathlib.Path("/app/frontend/build/assets")
+candidates = sorted(assets_dir.glob("user-prefs-context-*.js"))
+if not candidates:
+    print("OpenHands frontend patch failed: no user-prefs-context bundle found", file=sys.stderr)
+    sys.exit(2)
+
+target = candidates[0]
+text = target.read_text(encoding="utf-8", errors="ignore")
+replacements = [
+    ('LLM_MODEL:"anthropic/claude-3-5-sonnet-20241022"', 'LLM_MODEL:"smart-router"'),
+    ('LLM_BASE_URL:""', 'LLM_BASE_URL:"http://litellm-godmode:4000"'),
+    ("xu=()=>za()===Pa", "xu=()=>!0"),
+]
+updated = text
+for old, new in replacements:
+    updated = updated.replace(old, new)
+
+if "xu=()=>!0" not in updated:
+    print("OpenHands frontend patch failed: settingsAreUpToDate override not applied", file=sys.stderr)
+    sys.exit(3)
+
+target.write_text(updated, encoding="utf-8")
+print(f"patched:{target}")
+PY
+
+  if [[ $? -ne 0 ]]; then
+    echo "WARN OpenHands frontend patch failed"
+    return 1
+  fi
+
+  echo "OK  OpenHands frontend bootstrap patch applied (settings gate + LiteLLM defaults)"
+  return 0
+}
+
 ensure_core_network
 
 cd "$REPO_ROOT/openhands" && "${docker_cmd[@]}" compose up -d
 echo "OK  OpenHands compose running on :$OPENHANDS_PORT"
+patch_openhands_frontend_bootstrap || true
 
 cd "$REPO_ROOT/n8n" && "${docker_cmd[@]}" compose up -d
 echo "OK  n8n compose running on :$N8N_PORT"
@@ -315,6 +397,7 @@ echo "  LiteLLM local:    http://$CORE_RUNTIME_HOST:$LITELLM_PORT"
 echo "  bolt-facade:      http://$CORE_RUNTIME_HOST:$BOLTDIY_FACADE_PORT"
 echo "  OpenHands local:  $LOCAL_OPENHANDS_URL"
 echo "  Adapter local:    http://$CORE_RUNTIME_HOST:$OPENHANDS_ADAPTER_PORT"
+echo "  OpenHands LLM:    model=${OPENHANDS_LLM_MODEL:-unset}; base=${OPENHANDS_LLM_BASE_URL:-unset}"
 echo "  n8n local:        http://$CORE_RUNTIME_HOST:$N8N_PORT"
 echo "  LangGraph local:  http://$CORE_RUNTIME_HOST:$LANGGRAPH_PORT"
 echo "  DevTools bridge:  http://$CORE_RUNTIME_HOST:$DEVTOOLS_BRIDGE_PORT"

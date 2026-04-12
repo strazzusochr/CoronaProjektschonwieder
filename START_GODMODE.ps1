@@ -85,6 +85,21 @@ function Test-HttpEndpoint {
     return $false
 }
 
+function Assert-RequiredEnv {
+    param(
+        [string]$Name,
+        [string]$Reason
+    )
+
+    $value = [System.Environment]::GetEnvironmentVariable($Name, "Process")
+    if ([string]::IsNullOrWhiteSpace($value)) {
+        throw "Preflight failed: missing required variable '$Name'. $Reason"
+    }
+    if ($value -match '^\s*(replace-with|changeme|your-|<|unset)') {
+        throw "Preflight failed: variable '$Name' still has placeholder-like content. $Reason"
+    }
+}
+
 function Ensure-CoreNetwork {
     param(
         [string[]]$DockerArgs
@@ -209,9 +224,13 @@ function Sync-N8nMemoryWorkflow {
         [string]$RepoRootPath
     )
 
-    $workflowPath = Join-Path $RepoRootPath "n8n_memory_probe_workflow.json"
-    if (-not (Test-Path $workflowPath)) {
-        throw "n8n memory workflow sync failed: missing $workflowPath"
+    $probeWorkflowPath = Join-Path $RepoRootPath "n8n_memory_probe_workflow.json"
+    $systemWorkflowPath = Join-Path $RepoRootPath "n8n_memory_workflow.json"
+    if (-not (Test-Path $probeWorkflowPath)) {
+        throw "n8n memory workflow sync failed: missing $probeWorkflowPath"
+    }
+    if (-not (Test-Path $systemWorkflowPath)) {
+        throw "n8n memory workflow sync failed: missing $systemWorkflowPath"
     }
 
     $containerName = "n8n-godmode"
@@ -220,14 +239,34 @@ function Sync-N8nMemoryWorkflow {
         throw "n8n memory workflow sync failed: container $containerName not running"
     }
 
-    docker @DockerArgs cp $workflowPath "${containerName}:/tmp/n8n_memory_probe_workflow.json" | Out-Null
+    docker @DockerArgs cp $probeWorkflowPath "${containerName}:/tmp/n8n_memory_probe_workflow.json" | Out-Null
     if ($LASTEXITCODE -ne 0) {
-        throw "n8n memory workflow sync failed during docker cp"
+        throw "n8n memory workflow sync failed during probe docker cp"
+    }
+
+    docker @DockerArgs cp $systemWorkflowPath "${containerName}:/tmp/n8n_memory_workflow.json" | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "n8n memory workflow sync failed during system docker cp"
     }
 
     docker @DockerArgs exec $containerName n8n import:workflow --input=/tmp/n8n_memory_probe_workflow.json | Out-Null
     if ($LASTEXITCODE -ne 0) {
-        throw "n8n memory workflow import failed"
+        throw "n8n memory probe workflow import failed"
+    }
+
+    docker @DockerArgs exec $containerName n8n import:workflow --input=/tmp/n8n_memory_workflow.json | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "n8n memory system workflow import failed"
+    }
+
+    docker @DockerArgs exec $containerName n8n publish:workflow --id=godmodeMemoryProbe01 | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "n8n memory probe workflow publish failed"
+    }
+
+    docker @DockerArgs exec $containerName n8n publish:workflow --id=godmodeMemorySystem01 | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "n8n memory system workflow publish failed"
     }
 
     $composeFile = Join-Path $RepoRootPath "n8n/docker-compose.yml"
@@ -242,6 +281,55 @@ function Sync-N8nMemoryWorkflow {
     }
 
     Write-Host "OK  n8n memory workflow synced + probe saved to memory vault"
+}
+
+function Patch-OpenHandsFrontendBootstrap {
+    param(
+        [string[]]$DockerArgs
+    )
+
+    $containerName = "openhands-godmode"
+    $runningNames = docker @DockerArgs ps --format "{{.Names}}"
+    if ($LASTEXITCODE -ne 0 -or -not ($runningNames -contains $containerName)) {
+        throw "OpenHands frontend patch failed: container $containerName not running"
+    }
+
+    $pythonPatch = @'
+import pathlib
+import sys
+
+assets_dir = pathlib.Path("/app/frontend/build/assets")
+candidates = sorted(assets_dir.glob("user-prefs-context-*.js"))
+if not candidates:
+    print("OpenHands frontend patch failed: no user-prefs-context bundle found", file=sys.stderr)
+    sys.exit(2)
+
+target = candidates[0]
+text = target.read_text(encoding="utf-8", errors="ignore")
+
+replacements = [
+    ('LLM_MODEL:"anthropic/claude-3-5-sonnet-20241022"', 'LLM_MODEL:"smart-router"'),
+    ('LLM_BASE_URL:""', 'LLM_BASE_URL:"http://litellm-godmode:4000"'),
+    ("xu=()=>za()===Pa", "xu=()=>!0"),
+]
+
+updated = text
+for old, new in replacements:
+    updated = updated.replace(old, new)
+
+if "xu=()=>!0" not in updated:
+    print("OpenHands frontend patch failed: settingsAreUpToDate override not applied", file=sys.stderr)
+    sys.exit(3)
+
+target.write_text(updated, encoding="utf-8")
+print(f"patched:{target}")
+'@
+
+    $pythonPatch | docker @DockerArgs exec -i $containerName python -
+    if ($LASTEXITCODE -ne 0) {
+        throw "OpenHands frontend patch failed during docker exec"
+    }
+    Write-Host "OK  OpenHands frontend bootstrap patch applied (settings gate + LiteLLM defaults)"
 }
 
 if (Test-Path $EnvFile) {
@@ -372,8 +460,33 @@ if (-not $env:OPENHANDS_ADAPTER_INTERNAL_URL) {
     $env:OPENHANDS_ADAPTER_INTERNAL_URL = "http://openhands-godmode-adapter:3001"
 }
 
+if (-not $env:OPENHANDS_ADAPTER_URL) {
+    $env:OPENHANDS_ADAPTER_URL = $env:OPENHANDS_ADAPTER_INTERNAL_URL
+}
+
+if (-not $env:OPENHANDS_PUBLIC_URL) {
+    $localOpenHandsPort = Resolve-GodmodeValue $env:OPENHANDS_PORT "3000"
+    $env:OPENHANDS_PUBLIC_URL = "http://127.0.0.1:$localOpenHandsPort"
+}
+
+if (-not $env:OPENHANDS_LLM_MODEL) {
+    $env:OPENHANDS_LLM_MODEL = "smart-router"
+}
+
 if (-not $env:OPENHANDS_LLM_BASE_URL) {
     $env:OPENHANDS_LLM_BASE_URL = "http://litellm-godmode:4000"
+}
+
+if (-not $env:OPENHANDS_LLM_API_KEY -and $env:LITELLM_API_KEY) {
+    $env:OPENHANDS_LLM_API_KEY = $env:LITELLM_API_KEY
+}
+
+if (-not $env:OPENHANDS_FILE_STORE) {
+    $env:OPENHANDS_FILE_STORE = "local"
+}
+
+if (-not $env:OPENHANDS_FILE_STORE_PATH) {
+    $env:OPENHANDS_FILE_STORE_PATH = "/.openhands-state"
 }
 
 if (-not $env:LANGGRAPH_API_INTERNAL_URL) {
@@ -424,6 +537,14 @@ if (-not $env:ORACLE_VERIFY_ENABLED) {
     $env:ORACLE_VERIFY_ENABLED = "true"
 }
 
+$openhandsBaseUrl = Resolve-GodmodeValue $env:OPENHANDS_LLM_BASE_URL ""
+Assert-RequiredEnv -Name "OPENHANDS_LLM_MODEL" -Reason "OpenHands must start with a deterministic default model for one-click usage."
+Assert-RequiredEnv -Name "OPENHANDS_LLM_BASE_URL" -Reason "OpenHands needs a preconfigured LLM base URL to avoid manual provider setup."
+Assert-RequiredEnv -Name "OPENHANDS_LLM_API_KEY" -Reason "OpenHands needs a non-empty API key value for automatic provider bootstrapping."
+if ($openhandsBaseUrl -match "litellm-godmode|:4000") {
+    Assert-RequiredEnv -Name "LITELLM_API_KEY" -Reason "LiteLLM is the configured OpenHands backend, so LITELLM_API_KEY must be present."
+}
+
 $dockerContextArgs = @()
 if ($env:CORE_DOCKER_CONTEXT -and $env:CORE_DOCKER_CONTEXT -ne "default") {
     $dockerContextArgs = @("--context", $env:CORE_DOCKER_CONTEXT)
@@ -455,6 +576,7 @@ Write-Host "OK  bolt-facade compose running on :$(Resolve-GodmodeValue $env:BOLT
 Set-Location -Path (Join-Path $RepoRoot "openhands")
 docker @dockerContextArgs compose up -d
 Write-Host "OK  OpenHands compose running on :$(Resolve-GodmodeValue $env:OPENHANDS_PORT '3000')"
+Patch-OpenHandsFrontendBootstrap -DockerArgs $dockerContextArgs
 
 # 3. n8n
 Set-Location -Path (Join-Path $RepoRoot "n8n")
@@ -581,6 +703,7 @@ Write-Host "  LiteLLM local:    http://${runtimeHost}:$(Resolve-GodmodeValue $en
 Write-Host "  bolt-facade:      http://${runtimeHost}:$(Resolve-GodmodeValue $env:BOLTDIY_FACADE_PORT '3901')"
 Write-Host "  OpenHands local:  $localOpenHandsUrl"
 Write-Host "  Adapter local:    http://${runtimeHost}:$(Resolve-GodmodeValue $env:OPENHANDS_ADAPTER_PORT '3001')"
+Write-Host "  OpenHands LLM:    model=$(Resolve-GodmodeValue $env:OPENHANDS_LLM_MODEL 'unset'); base=$(Resolve-GodmodeValue $env:OPENHANDS_LLM_BASE_URL 'unset')"
 Write-Host "  n8n local:        http://${runtimeHost}:$(Resolve-GodmodeValue $env:N8N_PORT '5678')"
 Write-Host "  LangGraph local:  http://${runtimeHost}:$(Resolve-GodmodeValue $env:LANGGRAPH_PORT '8080')"
 Write-Host "  DevTools bridge:  http://${runtimeHost}:$(Resolve-GodmodeValue $env:DEVTOOLS_BRIDGE_PORT '3911')"

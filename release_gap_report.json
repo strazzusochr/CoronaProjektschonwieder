@@ -1,0 +1,111 @@
+{
+  "generated_at": "2026-04-12T23:59:00+02:00",
+  "scope": "godmode-superbrain-beta-readiness",
+  "summary": {
+    "status": "PARTIAL",
+    "total_gaps": 3,
+    "critical_gaps": 1,
+    "core_truth": "Core runtime, routing, OpenHands bootstrap check, and final build test are currently PASS; security rotation acknowledgement is still incomplete."
+  },
+  "completed_closures": [
+    {
+      "id": "CLOSE-001",
+      "title": "OpenHands one-click bootstrap check",
+      "status": "PASS",
+      "evidence": [
+        ".godmode_runtime/evidence/openhands_ui_bootstrap_latest.json",
+        ".godmode_runtime/evidence/openhands_ui_2026-04-12T21-57-02-046Z.png"
+      ]
+    },
+    {
+      "id": "CLOSE-002",
+      "title": "Superbrain gate verification",
+      "status": "PASS",
+      "evidence": [
+        ".godmode_runtime/evidence/superbrain_gate_latest.json"
+      ]
+    },
+    {
+      "id": "CLOSE-003",
+      "title": "Final multi-agent build test artifacts",
+      "status": "PASS",
+      "evidence": [
+        "final_build_test_result.json",
+        "final_build_test_log.txt",
+        "final_build_artifact_manifest.json",
+        "final_build_screenshot.png"
+      ]
+    },
+    {
+      "id": "CLOSE-004",
+      "title": "n8n memory probe execution",
+      "status": "PASS",
+      "evidence": [
+        "n8n_memory_probe_workflow.json",
+        "memory_vault.md"
+      ]
+    }
+  ],
+  "gaps": [
+    {
+      "id": "GAP-SEC-001",
+      "titel": "Security rotation acknowledgements missing",
+      "aktueller_status": "PARTIAL",
+      "warum_offen": "No tracked leak is present, but required ROTATED_*_AT fields are still empty in local .godmode_env.",
+      "evidence": [
+        ".godmode_runtime/evidence/security_rotation_check_latest.json"
+      ],
+      "betroffene_dateien_services_endpoints": [
+        ".godmode_env",
+        ".godmode_env.example",
+        "security_preflight.py",
+        "ops/set_rotation_ack.ps1"
+      ],
+      "fix_strategy": "Rotate compromised credentials operator-side, then set all four acknowledgement timestamps using the helper script.",
+      "closure_proof_required": [
+        "security_rotation_check_latest.json with status=PASS",
+        "all ROTATED_*_AT fields populated in local .godmode_env"
+      ]
+    },
+    {
+      "id": "GAP-OPS-002",
+      "titel": "Dirty submodule pointer remains in worktree",
+      "aktueller_status": "PARTIAL",
+      "warum_offen": "Submodule hf_pilot_actual is still marked modified and not release-frozen.",
+      "evidence": [
+        "git status --short"
+      ],
+      "betroffene_dateien_services_endpoints": [
+        "hf_pilot_actual"
+      ],
+      "fix_strategy": "Either commit intended submodule pointer change or reset to canonical pointer before release tag.",
+      "closure_proof_required": [
+        "clean git status for submodule pointer",
+        "commit SHA documenting chosen state"
+      ]
+    },
+    {
+      "id": "GAP-DOC-003",
+      "titel": "Final canonical docs not yet updated to newest evidence timestamps",
+      "aktueller_status": "PARTIAL",
+      "warum_offen": "New snapshots (OpenHands UI PASS, refreshed superbrain/final-build/security snapshots) are not yet referenced everywhere.",
+      "evidence": [
+        ".godmode_runtime/evidence/openhands_ui_bootstrap_latest.json",
+        ".godmode_runtime/evidence/superbrain_gate_latest.json",
+        ".godmode_runtime/evidence/security_rotation_check_latest.json",
+        "final_build_test_result.json"
+      ],
+      "betroffene_dateien_services_endpoints": [
+        "GODMODE_FORENSIC_HANDBUCH.html",
+        "KONTROLLPROTOKOLL_00_07.md",
+        "STACK_OPERATIONS.md",
+        "FINAL_PROOF.md"
+      ],
+      "fix_strategy": "Sync latest evidence references and keep status labels consistent with current PASS/PARTIAL truth.",
+      "closure_proof_required": [
+        "doc updates committed",
+        "no contradictory status claims across canonical docs"
+      ]
+    }
+  ]
+}

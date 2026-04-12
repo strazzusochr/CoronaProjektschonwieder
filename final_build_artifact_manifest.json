@@ -1,0 +1,22 @@
+{
+  "timestamp": "2026-04-12T21:56:05.632541+00:00",
+  "dist_dir": "d:\\Web\\docs\\godmode_setup\\CoronaProjektschonwieder\\dist",
+  "dist_file_count": 12,
+  "dist_files_sample": [
+    "CoronaProjektschonwieder\\dist\\assets\\SceneCanvas-CoPQjxKS.js",
+    "CoronaProjektschonwieder\\dist\\assets\\drei-vendor-CUj1gFr-.js",
+    "CoronaProjektschonwieder\\dist\\assets\\fiber-vendor-BUdixiow.js",
+    "CoronaProjektschonwieder\\dist\\assets\\index-CQGnCze_.css",
+    "CoronaProjektschonwieder\\dist\\assets\\index-CS29Pgst.js",
+    "CoronaProjektschonwieder\\dist\\assets\\react-vendor-CUFyD8B1.js",
+    "CoronaProjektschonwieder\\dist\\assets\\rolldown-runtime-Dw2cE7zH.js",
+    "CoronaProjektschonwieder\\dist\\assets\\three-core-plFCXrIy.js",
+    "CoronaProjektschonwieder\\dist\\assets\\three-helpers-DGA8bBNb.js",
+    "CoronaProjektschonwieder\\dist\\favicon.svg",
+    "CoronaProjektschonwieder\\dist\\index.html",
+    "CoronaProjektschonwieder\\dist\\robots.txt"
+  ],
+  "screenshot_source": "d:\\Web\\docs\\godmode_setup\\CoronaProjektschonwieder\\test-results\\arena-controls-smoke.png",
+  "screenshot_target": "d:\\Web\\docs\\godmode_setup\\final_build_screenshot.png",
+  "screenshot_written": true
+}

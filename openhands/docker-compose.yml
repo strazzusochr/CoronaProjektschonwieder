@@ -10,9 +10,11 @@ services:
       - SANDBOX_RUNTIME_CONTAINER_IMAGE=docker.openhands.dev/all-hands-ai/runtime:latest
       - LOG_ALL_EVENTS=true
       - WORKSPACE_MOUNT_PATH=/opt/workspace_base
-      - LLM_MODEL=${OPENHANDS_LLM_MODEL:-claude-sonnet-4-5}
-      - LLM_API_KEY=${ANTHROPIC_API_KEY}
+      - LLM_MODEL=${OPENHANDS_LLM_MODEL:-smart-router}
+      - LLM_API_KEY=${OPENHANDS_LLM_API_KEY:-${LITELLM_API_KEY:-}}
       - LLM_BASE_URL=${OPENHANDS_LLM_BASE_URL:-http://litellm-godmode:4000}
+      - FILE_STORE=${OPENHANDS_FILE_STORE:-local}
+      - FILE_STORE_PATH=${OPENHANDS_FILE_STORE_PATH:-/.openhands-state}
       - GITHUB_TOKEN=${GITHUB_TOKEN}
     volumes:
       - ./workspace:/opt/workspace_base

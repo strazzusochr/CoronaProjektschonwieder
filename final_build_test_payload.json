@@ -1,0 +1,31 @@
+{
+  "missions": [
+    {
+      "agent": "local.langgraph.planner",
+      "task": "Final build test: plan and sequence release closure checks for build/test/proof.",
+      "source": "run_final_build_test.py",
+      "repo": "https://github.com/strazzusochr/CoronaProjektschonwieder",
+      "ref": "main",
+      "status": "triggered",
+      "timestamp": "2026-04-12T21:55:34.725424+00:00"
+    },
+    {
+      "agent": "local.openhands.openhands",
+      "task": "Final build test: execute implementation guidance and verify one-click readiness.",
+      "source": "run_final_build_test.py",
+      "repo": "https://github.com/strazzusochr/CoronaProjektschonwieder",
+      "ref": "main",
+      "status": "triggered",
+      "timestamp": "2026-04-12T21:55:34.725440+00:00"
+    },
+    {
+      "agent": "external.ollamahf.lead_coder",
+      "task": "Final build test: external superbrain coding path validation for the 3d web demo artifact flow.",
+      "source": "run_final_build_test.py",
+      "repo": "https://github.com/strazzusochr/CoronaProjektschonwieder",
+      "ref": "main",
+      "status": "triggered",
+      "timestamp": "2026-04-12T21:55:34.725444+00:00"
+    }
+  ]
+}

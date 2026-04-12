@@ -39,6 +39,12 @@ export GITHUB_USERNAME="strazzusochr"
 export GITHUB_REPO="CoronaProjektschonwieder"
 export GITHUB_REPO_URL="https://github.com/strazzusochr/CoronaProjektschonwieder"
 
+# Security rotation acknowledgements (operator-maintained, no secret values)
+export ROTATED_HETZNER_TOKEN_AT=""
+export ROTATED_HF_TOKEN_AT=""
+export ROTATED_GITHUB_TOKEN_AT=""
+export ROTATED_ROOT_PASSWORD_AT=""
+
 # Local model / proxy routing
 export LITELLM_URL="http://core-runtime.example.internal:4000"
 export LITELLM_PORT="4000"
@@ -98,8 +104,11 @@ export OPENHANDS_API_KEY="replace-with-openhands-token"
 export OPENHANDS_ADAPTER_URL="https://adapter.replace-with-fqdn-root"
 export OPENHANDS_ADAPTER_INTERNAL_URL="http://openhands-godmode-adapter:3001"
 export OPENHANDS_ADAPTER_PORT="3001"
-export OPENHANDS_LLM_MODEL="claude-sonnet-4-5"
+export OPENHANDS_LLM_MODEL="smart-router"
 export OPENHANDS_LLM_BASE_URL="http://litellm-godmode:4000"
+export OPENHANDS_LLM_API_KEY="replace-with-litellm-key"
+export OPENHANDS_FILE_STORE="local"
+export OPENHANDS_FILE_STORE_PATH="/.openhands-state"
 
 # LangGraph
 export LANGGRAPH_PORT="8080"

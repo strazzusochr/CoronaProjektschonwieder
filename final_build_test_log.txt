@@ -1,0 +1,82 @@
+FINAL BUILD TEST @ 2026-04-12T21:55:34.725424+00:00
+
+DISPATCH RESULTS:
+[
+  {
+    "agent": "local.langgraph.planner",
+    "http_status": 200,
+    "status": "forwarded",
+    "runtime_target": "langgraph-local",
+    "dispatch_artifact": "/workspace/runtime/bolt_facade/dispatch/2026-04-12T21-55-34-785004+00-00_363547d6-3a41-4cba-8c03-067639e5bddd.json",
+    "reason": "",
+    "error": ""
+  },
+  {
+    "agent": "local.openhands.openhands",
+    "http_status": 200,
+    "status": "forwarded",
+    "runtime_target": "openhands-adapter",
+    "dispatch_artifact": "/workspace/runtime/bolt_facade/dispatch/2026-04-12T21-55-35-826326+00-00_d112594d-68e5-4428-85db-e37ad86977d9.json",
+    "reason": "",
+    "error": ""
+  },
+  {
+    "agent": "external.ollamahf.lead_coder",
+    "http_status": 200,
+    "status": "forwarded",
+    "runtime_target": "ollama-hf-orchestrator",
+    "dispatch_artifact": "/workspace/runtime/bolt_facade/dispatch/2026-04-12T21-55-35-862459+00-00_9d1f76bd-27ba-4c67-a03c-08bcfec00315.json",
+    "reason": "",
+    "error": ""
+  }
+]
+
+BUILD RESULT:
+{
+  "cmd": [
+    "npm.cmd",
+    "run",
+    "build"
+  ],
+  "returncode": 0,
+  "ok": true,
+  "stdout_tail": "\n> godmode-arena-lab@1.0.0 build\n> tsc && vite build\n\n\u001b[36mvite v8.0.7 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\n\u001b[2K\ntransforming...\u2713 585 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                             0.78 kB \u2502 gzip:   0.45 kB\ndist/assets/index-CQGnCze_.css              3.46 kB \u2502 gzip:   1.41 kB\ndist/assets/rolldown-runtime-Dw2cE7zH.js    0.68 kB \u2502 gzip:   0.41 kB\ndist/assets/SceneCanvas-CoPQjxKS.js         3.42 kB \u2502 gzip:   1.48 kB\ndist/assets/drei-vendor-CUj1gFr-.js         4.11 kB \u2502 gzip:   1.92 kB\ndist/assets/index-CS29Pgst.js               8.25 kB \u2502 gzip:   2.93 kB\ndist/assets/three-helpers-DGA8bBNb.js      21.03 kB \u2502 gzip:   6.64 kB\ndist/assets/fiber-vendor-BUdixiow.js      125.28 kB \u2502 gzip:  40.46 kB\ndist/assets/react-vendor-CUFyD8B1.js      143.73 kB \u2502 gzip:  46.78 kB\ndist/assets/three-core-plFCXrIy.js        658.98 kB \u2502 gzip: 167.75 kB\n\n\u001b[32m\u2713 built in 636ms\u001b[39m",
+  "stderr_tail": "\u001b[33m[plugin builtin:vite-reporter] \n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\u001b[39m"
+}
+
+BROWSER RESULT:
+{
+  "cmd": [
+    "npm.cmd",
+    "run",
+    "test:browser"
+  ],
+  "returncode": 0,
+  "ok": true,
+  "stdout_tail": "\n> godmode-arena-lab@1.0.0 test:browser\n> playwright test\n\n\nRunning 1 test using 1 worker\n\n  ok 1 tests\\app.spec.ts:3:1 \u203a renders and verifies every main gameplay control without runtime errors (12.6s)\n\n  1 passed (19.4s)",
+  "stderr_tail": "\u001b[2m[WebServer] \u001b[22m\u001b[33m[plugin builtin:vite-reporter] \u001b[33m\u001b[1m\n\u001b[2m[WebServer] \u001b[22m(!) Some chunks are larger than 500 kB after minification. Consider:\n\u001b[2m[WebServer] \u001b[22m- Using dynamic import() to code-split the application\n\u001b[2m[WebServer] \u001b[22m- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting\n\u001b[2m[WebServer] \u001b[22m- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\u001b[0m\u001b[33m\u001b[39m"
+}
+
+MANIFEST:
+{
+  "timestamp": "2026-04-12T21:56:05.632541+00:00",
+  "dist_dir": "d:\\Web\\docs\\godmode_setup\\CoronaProjektschonwieder\\dist",
+  "dist_file_count": 12,
+  "dist_files_sample": [
+    "CoronaProjektschonwieder\\dist\\assets\\SceneCanvas-CoPQjxKS.js",
+    "CoronaProjektschonwieder\\dist\\assets\\drei-vendor-CUj1gFr-.js",
+    "CoronaProjektschonwieder\\dist\\assets\\fiber-vendor-BUdixiow.js",
+    "CoronaProjektschonwieder\\dist\\assets\\index-CQGnCze_.css",
+    "CoronaProjektschonwieder\\dist\\assets\\index-CS29Pgst.js",
+    "CoronaProjektschonwieder\\dist\\assets\\react-vendor-CUFyD8B1.js",
+    "CoronaProjektschonwieder\\dist\\assets\\rolldown-runtime-Dw2cE7zH.js",
+    "CoronaProjektschonwieder\\dist\\assets\\three-core-plFCXrIy.js",
+    "CoronaProjektschonwieder\\dist\\assets\\three-helpers-DGA8bBNb.js",
+    "CoronaProjektschonwieder\\dist\\favicon.svg",
+    "CoronaProjektschonwieder\\dist\\index.html",
+    "CoronaProjektschonwieder\\dist\\robots.txt"
+  ],
+  "screenshot_source": "d:\\Web\\docs\\godmode_setup\\CoronaProjektschonwieder\\test-results\\arena-controls-smoke.png",
+  "screenshot_target": "d:\\Web\\docs\\godmode_setup\\final_build_screenshot.png",
+  "screenshot_written": true
+}

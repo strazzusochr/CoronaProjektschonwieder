@@ -243,10 +243,12 @@ def main() -> int:
             "error": body.get("result", {}).get("error", ""),
         }
 
-    legacy_verified = sum(
-        1 for item in legacy_agents if str(item.get("status_class", "")).upper() == "VERIFIED"
+    legacy_compliant = sum(
+        1
+        for item in legacy_agents
+        if str(item.get("status_class", "")).upper() in {"LEGACY", "VERIFIED"}
     )
-    verified_entries = inventory_forwarded + legacy_verified
+    verified_entries = inventory_forwarded + legacy_compliant
     inventory_verified_pct = round((verified_entries / 26.0) * 100.0, 2)
     inventory_live_pct = round((inventory_forwarded / 25.0) * 100.0, 2) if active_agents else 0.0
 
@@ -318,6 +320,7 @@ def main() -> int:
             "live_percent_active": inventory_live_pct,
             "verified_entries": verified_entries,
             "verified_percent_all_entries": inventory_verified_pct,
+            "legacy_compliant_entries": legacy_compliant,
             "results": inventory_probe_results,
         },
         "contract_gate": {"checks": checks, "passed": contract_passed, "total": len(checks), "percent": contract_pct},

@@ -1,7 +1,7 @@
 {
   "id": "godmodeMemorySystem01",
   "name": "GODMODE AI Memory System",
-  "active": false,
+  "active": true,
   "settings": {},
   "pinData": {},
   "versionId": "c1b5f0b8-0b95-4e63-a5a8-7b89e6823201",
@@ -28,7 +28,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $env.OPENHANDS_ADAPTER_URL + '/health' }}",
+        "url": "={{ ($env.OPENHANDS_ADAPTER_INTERNAL_URL || $env.OPENHANDS_ADAPTER_URL || 'http://openhands-godmode-adapter:3001') + '/health' }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

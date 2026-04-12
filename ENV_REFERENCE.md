@@ -24,6 +24,24 @@ or documented placeholders.
 - Hugging Face Spaces, GitHub, n8n, and local Docker services must all consume
   credentials from env or host secret stores only
 
+## Rotation Acknowledgement Contract
+
+- `ROTATED_HETZNER_TOKEN_AT`
+- `ROTATED_HF_TOKEN_AT`
+- `ROTATED_GITHUB_TOKEN_AT`
+- `ROTATED_ROOT_PASSWORD_AT`
+
+These fields are non-secret timestamps in `.godmode_env` and are evaluated by
+`security_preflight.py`.
+
+- If any field is empty, security status remains `PARTIAL`.
+- If all fields are populated and no tracked leaks exist, security status can
+  reach `PASS`.
+
+Use the helper script for local updates:
+
+- `.\ops\set_rotation_ack.ps1 -SetNowAll`
+
 ## Variable Groups
 
 ### LLM providers
@@ -196,6 +214,9 @@ Used by: `aider_godmode.ps1`, pilot execution, and Aider cloud workflows.
 - `OPENHANDS_ADAPTER_PORT`
 - `OPENHANDS_LLM_MODEL`
 - `OPENHANDS_LLM_BASE_URL`
+- `OPENHANDS_LLM_API_KEY`
+- `OPENHANDS_FILE_STORE`
+- `OPENHANDS_FILE_STORE_PATH`
 - `DEVTOOLS_BRIDGE_URL`
 - `DEVTOOLS_BRIDGE_TIMEOUT`
 
@@ -309,8 +330,9 @@ Minimum practical set:
 
 - `OPENHANDS_LLM_MODEL`
 - `OPENHANDS_LLM_BASE_URL`
+- `OPENHANDS_LLM_API_KEY`
 - `GITHUB_TOKEN`
-- any provider key required by the selected backend
+- if `OPENHANDS_LLM_BASE_URL` targets LiteLLM (`:4000`), then `LITELLM_API_KEY` is required
 
 ### LangGraph
 

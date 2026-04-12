@@ -1,0 +1,17 @@
+{
+  "timestamp": "2026-04-12T21:56:05.633763+00:00",
+  "status": "PASS",
+  "dispatch_ok": true,
+  "build_ok": true,
+  "browser_ok": true,
+  "screenshot_ok": true,
+  "dist_ok": true,
+  "artifacts": {
+    "payload": "d:\\Web\\docs\\godmode_setup\\final_build_test_payload.json",
+    "log": "d:\\Web\\docs\\godmode_setup\\final_build_test_log.txt",
+    "result": "d:\\Web\\docs\\godmode_setup\\final_build_test_result.json",
+    "manifest": "d:\\Web\\docs\\godmode_setup\\final_build_artifact_manifest.json",
+    "screenshot": "d:\\Web\\docs\\godmode_setup\\final_build_screenshot.png"
+  },
+  "blockers": []
+}
