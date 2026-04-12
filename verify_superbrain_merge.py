@@ -74,6 +74,8 @@ def post_json(url: str, payload: dict, timeout: int = 30) -> tuple[int, dict]:
         except json.JSONDecodeError:
             pass
         return int(exc.code), payload
+    except Exception as exc:
+        return 0, {"error": str(exc)}
 
 
 def weighted_beta_core(
@@ -253,11 +255,24 @@ def main() -> int:
         {
             "task": "External gate probe for superbrain merge.",
             "model": "qwen2.5-coder-7b",
-            "timeout": 40,
+            "timeout": 600,
+            "dry_run": False,
         },
-        timeout=60,
+        timeout=660,
     )
-    external_success = int(probe.get("successful_probes", 0))
+    external_success_raw = int(probe.get("successful_probes", 0))
+    probe_results = probe.get("results", {}) if isinstance(probe.get("results", {}), dict) else {}
+    orchestrate_block = probe_results.get("orchestrate", {}) if isinstance(probe_results.get("orchestrate", {}), dict) else {}
+    orchestrate_response = (
+        orchestrate_block.get("response", {})
+        if isinstance(orchestrate_block.get("response", {}), dict)
+        else {}
+    )
+    orchestrate_dry_run = bool(orchestrate_response.get("dry_run", False))
+    external_success = external_success_raw
+    if orchestrate_dry_run and external_success > 0:
+        # Do not count dry-run orchestration as full external runtime proof.
+        external_success -= 1
     external_pct = round((external_success / 3.0) * 100.0, 2)
 
     synced_docs = 0
@@ -319,9 +334,11 @@ def main() -> int:
         "external_gate": {
             "probe_http_status": probe_code,
             "probe_status": probe.get("status", "unknown"),
+            "successful_probes_raw": external_success_raw,
             "successful_probes": external_success,
             "total_probes": 3,
             "percent": external_pct,
+            "orchestrate_dry_run_detected": orchestrate_dry_run,
             "probe": probe,
         },
         "doc_gate": {

@@ -1,6 +1,6 @@
 # AGENT_SUPERBRAIN_KONTROLLPROTOKOLL
 
-Stand: 2026-04-12 (Snapshot-Refresh 18:41 Europe/Berlin)  
+Stand: 2026-04-12 (Snapshot-Refresh 23:38 Europe/Berlin)  
 Marker: **Superbrain Merge 2026-04-12**
 
 Dieses Dokument ist das zentrale Kontrollprotokoll fuer den Superbrain-Merge aus:
@@ -98,7 +98,7 @@ Quelle:
 - Contract Gate: `100%`.
 - Routing Live: `100%`.
 - Routing Gate: `100%`.
-- External Gate (OllamaHfTrae): `100%`.
+- External Gate (OllamaHfTrae): `100%` (`PASS`; `/orchestrate`, `/v1/models`, `/v1/chat/completions` im aktuellen Snapshot erfolgreich).
 - Doc Gate: `100%`.
 - Beta-Core: `100%` -> `GO`.
-- GA-Full: `100%` -> `GO` (2-Stufen-Modell: aktive Agenten live, externe Probes live, Blocker-Evidence sauber).
+- GA-Full: `100%` -> `GO` (2-Stufen-Modell: aktive Agenten live, externe Probes live, Core-Doku synchron).

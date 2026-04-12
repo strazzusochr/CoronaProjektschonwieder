@@ -11,6 +11,8 @@ Superbrain Merge 2026-04-12:
   `inventory_verified=96.15%`, `inventory_live=100%`, `inventory_gate=100%`,
   `routing_live=100%`, `routing_gate=100%`, `external=100%`,
   `beta_core=100%`, `ga_full=100%`.
+- Security rotation is tracked separately and remains `PARTIAL` until
+  operator-side rotation acknowledgements are completed.
 
 This document explains what the repository can actually start, wire, and
 operate today.

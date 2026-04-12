@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -161,9 +162,11 @@ class ProofPayload(BaseModel):
 
 
 class OllamaProbeRequest(BaseModel):
-    task: str = Field(default="Probe OllamaHfTrae external orchestrator with dry run.")
+    task: str = Field(default="Probe OllamaHfTrae external orchestrator with live run.")
     model: str = Field(default="qwen2.5-coder-7b")
-    timeout: int = Field(default=30, ge=5, le=120)
+    timeout: int = Field(default=180, ge=5, le=900)
+    dry_run: bool = Field(default=False)
+    orchestrate_retries: int = Field(default=3, ge=1, le=5)
 
 
 def _now_iso() -> str:
@@ -877,23 +880,38 @@ def _run_ollama_probe(req: OllamaProbeRequest) -> dict[str, Any]:
         req.timeout,
         headers=headers,
     )
-    orchestrate_result = _post_json(
-        f"{base}/orchestrate",
-        {
-            "prompt": req.task,
-            "master_key": OLLAMAHF_MASTER_KEY,
-            "mode": "single_model",
-            "selected_model": req.model,
-            "dry_run": True,
-            "task_type": "verification",
-            "project_profile": "3d_web_game",
-            "language": "typescript",
-            "framework": "react-three-fiber",
-            "output_format": "code",
-        },
-        req.timeout,
-        headers=headers,
-    )
+    orchestrate_payload: dict[str, Any] = {
+        "prompt": req.task,
+        "mode": "single_model",
+        "selected_model": req.model,
+        "dry_run": req.dry_run,
+        "task_type": "verification",
+        "project_profile": "3d_web_game",
+        "language": "typescript",
+        "framework": "react-three-fiber",
+        "output_format": "code",
+    }
+    if OLLAMAHF_MASTER_KEY:
+        orchestrate_payload["master_key"] = OLLAMAHF_MASTER_KEY
+
+    orchestrate_attempts: list[dict[str, Any]] = []
+    orchestrate_result: dict[str, Any] = {}
+    for attempt in range(1, req.orchestrate_retries + 1):
+        current = _post_json(
+            f"{base}/orchestrate",
+            orchestrate_payload,
+            req.timeout,
+            headers=headers,
+        )
+        current["attempt"] = attempt
+        orchestrate_attempts.append(current)
+        orchestrate_result = current
+        if current.get("status") == "forwarded" or current.get("http_status") == 200:
+            break
+        if attempt < req.orchestrate_retries:
+            time.sleep(min(2 * attempt, 5))
+    if orchestrate_attempts:
+        orchestrate_result["attempts"] = orchestrate_attempts
     results = {
         "models": models_result,
         "chat_completions": chat_result,

@@ -11,6 +11,8 @@ Superbrain Merge 2026-04-12:
   `inventory_verified=96.15%`, `inventory_live=100%`, `inventory_gate=100%`,
   `routing_live=100%`, `routing_gate=100%`, `external=100%`,
   `beta_core=100% (GO)`, `ga_full=100% (GO)`.
+- Hinweis: `inventory_verified=96.15%` bleibt korrekt, weil der eine Legacy-
+  Eintrag absichtlich `LEGACY` ist und nicht kuenstlich als `VERIFIED` gezaehlt wird.
 - Hinweis zur 96.15%-Zeile: der einzelne Legacy-Eintrag bleibt absichtlich
   `LEGACY` und wird nicht kuenstlich als `VERIFIED` markiert.
 - End-to-End Snapshot (`.godmode_runtime/evidence/e2e_flows_ae_latest.json`):
