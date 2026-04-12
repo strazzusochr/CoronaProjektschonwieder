@@ -1,3 +1,6 @@
 {
-  "framework": "vite"
+  "framework": "vite",
+  "installCommand": "npm install --prefix CoronaProjektschonwieder",
+  "buildCommand": "npm run build --prefix CoronaProjektschonwieder",
+  "outputDirectory": "CoronaProjektschonwieder/dist"
 }
