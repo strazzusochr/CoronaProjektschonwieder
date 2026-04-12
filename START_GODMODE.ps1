@@ -332,6 +332,38 @@ if (-not $env:BOLTDIY_SPACE_TOKEN -and $env:HF_TOKEN) {
     $env:BOLTDIY_SPACE_TOKEN = $env:HF_TOKEN
 }
 
+if (-not $env:OLLAMAHF_BASE_URL) {
+    $env:OLLAMAHF_BASE_URL = "https://cgjgj-ollamahftrae.hf.space"
+}
+
+if (-not $env:OLLAMAHF_MASTER_KEY) {
+    $env:OLLAMAHF_MASTER_KEY = ""
+}
+
+if (-not $env:OLLAMAHF_BEARER_TOKEN) {
+    $env:OLLAMAHF_BEARER_TOKEN = ""
+}
+
+if (-not $env:AGENT_REGISTRY_PATH) {
+    $env:AGENT_REGISTRY_PATH = Join-Path $RepoRoot "agent_registry.json"
+}
+
+if (-not $env:ZERO_COMPUTE_POLICY) {
+    $env:ZERO_COMPUTE_POLICY = "true"
+}
+
+if (-not $env:GODMODE_ALLOW_LOCAL_HEAVY) {
+    $env:GODMODE_ALLOW_LOCAL_HEAVY = "false"
+}
+
+if (-not $env:SMOLAGENTS_URL -and $env:HF_SMOLAGENTS_SPACE_URL) {
+    $env:SMOLAGENTS_URL = $env:HF_SMOLAGENTS_SPACE_URL
+}
+
+if (-not $env:HF_AIDER_URL -and $env:HF_AIDER_SPACE_URL) {
+    $env:HF_AIDER_URL = $env:HF_AIDER_SPACE_URL
+}
+
 if (-not $env:OPENHANDS_API_INTERNAL_URL) {
     $env:OPENHANDS_API_INTERNAL_URL = "http://openhands-godmode:3000"
 }
@@ -554,7 +586,11 @@ Write-Host "  LangGraph local:  http://${runtimeHost}:$(Resolve-GodmodeValue $en
 Write-Host "  DevTools bridge:  http://${runtimeHost}:$(Resolve-GodmodeValue $env:DEVTOOLS_BRIDGE_PORT '3911')"
 Write-Host "  n8n hosted:       $(Resolve-GodmodeValue $env:N8N_EDITOR_BASE_URL 'unset')"
 Write-Host "  Aider (CLI):      .\\aider_godmode.ps1"
+Write-Host "  smolagents (HF):  $(Resolve-GodmodeValue $env:HF_SMOLAGENTS_SPACE_URL 'unset')"
+Write-Host "  OLLAMAHF base:    $(Resolve-GodmodeValue $env:OLLAMAHF_BASE_URL 'unset')"
 Write-Host "  bolt.diy (HF):    $(Resolve-GodmodeValue $env:BOLTDIY_SPACE_URL 'unset')"
+Write-Host "  Agent registry:   $(Resolve-GodmodeValue $env:AGENT_REGISTRY_PATH 'unset')"
+Write-Host "  Zero compute:     $(Resolve-GodmodeValue $env:ZERO_COMPUTE_POLICY 'true') (allow_local_heavy=$(Resolve-GodmodeValue $env:GODMODE_ALLOW_LOCAL_HEAVY 'false'))"
 Write-Host "  HF verify strict: $(Resolve-GodmodeValue $env:HF_VERIFY_STRICT 'true')"
 Write-Host "  Oracle verify:    $(Resolve-GodmodeValue $env:ORACLE_VERIFY_ENABLED 'true')"
 Write-Host "  Oracle profile:   enabled=$(Resolve-GodmodeValue $env:ORACLE_ENABLED 'false'); placeholder=$(Resolve-GodmodeValue $env:ORACLE_PLACEHOLDER 'true')"

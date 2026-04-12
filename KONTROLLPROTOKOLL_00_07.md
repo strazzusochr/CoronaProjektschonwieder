@@ -2,6 +2,17 @@
 
 Stand: 2026-04-11
 
+Superbrain Merge 2026-04-12:
+- Neues kanonisches Merge-Protokoll: `AGENT_SUPERBRAIN_KONTROLLPROTOKOLL.md`.
+- Namespaced Agent-Registry aktiv (`local.*`, `external.*`, `legacy.*`) via `agent_registry.json`.
+- Dispatch-Hub mit festen Targets: `langgraph-local`, `smolagents`, `openhands-adapter`, `hf-aider`, `ollama-hf-orchestrator`.
+- Zero-Compute Policy aktiv: heavy 3D/KI-Tasks lokal blockieren, remote erzwingen.
+- Aktueller Gate-Snapshot (`.godmode_runtime/evidence/superbrain_gate_latest.json`):
+  `inventory_verified=88.46%`, `inventory_gate=100%`, `routing_live=80%`,
+  `routing_gate=100%`, `external=100%`, `beta_core=100% (GO)`.
+- Offener GA-Blocker bleibt `hf-aider`-Dispatch (`404` auf Mission-Endpoints),
+  daher weiterhin kein Voll-`VERIFIED` fuer alle Agent-Entries.
+
 Dieses Dokument ist das kanonische Abnahme- und Steuerprotokoll fuer den
 GODMODE-Stack in `d:\Web\docs\godmode_setup`.
 

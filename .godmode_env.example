@@ -16,10 +16,16 @@ export HF_USERNAME="Wrzzzrzr"
 export HF_AIDER_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/aider-godmode-safe"
 export HF_OPENHANDS_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/openhands-godmode"
 export HF_LANGGRAPH_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/langgraph-godmode"
+export HF_SMOLAGENTS_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/smolagents-godmode"
 export HF_PILOT_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/godmode-pilot"
 export BOLTDIY_SPACE_URL="https://huggingface.co/spaces/Wrzzzrzr/bolt-diy-godmode"
 export BOLTDIY_SPACE_ID="Wrzzzrzr/bolt-diy-godmode"
 export HF_VERIFY_STRICT="true"
+
+# External orchestrator (OllamaHfTrae)
+export OLLAMAHF_BASE_URL="https://cgjgj-ollamahftrae.hf.space"
+export OLLAMAHF_MASTER_KEY=""
+export OLLAMAHF_BEARER_TOKEN=""
 
 # Hetzner selfhosted deployment metadata
 export HETZNER_HOST_IP="65.108.253.14"
@@ -47,6 +53,13 @@ export BOLTDIY_FACADE_PORT="3901"
 export BOLTDIY_FACADE_URL="https://bolt.replace-with-fqdn-root"
 export BOLTDIY_FACADE_INTERNAL_URL="http://bolt-facade-godmode:3901"
 export BOLTDIY_FORWARD_TIMEOUT="20"
+export AGENT_REGISTRY_PATH="./agent_registry.json"
+export HF_AIDER_URL="https://wrzzzrzr-aider-godmode-safe.hf.space"
+export HF_AIDER_DISPATCH_URL=""
+export SMOLAGENTS_URL="https://wrzzzrzr-smolagents-godmode.hf.space"
+export SMOLAGENTS_DISPATCH_URL=""
+export ZERO_COMPUTE_POLICY="true"
+export GODMODE_ALLOW_LOCAL_HEAVY="false"
 
 # DevTools / Playwright bridge
 export DEVTOOLS_BRIDGE_ENABLED="true"
@@ -111,7 +124,7 @@ export MEMORY_VAULT_PATH="./memory_vault.md"
 
 # Pilot / mission payload
 export GODMODE_SOURCE="hf_pilot_actual"
-export GODMODE_MISSION_AGENT="Aider-Cloud"
+export GODMODE_MISSION_AGENT="local.pilot.aider_cloud"
 
 # Future Oracle placeholder profile
 export ORACLE_ENABLED="false"

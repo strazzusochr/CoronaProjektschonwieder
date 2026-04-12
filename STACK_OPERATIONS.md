@@ -2,6 +2,15 @@
 
 Stand: 2026-04-11
 
+Superbrain Merge 2026-04-12:
+- Dispatch-Hub wurde auf namespaced Agent-Registry + 5 feste runtime targets erweitert.
+- Canonical registry source: `agent_registry.json`.
+- New control protocol: `AGENT_SUPERBRAIN_KONTROLLPROTOKOLL.md`.
+- No-Lie rule remains strict: unproven runtime claims stay downgraded (`PARTIAL`, `BLOCKED`, `NOT VERIFIED`).
+- Latest gate evidence (`.godmode_runtime/evidence/superbrain_gate_latest.json`):
+  `inventory_verified=88.46%`, `inventory_gate=100%`, `routing_live=80%`,
+  `routing_gate=100%`, `external=100%`, `beta_core=100%`.
+
 This document explains what the repository can actually start, wire, and
 operate today.
 
@@ -27,6 +36,8 @@ For the detailed horizontal/vertical phase control model, use
   parallel dual-track model
 - `BEGINNER_DEV_PLAYBOOK_3D_AND_APPS.md`: step-by-step guide for 3D games,
   normal apps, and Open-Source-AI usage
+- `AGENT_SUPERBRAIN_KONTROLLPROTOKOLL.md`: merged agent registry, routing gates,
+  zero-compute policy, and beta/ga release criteria
 
 Token fallback note:
 - startup scripts now auto-load `HF_TOKEN` from local cache

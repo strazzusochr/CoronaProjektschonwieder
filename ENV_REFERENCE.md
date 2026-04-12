@@ -349,6 +349,22 @@ Minimum practical set:
 - `N8N_WEBHOOK_URL`
 - `OPENHANDS_ADAPTER_URL`
 
+### Superbrain merge / external orchestrator
+
+- `AGENT_REGISTRY_PATH`
+- `SMOLAGENTS_URL`
+- `SMOLAGENTS_DISPATCH_URL`
+- `HF_AIDER_URL`
+- `HF_AIDER_DISPATCH_URL`
+- `OLLAMAHF_BASE_URL`
+- `OLLAMAHF_MASTER_KEY`
+- `OLLAMAHF_BEARER_TOKEN`
+- `ZERO_COMPUTE_POLICY`
+- `GODMODE_ALLOW_LOCAL_HEAVY`
+
+Used by: `bolt_facade/app.py`, `START_GODMODE.ps1`, and `START_GODMODE.sh`.
+These values are part of the Superbrain Merge 2026-04-12 runtime policy.
+
 ## Related Files
 
 - [`.godmode_env.example`](/d:/Web/docs/godmode_setup/.godmode_env.example)

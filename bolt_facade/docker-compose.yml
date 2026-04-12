@@ -7,21 +7,38 @@ services:
       - "127.0.0.1:${BOLTDIY_FACADE_PORT:-3901}:3901"
     environment:
       - PYTHONUNBUFFERED=1
+      - GODMODE_REPO_ROOT=/workspace
       - BOLTDIY_MODE=${BOLTDIY_MODE:-hybrid}
       - BOLTDIY_FORWARD_TIMEOUT=${BOLTDIY_FORWARD_TIMEOUT:-20}
       - BOLTDIY_SPACE_URL=${BOLTDIY_SPACE_URL:-https://huggingface.co/spaces/Wrzzzrzr/bolt-diy-godmode}
       - BOLTDIY_SPACE_ID=${BOLTDIY_SPACE_ID:-Wrzzzrzr/bolt-diy-godmode}
       - HF_TOKEN=${HF_TOKEN:-}
       - BOLTDIY_SPACE_TOKEN=${BOLTDIY_SPACE_TOKEN:-}
+      - HF_AIDER_SPACE_URL=${HF_AIDER_SPACE_URL:-}
+      - HF_SMOLAGENTS_SPACE_URL=${HF_SMOLAGENTS_SPACE_URL:-}
+      - HF_AIDER_URL=${HF_AIDER_URL:-}
+      - HF_AIDER_DISPATCH_URL=${HF_AIDER_DISPATCH_URL:-}
+      - SMOLAGENTS_URL=${SMOLAGENTS_URL:-}
+      - SMOLAGENTS_DISPATCH_URL=${SMOLAGENTS_DISPATCH_URL:-}
+      - LANGGRAPH_API_URL=${LANGGRAPH_API_URL:-}
+      - LANGGRAPH_API_INTERNAL_URL=${LANGGRAPH_API_INTERNAL_URL:-http://langgraph-godmode-local:8080}
+      - OLLAMAHF_BASE_URL=${OLLAMAHF_BASE_URL:-https://cgjgj-ollamahftrae.hf.space}
+      - OLLAMAHF_MASTER_KEY=${OLLAMAHF_MASTER_KEY:-}
+      - OLLAMAHF_BEARER_TOKEN=${OLLAMAHF_BEARER_TOKEN:-}
+      - ZERO_COMPUTE_POLICY=${ZERO_COMPUTE_POLICY:-true}
+      - GODMODE_ALLOW_LOCAL_HEAVY=${GODMODE_ALLOW_LOCAL_HEAVY:-false}
+      - AGENT_REGISTRY_PATH=/workspace/agent_registry.json
       - N8N_WEBHOOK_URL=${N8N_WEBHOOK_INTERNAL_URL:-http://n8n-godmode:5678/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission}
       - OPENHANDS_ADAPTER_URL=${OPENHANDS_ADAPTER_INTERNAL_URL:-http://openhands-godmode-adapter:3001}
       - MEMORY_VAULT_PATH=/workspace/memory_vault.md
       - FINAL_PROOF_PATH=/workspace/FINAL_PROOF.md
       - GODMODE_GOAL_PATH=/workspace/GODMODE_GOAL.md
       - BOLTDIY_RUNTIME_DIR=/workspace/runtime/bolt_facade
+      - GODMODE_EVIDENCE_DIR=/workspace/runtime/evidence
     volumes:
       - ./app.py:/app/app.py:ro
       - ./requirements.txt:/app/requirements.txt:ro
+      - ../agent_registry.json:/workspace/agent_registry.json:ro
       - ../memory_vault.md:/workspace/memory_vault.md
       - ../FINAL_PROOF.md:/workspace/FINAL_PROOF.md
       - ../GODMODE_GOAL.md:/workspace/GODMODE_GOAL.md

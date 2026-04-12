@@ -22,7 +22,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: {\n  agent: $json.agent || $env.GODMODE_MISSION_AGENT || 'Aider-Cloud',\n  task: $json.task,\n  source: $json.source || $env.GODMODE_SOURCE || 'n8n',\n  repo: $json.repo || $env.GITHUB_REPO_URL,\n  ref: $json.ref || 'main',\n  status: $json.status || 'triggered',\n  timestamp: $json.timestamp || new Date().toISOString()\n} }];"
+        "jsCode": "return [{ json: {\n  agent: $json.agent || $env.GODMODE_MISSION_AGENT || 'local.pilot.aider_cloud',\n  task: $json.task,\n  source: $json.source || $env.GODMODE_SOURCE || 'n8n',\n  repo: $json.repo || $env.GITHUB_REPO_URL,\n  ref: $json.ref || 'main',\n  status: $json.status || 'triggered',\n  timestamp: $json.timestamp || new Date().toISOString()\n} }];"
       },
       "id": "normalize-payload",
       "name": "Normalize Payload",

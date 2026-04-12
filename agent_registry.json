@@ -1,0 +1,463 @@
+{
+  "version": "2026-04-12-superbrain-v1",
+  "contract": {
+    "fields": [
+      "agent",
+      "task",
+      "source",
+      "repo",
+      "ref",
+      "status",
+      "timestamp"
+    ],
+    "schema": "MISSION_PAYLOAD_CONTRACT.md"
+  },
+  "runtime_targets": [
+    "langgraph-local",
+    "smolagents",
+    "openhands-adapter",
+    "hf-aider",
+    "ollama-hf-orchestrator"
+  ],
+  "active_agents": [
+    {
+      "agent_id": "local.smolagents.godmode_manager",
+      "display_name": "GODMODE_Manager",
+      "aliases": [
+        "GODMODE_Manager",
+        "Manager (Multi-Agent)"
+      ],
+      "origin": "local",
+      "runtime_target": "smolagents",
+      "status_class": "IMPLEMENTED",
+      "input_contract": "7-field",
+      "depends_on": [],
+      "evidence_refs": [
+        "hf_smolagents/app.py"
+      ]
+    },
+    {
+      "agent_id": "local.smolagents.web_researcher",
+      "display_name": "WebResearcher",
+      "aliases": [
+        "WebResearcher",
+        "Web Research"
+      ],
+      "origin": "local",
+      "runtime_target": "smolagents",
+      "status_class": "IMPLEMENTED",
+      "input_contract": "7-field",
+      "depends_on": [
+        "local.smolagents.godmode_manager"
+      ],
+      "evidence_refs": [
+        "hf_smolagents/app.py"
+      ]
+    },
+    {
+      "agent_id": "local.smolagents.code_writer",
+      "display_name": "CodeWriter",
+      "aliases": [
+        "CodeWriter",
+        "Code Writer"
+      ],
+      "origin": "local",
+      "runtime_target": "smolagents",
+      "status_class": "IMPLEMENTED",
+      "input_contract": "7-field",
+      "depends_on": [
+        "local.smolagents.godmode_manager"
+      ],
+      "evidence_refs": [
+        "hf_smolagents/app.py"
+      ]
+    },
+    {
+      "agent_id": "local.smolagents.visual_debug_tool",
+      "display_name": "VisualDebugTool",
+      "aliases": [
+        "VisualDebugTool",
+        "visual_inspector"
+      ],
+      "origin": "local",
+      "runtime_target": "smolagents",
+      "status_class": "IMPLEMENTED",
+      "input_contract": "7-field",
+      "depends_on": [
+        "local.smolagents.code_writer"
+      ],
+      "evidence_refs": [
+        "hf_smolagents/app.py"
+      ]
+    },
+    {
+      "agent_id": "local.langgraph.planner",
+      "display_name": "planner",
+      "aliases": [
+        "planner"
+      ],
+      "origin": "local",
+      "runtime_target": "langgraph-local",
+      "status_class": "IMPLEMENTED",
+      "input_contract": "7-field",
+      "depends_on": [],
+      "evidence_refs": [
+        "langgraph/system.py"
+      ]
+    },
+    {
+      "agent_id": "local.langgraph.research",
+      "display_name": "research",
+      "aliases": [
+        "research"
+      ],
+      "origin": "local",
+      "runtime_target": "langgraph-local",
+      "status_class": "IMPLEMENTED",
+      "input_contract": "7-field",
+      "depends_on": [
+        "local.langgraph.planner"
+      ],
+      "evidence_refs": [
+        "langgraph/system.py"
+      ]
+    },
+    {
+      "agent_id": "local.langgraph.performance",
+      "display_name": "performance",
+      "aliases": [
+        "performance"
+      ],
+      "origin": "local",
+      "runtime_target": "langgraph-local",
+      "status_class": "IMPLEMENTED",
+      "input_contract": "7-field",
+      "depends_on": [
+        "local.langgraph.planner"
+      ],
+      "evidence_refs": [
+        "langgraph/system.py"
+      ]
+    },
+    {
+      "agent_id": "local.langgraph.ui_review",
+      "display_name": "ui_review",
+      "aliases": [
+        "ui_review"
+      ],
+      "origin": "local",
+      "runtime_target": "langgraph-local",
+      "status_class": "IMPLEMENTED",
+      "input_contract": "7-field",
+      "depends_on": [
+        "local.langgraph.planner"
+      ],
+      "evidence_refs": [
+        "langgraph/system.py"
+      ]
+    },
+    {
+      "agent_id": "local.langgraph.reviewer",
+      "display_name": "reviewer",
+      "aliases": [
+        "reviewer"
+      ],
+      "origin": "local",
+      "runtime_target": "langgraph-local",
+      "status_class": "IMPLEMENTED",
+      "input_contract": "7-field",
+      "depends_on": [
+        "local.langgraph.research",
+        "local.langgraph.performance",
+        "local.langgraph.ui_review"
+      ],
+      "evidence_refs": [
+        "langgraph/system.py"
+      ]
+    },
+    {
+      "agent_id": "local.langgraph.meta_optimizer",
+      "display_name": "meta_optimizer",
+      "aliases": [
+        "meta_optimizer"
+      ],
+      "origin": "local",
+      "runtime_target": "langgraph-local",
+      "status_class": "IMPLEMENTED",
+      "input_contract": "7-field",
+      "depends_on": [
+        "local.langgraph.reviewer"
+      ],
+      "evidence_refs": [
+        "langgraph/system.py"
+      ]
+    },
+    {
+      "agent_id": "local.langgraph.finalize",
+      "display_name": "finalize",
+      "aliases": [
+        "finalize"
+      ],
+      "origin": "local",
+      "runtime_target": "langgraph-local",
+      "status_class": "IMPLEMENTED",
+      "input_contract": "7-field",
+      "depends_on": [
+        "local.langgraph.meta_optimizer"
+      ],
+      "evidence_refs": [
+        "langgraph/system.py"
+      ]
+    },
+    {
+      "agent_id": "local.pilot.aider_cloud",
+      "display_name": "Aider-Cloud",
+      "aliases": [
+        "Aider-Cloud"
+      ],
+      "origin": "local",
+      "runtime_target": "openhands-adapter",
+      "status_class": "PARTIAL",
+      "input_contract": "7-field",
+      "depends_on": [
+        "local.openhands.openhands"
+      ],
+      "evidence_refs": [
+        "hf_pilot_actual/app.py",
+        "openhands/adapter.py"
+      ]
+    },
+    {
+      "agent_id": "local.hf_aider.aider_core",
+      "display_name": "Aider-Core",
+      "aliases": [
+        "Aider-Core"
+      ],
+      "origin": "local",
+      "runtime_target": "hf-aider",
+      "status_class": "PARTIAL",
+      "input_contract": "7-field",
+      "depends_on": [],
+      "evidence_refs": [
+        "hf_aider/app.py"
+      ]
+    },
+    {
+      "agent_id": "local.hf_aider.aider_review",
+      "display_name": "Aider-Review",
+      "aliases": [
+        "Aider-Review"
+      ],
+      "origin": "local",
+      "runtime_target": "hf-aider",
+      "status_class": "PARTIAL",
+      "input_contract": "7-field",
+      "depends_on": [],
+      "evidence_refs": [
+        "hf_aider/app.py"
+      ]
+    },
+    {
+      "agent_id": "local.openhands.openhands",
+      "display_name": "OpenHands",
+      "aliases": [
+        "OpenHands"
+      ],
+      "origin": "local",
+      "runtime_target": "openhands-adapter",
+      "status_class": "PARTIAL",
+      "input_contract": "7-field",
+      "depends_on": [],
+      "evidence_refs": [
+        "openhands/adapter.py"
+      ]
+    },
+    {
+      "agent_id": "local.hf_langgraph.langgraph",
+      "display_name": "LangGraph",
+      "aliases": [
+        "LangGraph"
+      ],
+      "origin": "local",
+      "runtime_target": "langgraph-local",
+      "status_class": "PARTIAL",
+      "input_contract": "7-field",
+      "depends_on": [
+        "local.langgraph.planner"
+      ],
+      "evidence_refs": [
+        "hf_langgraph_space/app.py",
+        "langgraph/system.py"
+      ]
+    },
+    {
+      "agent_id": "external.ollamahf.vision",
+      "display_name": "vision",
+      "aliases": [
+        "vision"
+      ],
+      "origin": "external",
+      "runtime_target": "ollama-hf-orchestrator",
+      "status_class": "PARTIAL",
+      "input_contract": "7-field",
+      "depends_on": [],
+      "evidence_refs": [
+        "https://huggingface.co/spaces/Cgjgj/OllamaHfTrae/raw/main/orchestrator.py"
+      ]
+    },
+    {
+      "agent_id": "external.ollamahf.research",
+      "display_name": "research",
+      "aliases": [
+        "external_research"
+      ],
+      "origin": "external",
+      "runtime_target": "ollama-hf-orchestrator",
+      "status_class": "PARTIAL",
+      "input_contract": "7-field",
+      "depends_on": [
+        "external.ollamahf.vision"
+      ],
+      "evidence_refs": [
+        "https://huggingface.co/spaces/Cgjgj/OllamaHfTrae/raw/main/orchestrator.py"
+      ]
+    },
+    {
+      "agent_id": "external.ollamahf.lead_coder",
+      "display_name": "lead_coder",
+      "aliases": [
+        "lead_coder"
+      ],
+      "origin": "external",
+      "runtime_target": "ollama-hf-orchestrator",
+      "status_class": "PARTIAL",
+      "input_contract": "7-field",
+      "depends_on": [
+        "external.ollamahf.vision",
+        "external.ollamahf.research"
+      ],
+      "evidence_refs": [
+        "https://huggingface.co/spaces/Cgjgj/OllamaHfTrae/raw/main/orchestrator.py"
+      ]
+    },
+    {
+      "agent_id": "external.ollamahf.shader",
+      "display_name": "shader",
+      "aliases": [
+        "shader"
+      ],
+      "origin": "external",
+      "runtime_target": "ollama-hf-orchestrator",
+      "status_class": "PARTIAL",
+      "input_contract": "7-field",
+      "depends_on": [
+        "external.ollamahf.lead_coder"
+      ],
+      "evidence_refs": [
+        "https://huggingface.co/spaces/Cgjgj/OllamaHfTrae/raw/main/orchestrator.py"
+      ]
+    },
+    {
+      "agent_id": "external.ollamahf.memory",
+      "display_name": "memory",
+      "aliases": [
+        "memory"
+      ],
+      "origin": "external",
+      "runtime_target": "ollama-hf-orchestrator",
+      "status_class": "PARTIAL",
+      "input_contract": "7-field",
+      "depends_on": [
+        "external.ollamahf.lead_coder",
+        "external.ollamahf.shader"
+      ],
+      "evidence_refs": [
+        "https://huggingface.co/spaces/Cgjgj/OllamaHfTrae/raw/main/orchestrator.py"
+      ]
+    },
+    {
+      "agent_id": "external.ollamahf.multiplayer",
+      "display_name": "multiplayer",
+      "aliases": [
+        "multiplayer"
+      ],
+      "origin": "external",
+      "runtime_target": "ollama-hf-orchestrator",
+      "status_class": "PARTIAL",
+      "input_contract": "7-field",
+      "depends_on": [
+        "external.ollamahf.memory"
+      ],
+      "evidence_refs": [
+        "https://huggingface.co/spaces/Cgjgj/OllamaHfTrae/raw/main/orchestrator.py"
+      ]
+    },
+    {
+      "agent_id": "external.ollamahf.qa",
+      "display_name": "qa",
+      "aliases": [
+        "qa"
+      ],
+      "origin": "external",
+      "runtime_target": "ollama-hf-orchestrator",
+      "status_class": "PARTIAL",
+      "input_contract": "7-field",
+      "depends_on": [
+        "external.ollamahf.multiplayer"
+      ],
+      "evidence_refs": [
+        "https://huggingface.co/spaces/Cgjgj/OllamaHfTrae/raw/main/orchestrator.py"
+      ]
+    },
+    {
+      "agent_id": "external.ollamahf.release",
+      "display_name": "release",
+      "aliases": [
+        "release"
+      ],
+      "origin": "external",
+      "runtime_target": "ollama-hf-orchestrator",
+      "status_class": "PARTIAL",
+      "input_contract": "7-field",
+      "depends_on": [
+        "external.ollamahf.qa"
+      ],
+      "evidence_refs": [
+        "https://huggingface.co/spaces/Cgjgj/OllamaHfTrae/raw/main/orchestrator.py"
+      ]
+    },
+    {
+      "agent_id": "external.ollamahf.solo_builder",
+      "display_name": "solo_builder",
+      "aliases": [
+        "solo_builder"
+      ],
+      "origin": "external",
+      "runtime_target": "ollama-hf-orchestrator",
+      "status_class": "PARTIAL",
+      "input_contract": "7-field",
+      "depends_on": [],
+      "evidence_refs": [
+        "https://huggingface.co/spaces/Cgjgj/OllamaHfTrae/raw/main/orchestrator.py"
+      ]
+    }
+  ],
+  "legacy_agents": [
+    {
+      "agent_id": "legacy.prompt.5_agent_orchestrator_blueprint",
+      "display_name": "5-agent-orchestrator Blueprint",
+      "aliases": [
+        "multi-agent-orchestrator",
+        "ultimate_5_agent_team"
+      ],
+      "origin": "legacy",
+      "runtime_target": "ollama-hf-orchestrator",
+      "status_class": "LEGACY",
+      "input_contract": "guide-only",
+      "depends_on": [],
+      "evidence_refs": [
+        "https://huggingface.co/spaces/Cgjgj/OllamaHfTrae/raw/main/ultimate_multi_agent_system_prompt.md"
+      ]
+    }
+  ]
+}

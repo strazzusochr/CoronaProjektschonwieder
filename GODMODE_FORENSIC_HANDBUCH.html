@@ -593,6 +593,23 @@ details{margin-top:12px;border:1px solid var(--line);border-radius:12px;overflow
 <h3>URL- und Port-Index</h3><ul><li><code>https://wrzzzrzr-openhands-godmode.hf.space</code></li><li><code>https://wrzzzrzr-langgraph-godmode.hf.space</code></li><li><code>https://wrzzzrzr-smolagents-godmode.hf.space</code></li><li><code>https://wrzzzrzr-aider-godmode-safe.hf.space</code></li><li><code>https://wrzzzrzr-aider-web-ide.hf.space</code></li><li><code>https://wrzzzrzr-n8n-hf-space.hf.space</code></li><li><code>https://wrzzzrzr-bolt-diy-godmode.hf.space</code> (privates Ziel, Dispatch-Forward mit Token verifiziert)</li><li><code>https://openhands.&lt;fqdn-root&gt;</code>, <code>https://adapter.&lt;fqdn-root&gt;</code>, <code>https://langgraph.&lt;fqdn-root&gt;</code>, <code>https://n8n.&lt;fqdn-root&gt;</code>, <code>https://bolt.&lt;fqdn-root&gt;</code> (kanonisches Hetzner-Ingress auf Host <code>65.108.253.14</code>)</li><li><code>3000</code> OpenHands, <code>3001</code> Adapter, <code>3901</code> bolt-facade, <code>4000</code> LiteLLM proxy, <code>5678</code> n8n, <code>7860</code> HF hosted, <code>8080</code> LangGraph, <code>11434</code> optional Ollama, <code>4173</code> Vite preview</li></ul>
 <h3>Schlussurteil</h3><div class="callout info"><strong>Forensisches Gesamturteil:</strong> Der GODMODE-Stack ist ein teilweise realisierter, teilweise gehosteter und teilweise nur geplanter Entwicklerplattform-Verbund. Er hat echte Public Spaces, echte lokale Orchestrierungs- und Dispatch-Dateien, echte Browser-Proofs und echte Proof-/Memory-Artefakte. Er ist jetzt als provider-neutrales Core-Runtime-Modell ohne aktiven Oracle-Zwang beschrieben; das reservierte Oracle-Profil bleibt ein sauber markierter Zukunftspfad statt Beta-Pflicht.</div>
 </section>
+<section id="superbrain-merge-2026-04-12">
+<h2>Superbrain Merge 2026-04-12</h2>
+<p>Der Dispatch-Hub wurde auf eine namespaced Agent-Registry und feste Zielrouten erweitert. Marker: <strong>Superbrain Merge 2026-04-12</strong>. Snapshot-Stand: <code>.godmode_runtime/evidence/superbrain_gate_latest.json</code> (2026-04-12).</p>
+<table>
+<tr><th>Baustein</th><th>Status</th><th>Evidenz</th><th>Hinweis</th></tr>
+<tr><td>Agent Registry (25 aktiv + 1 legacy)</td><td><span class="badge implemented">IMPLEMENTED</span></td><td><code>agent_registry.json</code></td><td>Single source of truth fuer <code>local.*</code>, <code>external.*</code>, <code>legacy.*</code>.</td></tr>
+<tr><td>Hub Endpunkte <code>/agents</code>, <code>/dispatch</code>, <code>/routing/status</code>, <code>/probe/ollama</code>, <code>/evidence/latest</code></td><td><span class="badge implemented">IMPLEMENTED</span></td><td><code>bolt_facade/app.py</code></td><td>7-Feld-Vertrag ist erzwungen; unklare Agent-IDs werden abgelehnt.</td></tr>
+<tr><td>Zero-Compute Policy</td><td><span class="badge implemented">IMPLEMENTED</span></td><td><code>ZERO_COMPUTE_POLICY</code>, <code>GODMODE_ALLOW_LOCAL_HEAVY</code>, Hub-Policy-Checks</td><td>Lokale heavy 3D/KI-Runs werden standardmaessig blockiert.</td></tr>
+<tr><td>External Gate OllamaHfTrae</td><td><span class="badge verified">VERIFIED</span></td><td><code>/probe/ollama</code> + Evidence JSON</td><td><code>/orchestrate</code>, <code>/v1/models</code> und <code>/v1/chat/completions</code> sind im aktuellen Snapshot erfolgreich.</td></tr>
+</table>
+<ul>
+<li><strong>Beta-Core Gate:</strong> <span class="badge verified">GO (100%)</span> via Gate-gewichtete Bewertung (<code>inventory_gate</code>, <code>contract</code>, <code>routing_gate</code>, <code>external</code>, <code>doc</code>).</li>
+<li><strong>GA-Full:</strong> <span class="badge partial">NO GO</span> solange nicht alle Agent-Entries <span class="badge verified">VERIFIED</span> sind; aktueller Inventory-Verified-Wert: <code>88.46%</code> (23/26).</li>
+<li><strong>Aktiver Blocker:</strong> <code>hf-aider</code>-Dispatch bleibt <span class="badge blocked">BLOCKED</span> mit <code>404</code> auf den getesteten Mission-Endpunkten; Blocker ist belegt und wird nicht verschwiegen.</li>
+</ul>
+<p>Kanonisches Kontrollprotokoll: <code>AGENT_SUPERBRAIN_KONTROLLPROTOKOLL.md</code>.</p>
+</section>
 </main>
 </div>
 </body>

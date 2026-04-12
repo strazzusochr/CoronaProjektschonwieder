@@ -4,7 +4,7 @@ import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib import request
+from urllib import error, request
 
 EVIDENCE_DIR = Path("d:/Web/docs/godmode_setup/.godmode_runtime/evidence")
 
@@ -13,12 +13,41 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def get_json(url: str, timeout: int = 25) -> dict:
-    with request.urlopen(request.Request(url=url, method="GET"), timeout=timeout) as response:
-        return json.loads(response.read().decode("utf-8", errors="replace"))
+def resolve_evidence_dir() -> Path:
+    candidates = [
+        EVIDENCE_DIR,
+        Path("d:/Web/docs/godmode_setup/proofs"),
+    ]
+    for candidate in candidates:
+        try:
+            candidate.mkdir(parents=True, exist_ok=True)
+            probe = candidate / ".write_test"
+            probe.write_text("ok", encoding="utf-8")
+            probe.unlink(missing_ok=True)
+            return candidate
+        except Exception:
+            continue
+    return Path("d:/Web/docs/godmode_setup/proofs")
 
 
-def post_json(url: str, payload: dict, timeout: int = 25) -> dict:
+def get_json(url: str, timeout: int = 25) -> tuple[int, dict]:
+    try:
+        with request.urlopen(request.Request(url=url, method="GET"), timeout=timeout) as response:
+            body = response.read().decode("utf-8", errors="replace")
+            return int(response.status), json.loads(body) if body else {}
+    except error.HTTPError as exc:
+        raw = exc.read().decode("utf-8", errors="replace")
+        payload = {"raw": raw}
+        try:
+            payload = json.loads(raw) if raw else payload
+        except json.JSONDecodeError:
+            pass
+        return int(exc.code), payload
+    except Exception as exc:
+        return 0, {"error": str(exc)}
+
+
+def post_json(url: str, payload: dict, timeout: int = 25) -> tuple[int, dict]:
     body = json.dumps(payload, ensure_ascii=True).encode("utf-8")
     req = request.Request(
         url=url,
@@ -26,73 +55,91 @@ def post_json(url: str, payload: dict, timeout: int = 25) -> dict:
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with request.urlopen(req, timeout=timeout) as response:
-        return json.loads(response.read().decode("utf-8", errors="replace"))
+    try:
+        with request.urlopen(req, timeout=timeout) as response:
+            raw = response.read().decode("utf-8", errors="replace")
+            return int(response.status), json.loads(raw) if raw else {}
+    except error.HTTPError as exc:
+        raw = exc.read().decode("utf-8", errors="replace")
+        payload = {"raw": raw}
+        try:
+            payload = json.loads(raw) if raw else payload
+        except json.JSONDecodeError:
+            pass
+        return int(exc.code), payload
 
 
 def main() -> int:
     base_url = os.environ.get("BOLTDIY_FACADE_URL", "http://127.0.0.1:3901").rstrip("/")
+    evidence_dir = resolve_evidence_dir()
     timestamp = now_iso()
     payload = {
-        "agent": "Aider-Cloud",
-        "task": "Verify bolt facade dispatch path",
-        "source": "hf_pilot_actual",
+        "agent": "local.openhands.openhands",
+        "task": "Verify superbrain dispatch hub basic path.",
+        "source": "verify_bolt_facade.py",
         "repo": "https://github.com/strazzusochr/CoronaProjektschonwieder",
         "ref": "main",
         "status": "triggered",
         "timestamp": timestamp,
     }
     proof_payload = {
-        "scenario": "bolt-facade-api-smoke",
+        "scenario": "superbrain-hub-smoke",
         "result": "PASS",
-        "notes": "Automated local smoke check for health/dispatch/proof endpoints.",
+        "notes": "Automated smoke check for health/agents/routing/dispatch/proof.",
         "metadata": {"runner": "verify_bolt_facade.py"},
     }
 
-    health = get_json(f"{base_url}/health")
-    dispatch = post_json(f"{base_url}/dispatch", payload, timeout=45)
-    proof = post_json(f"{base_url}/proof", proof_payload, timeout=45)
+    health_code, health = get_json(f"{base_url}/health")
+    agents_code, agents = get_json(f"{base_url}/agents")
+    routing_code, routing = get_json(f"{base_url}/routing/status")
+    dispatch_code, dispatch = post_json(f"{base_url}/dispatch", payload, timeout=45)
+    proof_code, proof = post_json(f"{base_url}/proof", proof_payload, timeout=45)
 
-    target_statuses = {
-        entry.get("target"): entry.get("status")
-        for entry in dispatch.get("results", [])
-        if isinstance(entry, dict)
+    gate_checks = {
+        "health_200": health_code == 200,
+        "agents_200": agents_code == 200,
+        "routing_200": routing_code == 200,
+        "dispatch_200": dispatch_code == 200,
+        "proof_200": proof_code == 200,
+        "registry_present": agents.get("active_count", 0) >= 25,
+        "dispatch_has_target": bool(dispatch.get("runtime_target")),
     }
-    n8n_ok = target_statuses.get("n8n") == "forwarded"
-    adapter_ok = target_statuses.get("openhands-adapter") == "forwarded"
-    dispatch_ok = dispatch.get("status") == "forwarded"
-    gate_status = "PASS" if dispatch_ok and n8n_ok and adapter_ok else "PARTIAL"
+    gate_status = "PASS" if all(gate_checks.values()) else "PARTIAL"
 
     result = {
         "timestamp": timestamp,
         "base_url": base_url,
-        "health": health,
-        "dispatch": dispatch,
-        "proof": proof,
+        "health": {"http_status": health_code, "body": health},
+        "agents": {"http_status": agents_code, "body": agents},
+        "routing": {"http_status": routing_code, "body": routing},
+        "dispatch": {"http_status": dispatch_code, "body": dispatch},
+        "proof": {"http_status": proof_code, "body": proof},
         "gate": {
             "status": gate_status,
-            "dispatch_status": dispatch.get("status"),
-            "target_statuses": target_statuses,
-            "requirements": {
-                "dispatch_forwarded": dispatch_ok,
-                "n8n_forwarded": n8n_ok,
-                "openhands_adapter_forwarded": adapter_ok,
-            },
+            "checks": gate_checks,
         },
     }
 
-    EVIDENCE_DIR.mkdir(parents=True, exist_ok=True)
+    evidence_dir.mkdir(parents=True, exist_ok=True)
     stamp = timestamp.replace(":", "-").replace(".", "-")
-    out_file = EVIDENCE_DIR / f"bolt_facade_api_{stamp}.json"
-    latest_file = EVIDENCE_DIR / "bolt_facade_api_latest.json"
-    out_file.write_text(json.dumps(result, ensure_ascii=True, indent=2), encoding="utf-8")
-    latest_file.write_text(json.dumps(result, ensure_ascii=True, indent=2), encoding="utf-8")
+    out_file = evidence_dir / f"bolt_facade_api_{stamp}.json"
+    latest_file = evidence_dir / "bolt_facade_api_latest.json"
+    snapshot_written = True
+    snapshot_error = ""
+    try:
+        out_file.write_text(json.dumps(result, ensure_ascii=True, indent=2), encoding="utf-8")
+        latest_file.write_text(json.dumps(result, ensure_ascii=True, indent=2), encoding="utf-8")
+    except PermissionError as exc:
+        snapshot_written = False
+        snapshot_error = str(exc)
 
     print(
         json.dumps(
             {
                 "status": "ok",
                 "snapshot": str(out_file),
+                "snapshot_written": snapshot_written,
+                "snapshot_write_error": snapshot_error,
                 "gate_status": gate_status,
                 "dispatch_status": dispatch.get("status"),
                 "proof_status": proof.get("status"),

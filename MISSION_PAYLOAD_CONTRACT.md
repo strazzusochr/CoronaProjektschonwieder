@@ -9,7 +9,7 @@ other mission dispatchers.
 
 | Key | Type | Meaning |
 | --- | --- | --- |
-| `agent` | string | logical executor name such as `Aider-Cloud` or `OpenHands` |
+| `agent` | string | canonical namespaced executor id such as `local.pilot.aider_cloud` or `external.ollamahf.solo_builder` |
 | `task` | string | the actual mission text |
 | `source` | string | origin system such as `hf_pilot_actual` or `n8n` |
 | `repo` | string | canonical repo URL |
@@ -21,7 +21,7 @@ other mission dispatchers.
 
 ```json
 {
-  "agent": "Aider-Cloud",
+  "agent": "local.pilot.aider_cloud",
   "task": "Implement the current GODMODE mission end-to-end and verify it.",
   "source": "hf_pilot_actual",
   "repo": "https://github.com/strazzusochr/CoronaProjektschonwieder",
@@ -38,3 +38,4 @@ other mission dispatchers.
 - [hf_pilot_actual/app.py](/d:/Web/docs/godmode_setup/hf_pilot_actual/app.py)
 - [openhands/adapter.py](/d:/Web/docs/godmode_setup/openhands/adapter.py)
 - [n8n_mission_workflow.json](/d:/Web/docs/godmode_setup/n8n_mission_workflow.json)
+- [agent_registry.json](/d:/Web/docs/godmode_setup/agent_registry.json)
