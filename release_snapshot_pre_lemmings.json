@@ -1,0 +1,6 @@
+{
+  "timestamp_utc": "2026-04-13T00:00:00Z",
+  "snapshot_tag": "snapshot-pre-lemmings-3d-2026-04-13",
+  "snapshot_sha": "9fac5b990bbdf65457fac064916d9f0c8668479e",
+  "rollback_command": "git -C d:/Web/docs/godmode_setup checkout snapshot-pre-lemmings-3d-2026-04-13 -- CoronaProjektschonwieder"
+}

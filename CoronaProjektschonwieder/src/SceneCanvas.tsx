@@ -1,200 +1,188 @@
-import { OrbitControls, Sky, Stars } from '@react-three/drei';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { useRef } from 'react';
-import type { Mesh } from 'three';
-
-type Difficulty = 'rookie' | 'veteran' | 'nightmare';
-type Theme = 'neon' | 'sunset';
+import { Environment, OrbitControls, Sky, Stars } from '@react-three/drei';
+import { Canvas } from '@react-three/fiber';
+import { useMemo } from 'react';
+import type { AgentSnapshot, QualityPreset, SimulationSnapshot } from './game/sim';
 
 type SceneCanvasProps = {
-  paused: boolean;
-  difficulty: Difficulty;
-  wave: number;
-  autoRotate: boolean;
+  snapshot: SimulationSnapshot;
   showGrid: boolean;
   showAtmosphere: boolean;
-  theme: Theme;
+  showAgents: boolean;
+  highContrast: boolean;
+  quality: QualityPreset;
+  selectedAgentId: number | null;
+  onSelectAgent: (agentId: number) => void;
 };
 
-type DroneProps = {
-  index: number;
-  wave: number;
-  speedMultiplier: number;
-  paused: boolean;
-  color: string;
+const PRESET_DPR: Record<QualityPreset, number | [number, number]> = {
+  low: 1,
+  medium: [1, 1.5],
+  ultra: [1, 2],
 };
 
-function difficultySpeed(difficulty: Difficulty) {
-  if (difficulty === 'nightmare') {
-    return 1.8;
-  }
-
-  if (difficulty === 'veteran') {
-    return 1.3;
-  }
-
-  return 1;
-}
-
-function themeColors(theme: Theme) {
-  if (theme === 'sunset') {
+function terrainColor(highContrast: boolean) {
+  if (highContrast) {
     return {
-      background: '#1f0d0a',
-      fog: '#24110f',
-      floor: '#3a1f18',
-      accentA: '#f59c69',
-      accentB: '#f4d094',
+      background: '#080808',
+      fog: '#080808',
+      floor: '#ffffff',
+      wall: '#f0f0f0',
+      ramp: '#99d4ff',
     };
   }
-
   return {
-    background: '#050816',
-    fog: '#050816',
-    floor: '#12152d',
-    accentA: '#5f83ff',
-    accentB: '#52d7ff',
+    background: '#081126',
+    fog: '#081126',
+    floor: '#28402f',
+    wall: '#5e7b6f',
+    ramp: '#79a9ff',
   };
 }
 
-function ArenaFloor({ color }: { color: string }) {
-  return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
-      <cylinderGeometry args={[8.2, 8.2, 0.2, 48]} />
-      <meshStandardMaterial color={color} roughness={0.84} metalness={0.06} />
-    </mesh>
-  );
-}
-
-function Drone({ index, wave, speedMultiplier, paused, color }: DroneProps) {
-  const meshRef = useRef<Mesh>(null);
-  const radius = 2.6 + (index % 4) * 0.9;
-  const angleOffset = index * (Math.PI / 3.5);
-
-  useFrame(({ clock }, delta) => {
-    if (!meshRef.current || paused) {
-      return;
-    }
-
-    const time = clock.getElapsedTime() * speedMultiplier;
-    const dynamicRadius = radius + (wave - 1) * 0.18;
-    meshRef.current.position.x = Math.cos(time + angleOffset) * dynamicRadius;
-    meshRef.current.position.z = Math.sin(time + angleOffset) * dynamicRadius;
-    meshRef.current.position.y = 1 + Math.sin(time * 2 + angleOffset) * 0.35;
-    meshRef.current.rotation.x += delta * 1.3 * speedMultiplier;
-    meshRef.current.rotation.y += delta * 0.9 * speedMultiplier;
-  });
-
-  return (
-    <mesh ref={meshRef} castShadow receiveShadow>
-      <icosahedronGeometry args={[0.34, 0]} />
-      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.32} roughness={0.44} metalness={0.38} />
-    </mesh>
-  );
-}
-
-function DroneSwarm({
-  wave,
-  difficulty,
-  paused,
-  accentA,
-  accentB,
+function LemmingMesh({
+  agent,
+  selected,
+  boardOffset,
+  onSelect,
 }: {
-  wave: number;
-  difficulty: Difficulty;
-  paused: boolean;
-  accentA: string;
-  accentB: string;
+  agent: AgentSnapshot;
+  selected: boolean;
+  boardOffset: number;
+  onSelect: (agentId: number) => void;
 }) {
-  const count = Math.min(4 + wave, 12);
-  const speedMultiplier = difficultySpeed(difficulty);
-  const drones = [];
+  const stateColor =
+    agent.state === 'splatted'
+      ? '#b14747'
+      : agent.state === 'saved'
+        ? '#66d497'
+        : selected
+          ? '#ffd24f'
+          : '#8fb8ff';
 
-  for (let index = 0; index < count; index += 1) {
-    drones.push(
-      <Drone
-        key={index}
-        index={index}
-        wave={wave}
-        speedMultiplier={speedMultiplier}
-        paused={paused}
-        color={index % 2 === 0 ? accentA : accentB}
-      />
-    );
-  }
-
-  return <>{drones}</>;
+  return (
+    <group
+      position={[agent.x - boardOffset, agent.y + 0.4, 0]}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        onSelect(agent.id);
+      }}
+    >
+      <mesh castShadow receiveShadow>
+        <capsuleGeometry args={[0.22, 0.42, 6, 12]} />
+        <meshStandardMaterial color={stateColor} roughness={0.38} metalness={0.35} />
+      </mesh>
+      <mesh position={[0, 0.42, 0]}>
+        <sphereGeometry args={[0.14, 14, 14]} />
+        <meshStandardMaterial color="#f9f7f3" roughness={0.7} metalness={0.1} />
+      </mesh>
+    </group>
+  );
 }
 
-function ArenaScene({
-  paused,
-  difficulty,
-  wave,
+function GameScene({
+  snapshot,
   showGrid,
   showAtmosphere,
-  theme,
-}: Omit<SceneCanvasProps, 'autoRotate'>) {
-  const colors = themeColors(theme);
+  showAgents,
+  highContrast,
+  selectedAgentId,
+  onSelectAgent,
+}: Omit<SceneCanvasProps, 'quality'>) {
+  const colors = terrainColor(highContrast);
+  const boardOffset = snapshot.width / 2;
+  const solids = useMemo(() => snapshot.solids, [snapshot.solids]);
 
   return (
     <>
       <color attach="background" args={[colors.background]} />
-      {showAtmosphere ? <fog attach="fog" args={[colors.fog, 8, 28]} /> : null}
+      {showAtmosphere ? <fog attach="fog" args={[colors.fog, 20, 110]} /> : null}
       {showAtmosphere ? (
         <>
-          <Sky distance={450000} sunPosition={[4, 2, 6]} turbidity={5} rayleigh={2.1} mieCoefficient={0.005} mieDirectionalG={0.92} />
-          <Stars radius={120} depth={50} count={4200} factor={3} saturation={0} fade speed={0.55} />
+          <Sky distance={350000} sunPosition={[7, 2, 4]} turbidity={4.4} rayleigh={2.3} mieCoefficient={0.0048} mieDirectionalG={0.84} />
+          <Stars radius={190} depth={90} count={7000} factor={4} saturation={0} fade speed={0.4} />
+          <Environment preset="city" />
         </>
       ) : null}
-      <ambientLight intensity={0.55} />
-      <hemisphereLight intensity={1.1} color={colors.accentA} groundColor="#1a1412" />
+      <ambientLight intensity={0.5} />
+      <hemisphereLight intensity={0.95} color="#d3ebff" groundColor="#15231a" />
       <directionalLight
         castShadow
-        intensity={2.6}
-        position={[8, 10, 6]}
-        color={colors.accentB}
+        intensity={2.8}
+        position={[28, 40, 24]}
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
       />
-      <spotLight intensity={20} angle={0.38} penumbra={0.45} position={[-7, 7, 6]} color={colors.accentA} />
-      <ArenaFloor color={colors.floor} />
-      <mesh position={[0, 0.6, 0]} receiveShadow castShadow>
-        <torusGeometry args={[1.6, 0.25, 20, 70]} />
-        <meshStandardMaterial color={colors.accentB} roughness={0.3} metalness={0.45} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.51, 0]} receiveShadow>
+        <planeGeometry args={[snapshot.width + 14, 24]} />
+        <meshStandardMaterial color={colors.floor} roughness={0.86} metalness={0.04} />
       </mesh>
-      <DroneSwarm wave={wave} difficulty={difficulty} paused={paused} accentA={colors.accentA} accentB={colors.accentB} />
-      {showGrid ? <gridHelper args={[20, 20, colors.accentA, '#2b2421']} position={[0, 0.01, 0]} /> : null}
+      {solids.map((cell) => (
+        <mesh key={`${cell.x}-${cell.y}`} position={[cell.x - boardOffset, cell.y - 0.5, 0]} castShadow receiveShadow>
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial color={cell.y <= 1 ? colors.floor : colors.wall} roughness={0.72} metalness={0.12} />
+        </mesh>
+      ))}
+      <mesh position={[snapshot.exit.x - boardOffset, snapshot.exit.y + 0.2, 0]} castShadow receiveShadow>
+        <torusGeometry args={[0.7, 0.17, 14, 40]} />
+        <meshStandardMaterial color={colors.ramp} emissive={colors.ramp} emissiveIntensity={0.28} roughness={0.3} metalness={0.7} />
+      </mesh>
+      <mesh position={[snapshot.spawn.x - boardOffset, snapshot.spawn.y + 0.35, 0]} castShadow receiveShadow>
+        <coneGeometry args={[0.42, 1.1, 12]} />
+        <meshStandardMaterial color="#ffbf8f" roughness={0.58} metalness={0.24} />
+      </mesh>
+      {showAgents
+        ? snapshot.agents.map((agent) => (
+            <LemmingMesh
+              key={agent.id}
+              agent={agent}
+              boardOffset={boardOffset}
+              selected={agent.id === selectedAgentId}
+              onSelect={onSelectAgent}
+            />
+          ))
+        : null}
+      {showGrid ? <gridHelper args={[snapshot.width + 2, snapshot.width + 2, '#7db5ff', '#2c2c2c']} position={[0, 0, -0.55]} /> : null}
     </>
   );
 }
 
 export default function SceneCanvas({
-  paused,
-  difficulty,
-  wave,
-  autoRotate,
+  snapshot,
   showGrid,
   showAtmosphere,
-  theme,
+  showAgents,
+  highContrast,
+  quality,
+  selectedAgentId,
+  onSelectAgent,
 }: SceneCanvasProps) {
   return (
     <div className="scene-canvas-shell">
-      <Canvas className="scene-canvas" camera={{ position: [6.5, 4.8, 6.5], fov: 44 }} dpr={[1, 1.5]} shadows gl={{ antialias: true, alpha: false }}>
-        <ArenaScene
-          paused={paused}
-          difficulty={difficulty}
-          wave={wave}
+      <Canvas
+        className="scene-canvas"
+        camera={{ position: [0, snapshot.height * 0.5, snapshot.width * 0.76], fov: 42 }}
+        dpr={PRESET_DPR[quality]}
+        shadows={quality !== 'low'}
+        gl={{ antialias: true, alpha: false }}
+      >
+        <GameScene
+          snapshot={snapshot}
           showGrid={showGrid}
           showAtmosphere={showAtmosphere}
-          theme={theme}
+          showAgents={showAgents}
+          highContrast={highContrast}
+          selectedAgentId={selectedAgentId}
+          onSelectAgent={onSelectAgent}
         />
         <OrbitControls
-          enablePan={false}
-          minDistance={4}
-          maxDistance={16}
-          minPolarAngle={Math.PI / 4}
-          maxPolarAngle={Math.PI / 2.05}
-          autoRotate={autoRotate && !paused}
-          autoRotateSpeed={difficultySpeed(difficulty)}
+          enablePan
+          enableRotate
+          enableZoom
+          maxDistance={snapshot.width * 1.5}
+          minDistance={18}
+          minPolarAngle={Math.PI / 6}
+          maxPolarAngle={Math.PI / 1.9}
+          target={[0, snapshot.height * 0.3, 0]}
         />
       </Canvas>
     </div>

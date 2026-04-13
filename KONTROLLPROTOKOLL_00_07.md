@@ -8,6 +8,10 @@ Superbrain Merge 2026-04-13:
 - Namespaced Agent-Registry aktiv (`local.*`, `external.*`, `legacy.*`) via `agent_registry.json`.
 - Dispatch-Hub mit festen Targets: `langgraph-local`, `smolagents`, `openhands-adapter`, `hf-aider`, `ollama-hf-orchestrator`.
 - Zero-Compute Policy aktiv: heavy 3D/KI-Tasks lokal blockieren, remote erzwingen.
+- Snapshot vor Vollersatz wurde gesetzt: `snapshot-pre-lemmings-3d-2026-04-13` (`9fac5b990bbdf65457fac064916d9f0c8668479e`), Beleg in `release_snapshot_pre_lemmings.json`.
+- Frontend wurde auf ein Lemmings-inspiriertes 3D-Webgame mit deterministischem Sim-Core ersetzt (`CoronaProjektschonwieder/src/game/sim.ts`, neue App-/Scene-Pipeline).
+- Neuer Final-Build-Lauf ist `PASS` mit erweiterten Gates (`unit+build+browser`, Deep-Search, Math-Validation, Agent-Participation, Preview-Proof):
+  `final_build_test_result.json`, `final_build_artifact_manifest.json`, `deep_search_probe_latest.json`, `math_validation_probe_latest.json`, `final_build_screenshot.png`.
 - Aktueller Gate-Snapshot (`.godmode_runtime/evidence/superbrain_gate_latest.json`):
   `inventory_verified=100%`, `inventory_live=100%`, `inventory_gate=100%`,
   `routing_live=100%`, `routing_gate=100%`, `external=100%`,

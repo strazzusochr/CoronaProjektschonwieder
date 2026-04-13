@@ -1,14 +1,96 @@
 {
-  "timestamp": "2026-04-13T07:03:25.279447+00:00",
+  "timestamp": "2026-04-13T08:11:38.830580+00:00",
   "status": "PASS",
   "core_status": "PASS",
   "full_status": "PASS",
   "dispatch_core_ok": true,
   "dispatch_full_ok": true,
+  "unit_ok": true,
   "build_ok": true,
   "browser_ok": true,
   "screenshot_ok": true,
   "dist_ok": true,
+  "deep_search_probe": {
+    "timestamp": "2026-04-13T08:10:26.964953+00:00",
+    "question": "How can fixed-timestep deterministic simulation and conservative terrain updates improve reliability for browser-based lemmings-inspired 3D games?",
+    "sources": [
+      {
+        "url": "https://developer.mozilla.org/en-US/docs/Games/Anatomy",
+        "http_status": 200,
+        "ok": true,
+        "snippet": "<!doctype html> <html lang=\"en-US\" data-theme=\"light dark\" data-renderer=\"Doc\" > <head> <meta charset=\"UTF-8\" /> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" /> <title>Anatomy of a video game - Game development | MDN</title> <script>tr"
+      },
+      {
+        "url": "https://developer.mozilla.org/en-US/docs/Games/Techniques/3D_collision_detection",
+        "http_status": 200,
+        "ok": true,
+        "snippet": "<!doctype html> <html lang=\"en-US\" data-theme=\"light dark\" data-renderer=\"Doc\" > <head> <meta charset=\"UTF-8\" /> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" /> <title>3D collision detection - Game development | MDN</title> <script>try"
+      },
+      {
+        "url": "https://threejs.org/docs/",
+        "http_status": 200,
+        "ok": true,
+        "snippet": "<!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"utf-8\"> <title>three.js docs</title> <meta name=\"viewport\" content=\"width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0\"> <link rel=\"shortcut icon\" href=\"../files/favicon_white.ico\" "
+      }
+    ],
+    "source_count": 3,
+    "successful_sources": 3,
+    "pass": true
+  },
+  "math_validation": {
+    "timestamp": "2026-04-13T08:10:26.965850+00:00",
+    "kinematics": {
+      "expected_distance": 27.087862500000007,
+      "simulated_distance": 26.511525000000006,
+      "delta": 0.5763375000000011,
+      "pass": true
+    },
+    "path_cost": {
+      "euclidean_cost": 20.875260192432428,
+      "manhattan_cost": 29,
+      "pass": true
+    },
+    "deterministic_replay": {
+      "checksum_a": 56249,
+      "checksum_b": 56249,
+      "pass": true
+    },
+    "resource_balance": {
+      "initial_budget": 74,
+      "spent": 23,
+      "remaining": 51,
+      "pass": true
+    },
+    "pass": true
+  },
+  "agent_participation": [
+    {
+      "agent": "local.langgraph.planner",
+      "scope": "core",
+      "http_status": 200,
+      "status": "forwarded",
+      "runtime_target": "langgraph-local"
+    },
+    {
+      "agent": "local.openhands.openhands",
+      "scope": "core",
+      "http_status": 200,
+      "status": "forwarded",
+      "runtime_target": "openhands-adapter"
+    },
+    {
+      "agent": "external.ollamahf.lead_coder",
+      "scope": "external",
+      "http_status": 200,
+      "status": "forwarded",
+      "runtime_target": "ollama-hf-orchestrator"
+    }
+  ],
+  "preview_proof": {
+    "screenshot_exists": true,
+    "screenshot_path": "d:\\Web\\docs\\godmode_setup\\final_build_screenshot.png",
+    "web_preview_port": 4173
+  },
   "dispatch_breakdown": {
     "core_count": 2,
     "external_count": 1,
@@ -20,7 +102,9 @@
     "log": "d:\\Web\\docs\\godmode_setup\\final_build_test_log.txt",
     "result": "d:\\Web\\docs\\godmode_setup\\final_build_test_result.json",
     "manifest": "d:\\Web\\docs\\godmode_setup\\final_build_artifact_manifest.json",
-    "screenshot": "d:\\Web\\docs\\godmode_setup\\final_build_screenshot.png"
+    "screenshot": "d:\\Web\\docs\\godmode_setup\\final_build_screenshot.png",
+    "deep_search_probe": "d:\\Web\\docs\\godmode_setup\\deep_search_probe_latest.json",
+    "math_validation_probe": "d:\\Web\\docs\\godmode_setup\\math_validation_probe_latest.json"
   },
   "blockers_core": [],
   "blockers_full": [],

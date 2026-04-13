@@ -2,6 +2,24 @@
 
 ## Verification Summary
 
+## Build Refresh 2026-04-13
+
+- Release snapshot before full frontend replacement:
+  - tag: `snapshot-pre-lemmings-3d-2026-04-13`
+  - sha: `9fac5b990bbdf65457fac064916d9f0c8668479e`
+  - file: `release_snapshot_pre_lemmings.json`
+- Frontend now runs a lemmings-inspired 3D web game core with deterministic
+  tick simulation:
+  - `CoronaProjektschonwieder/src/game/sim.ts`
+  - `CoronaProjektschonwieder/src/App.tsx`
+  - `CoronaProjektschonwieder/src/SceneCanvas.tsx`
+- Final build gate rerun with extended evidence schema:
+  - `final_build_test_result.json` -> `status=PASS`
+  - `final_build_artifact_manifest.json`
+  - `deep_search_probe_latest.json` (`3/3` internet sources with HTTP `200`)
+  - `math_validation_probe_latest.json` (`pass=true`)
+  - `final_build_screenshot.png`
+
 ## Truth Override 2026-04-13
 
 - Diese Datei enthaelt historische PASS-Proofs aus frueheren Runs.

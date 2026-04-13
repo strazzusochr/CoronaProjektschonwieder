@@ -12,7 +12,7 @@ am Anfang chaotisch anfühlt.
 
 Die gute Nachricht:
 
-- Das 3D-Projekt ist stabil ersetzt durch **Godmode Arena Lab**.
+- Das 3D-Projekt ist stabil ersetzt durch **Godmode Lemmings 3D Lab**.
 - Build und Browser-Tests laufen grün.
 - Du musst nicht alles gleichzeitig lernen.
 
@@ -61,13 +61,14 @@ Merksatz:
 
 ## 3) Was ist was? (Programm-Landkarte)
 
-### 3D App (Godmode Arena Lab)
+### 3D App (Godmode Lemmings 3D Lab)
 
 - Pfad: `CoronaProjektschonwieder/`
 - Zweck: dein eigentlicher 3D-Frontend-Code.
 - Wichtigste Dateien:
-  - `src/App.tsx` (UI + Buttons + Spielzustand)
-  - `src/SceneCanvas.tsx` (Three.js Szene)
+  - `src/App.tsx` (UI + Buttons + Missionskontrolle)
+  - `src/game/sim.ts` (deterministischer Tick-Simulationskern)
+  - `src/SceneCanvas.tsx` (Three.js Szene + Mausinteraktion)
   - `tests/app.spec.ts` (Browser-End-to-End)
 
 ### OpenHands

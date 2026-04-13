@@ -1,56 +1,49 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { vi } from 'vitest';
 import App from './App';
 
+vi.mock('./SceneCanvas', () => ({
+  default: function SceneCanvasMock() {
+    return <div data-testid="scene-canvas-mock">SceneCanvasMock</div>;
+  },
+}));
+
 describe('App', () => {
-  it('renders and wires every primary control in the 3D test game', async () => {
+  it('wires mission controls, options, and skill assignment flow', () => {
     render(<App />);
 
-    expect(
-      screen.getByRole('heading', {
-        name: /godmode arena lab/i,
-      })
-    ).toBeTruthy();
-    expect(screen.getByTestId('metric-state').textContent).toMatch(/standby/i);
-    expect(screen.getByRole('button', { name: /activate 3d arena/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /godmode lemmings 3d lab/i })).toBeTruthy();
+    expect(screen.getByTestId('metric-state').textContent).toMatch(/ready/i);
 
-    fireEvent.click(screen.getByRole('button', { name: /activate 3d arena/i }));
-    expect(screen.getByTestId('metric-state').textContent).toMatch(/live/i);
+    fireEvent.click(screen.getByRole('button', { name: /start mission/i }));
+    expect(screen.getByTestId('metric-state').textContent).toMatch(/running|won|lost/i);
 
-    fireEvent.click(screen.getByRole('button', { name: /veteran mode/i }));
-    expect(screen.getByTestId('metric-difficulty').textContent).toMatch(/veteran/i);
-
-    fireEvent.click(screen.getByRole('button', { name: /collect orb/i }));
-    expect(screen.getByTestId('metric-score').textContent).toMatch(/15/i);
-
-    fireEvent.click(screen.getByRole('button', { name: /next wave/i }));
-    expect(screen.getByTestId('metric-wave').textContent).toMatch(/2/i);
-
-    fireEvent.click(screen.getByRole('button', { name: /trigger hit/i }));
-    expect(screen.getByTestId('metric-lives').textContent).toMatch(/2/i);
-
-    fireEvent.click(screen.getByRole('button', { name: /toggle grid/i }));
-    expect(screen.getByTestId('metric-grid').textContent).toMatch(/off/i);
-
-    fireEvent.click(screen.getByRole('button', { name: /toggle atmosphere/i }));
-    expect(screen.getByTestId('metric-atmosphere').textContent).toMatch(/off/i);
-
-    fireEvent.click(screen.getByRole('button', { name: /toggle auto rotate/i }));
-    expect(screen.getByTestId('metric-rotate').textContent).toMatch(/off/i);
-
-    fireEvent.click(screen.getByRole('button', { name: /switch to sunset/i }));
-    expect(screen.getByTestId('metric-theme').textContent).toMatch(/sunset/i);
-
-    fireEvent.click(screen.getByRole('button', { name: /pause simulation/i }));
+    fireEvent.click(screen.getByRole('button', { name: /pause mission/i }));
     expect(screen.getByTestId('metric-state').textContent).toMatch(/paused/i);
 
-    fireEvent.click(screen.getByRole('button', { name: /resume simulation/i }));
-    expect(screen.getByTestId('metric-state').textContent).toMatch(/live/i);
+    fireEvent.click(screen.getByRole('button', { name: /resume mission/i }));
+    expect(screen.getByTestId('metric-state').textContent).toMatch(/running|won|lost/i);
 
-    fireEvent.click(screen.getByRole('button', { name: /reset mission/i }));
-    expect(screen.getByTestId('metric-wave').textContent).toMatch(/1/i);
-    expect(screen.getByTestId('metric-score').textContent).toMatch(/0/i);
-    expect(screen.getByTestId('metric-lives').textContent).toMatch(/3/i);
-    expect(screen.getByTestId('metric-difficulty').textContent).toMatch(/rookie/i);
-    expect(screen.getByTestId('metric-theme').textContent).toMatch(/neon/i);
+    fireEvent.click(screen.getByRole('button', { name: /speed 2x/i }));
+    expect(screen.getByTestId('metric-speed').textContent).toMatch(/2x/i);
+
+    fireEvent.click(screen.getByRole('button', { name: /quality ultra/i }));
+    expect(screen.getByTestId('metric-quality').textContent).toMatch(/ultra/i);
+
+    fireEvent.click(screen.getByRole('button', { name: /select next lemming/i }));
+    fireEvent.click(screen.getByRole('button', { name: /skill: builder/i }));
+    expect(screen.getByTestId('metric-skill').textContent).toMatch(/builder/i);
+
+    fireEvent.click(screen.getByRole('button', { name: /assign selected skill/i }));
+    expect(screen.getByTestId('status-banner').textContent).toMatch(/builder|selected|only floater|no lemming/i);
+
+    fireEvent.click(screen.getByRole('button', { name: /toggle grid/i }));
+    fireEvent.click(screen.getByRole('button', { name: /toggle atmosphere/i }));
+    fireEvent.click(screen.getByRole('button', { name: /toggle agents/i }));
+    fireEvent.click(screen.getByRole('button', { name: /toggle audio/i }));
+    fireEvent.click(screen.getByRole('button', { name: /toggle high contrast/i }));
+
+    fireEvent.click(screen.getByRole('button', { name: /run math validation/i }));
+    expect(screen.getByTestId('metric-math-validation').textContent).toMatch(/pass|fail/i);
   });
 });

@@ -1,0 +1,27 @@
+{
+  "timestamp": "2026-04-13T08:10:26.964953+00:00",
+  "question": "How can fixed-timestep deterministic simulation and conservative terrain updates improve reliability for browser-based lemmings-inspired 3D games?",
+  "sources": [
+    {
+      "url": "https://developer.mozilla.org/en-US/docs/Games/Anatomy",
+      "http_status": 200,
+      "ok": true,
+      "snippet": "<!doctype html> <html lang=\"en-US\" data-theme=\"light dark\" data-renderer=\"Doc\" > <head> <meta charset=\"UTF-8\" /> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" /> <title>Anatomy of a video game - Game development | MDN</title> <script>tr"
+    },
+    {
+      "url": "https://developer.mozilla.org/en-US/docs/Games/Techniques/3D_collision_detection",
+      "http_status": 200,
+      "ok": true,
+      "snippet": "<!doctype html> <html lang=\"en-US\" data-theme=\"light dark\" data-renderer=\"Doc\" > <head> <meta charset=\"UTF-8\" /> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" /> <title>3D collision detection - Game development | MDN</title> <script>try"
+    },
+    {
+      "url": "https://threejs.org/docs/",
+      "http_status": 200,
+      "ok": true,
+      "snippet": "<!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"utf-8\"> <title>three.js docs</title> <meta name=\"viewport\" content=\"width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0\"> <link rel=\"shortcut icon\" href=\"../files/favicon_white.ico\" "
+    }
+  ],
+  "source_count": 3,
+  "successful_sources": 3,
+  "pass": true
+}

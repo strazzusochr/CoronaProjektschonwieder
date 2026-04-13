@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-04-13T08:10:26.965850+00:00",
+  "kinematics": {
+    "expected_distance": 27.087862500000007,
+    "simulated_distance": 26.511525000000006,
+    "delta": 0.5763375000000011,
+    "pass": true
+  },
+  "path_cost": {
+    "euclidean_cost": 20.875260192432428,
+    "manhattan_cost": 29,
+    "pass": true
+  },
+  "deterministic_replay": {
+    "checksum_a": 56249,
+    "checksum_b": 56249,
+    "pass": true
+  },
+  "resource_balance": {
+    "initial_budget": 74,
+    "spent": 23,
+    "remaining": 51,
+    "pass": true
+  },
+  "pass": true
+}

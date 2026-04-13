@@ -104,3 +104,17 @@ Quelle:
 - Beta-Core: `100.0%` -> `GO`.
 - GA-Full: `100.0%` -> `GO`.
 - Security-Rotation (separates Release-Gate): `PASS` mit `rotation_ack_complete=true` in `security_rotation_check_latest.json`.
+
+## 9) Build-Test Refresh 2026-04-13
+
+- Snapshot vor Frontend-Vollersatz gesetzt: `snapshot-pre-lemmings-3d-2026-04-13`
+  (`9fac5b990bbdf65457fac064916d9f0c8668479e`), dokumentiert in
+  `release_snapshot_pre_lemmings.json`.
+- Aktuelle Frontend-Runtime ersetzt auf Lemmings-inspirierte 3D-Simulation
+  mit deterministischem Tick-Core (`CoronaProjektschonwieder/src/game/sim.ts`).
+- Final Build Evidence ist erneut `PASS` und enthaelt jetzt explizit:
+  - `deep_search_probe` (`deep_search_probe_latest.json`, `3/3` Quellen `HTTP 200`)
+  - `math_validation` (`math_validation_probe_latest.json`, alle Subchecks `pass`)
+  - `agent_participation` (core + external dispatch forward path)
+  - `preview_proof` (`final_build_screenshot.png`)
+- Referenzdatei: `final_build_test_result.json` (`status=PASS`, `core_status=PASS`, `full_status=PASS`).
