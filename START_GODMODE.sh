@@ -158,6 +158,41 @@ if [[ ! -d "$OPENHANDS_WORKSPACE_HOST_PATH" ]]; then
   exit 1
 fi
 
+sanitize_openhands_state() {
+  local sanitizer_script="$REPO_ROOT/ops/sanitize_openhands_state.py"
+  local state_root="${OPENHANDS_STATE_HOST_PATH:-$HOME/.openhands-state}"
+  local evidence_dir="$RUNTIME_DIR/evidence"
+  local fallback_key="${OPENHANDS_LLM_API_KEY:-${LITELLM_API_KEY:-}}"
+
+  if [[ ! -f "$sanitizer_script" ]]; then
+    echo "WARN OpenHands state sanitizer script missing: $sanitizer_script"
+    return 1
+  fi
+
+  local python_cmd=""
+  if command -v python3 >/dev/null 2>&1; then
+    python_cmd="python3"
+  elif command -v python >/dev/null 2>&1; then
+    python_cmd="python"
+  fi
+
+  if [[ -z "$python_cmd" ]]; then
+    echo "WARN OpenHands state sanitizer skipped (python missing on host)"
+    return 1
+  fi
+
+  if "$python_cmd" "$sanitizer_script" \
+      --state-root "$state_root" \
+      --evidence-dir "$evidence_dir" \
+      --fallback-llm-api-key "$fallback_key"; then
+    echo "OK  OpenHands state sanitizer completed ($state_root)"
+    return 0
+  fi
+
+  echo "WARN OpenHands state sanitizer failed"
+  return 1
+}
+
 sync_n8n_workflow() {
   local workflow_file="$REPO_ROOT/n8n_mission_workflow.json"
   local container_name="n8n-godmode"
@@ -315,6 +350,7 @@ PY
   return 0
 }
 
+sanitize_openhands_state || true
 ensure_core_network
 
 cd "$REPO_ROOT/openhands" && "${docker_cmd[@]}" compose up -d

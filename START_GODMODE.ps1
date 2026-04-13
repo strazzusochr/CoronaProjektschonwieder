@@ -1,4 +1,7 @@
 Write-Host "STARTING GODMODE ULTIMATE STACK (WINDOWS CORE)..."
+if ($PSVersionTable.PSVersion.Major -ge 7) {
+    $global:PSNativeCommandUseErrorActionPreference = $false
+}
 
 $RepoRoot = $PSScriptRoot
 $EnvFile = Join-Path $RepoRoot ".godmode_env"
@@ -270,7 +273,16 @@ function Sync-N8nMemoryWorkflow {
     }
 
     $composeFile = Join-Path $RepoRootPath "n8n/docker-compose.yml"
-    $executeOutput = docker @DockerArgs compose -f $composeFile run --rm n8n execute --id=godmodeMemoryProbe01 --rawOutput 2>&1
+    $executeOutput = & {
+        $previousErrorAction = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        try {
+            docker @DockerArgs compose -f $composeFile run --rm n8n execute --id=godmodeMemoryProbe01 --rawOutput 2>&1
+        }
+        finally {
+            $ErrorActionPreference = $previousErrorAction
+        }
+    }
     if ($LASTEXITCODE -ne 0) {
         throw "n8n memory workflow execute failed"
     }
@@ -330,6 +342,66 @@ print(f"patched:{target}")
         throw "OpenHands frontend patch failed during docker exec"
     }
     Write-Host "OK  OpenHands frontend bootstrap patch applied (settings gate + LiteLLM defaults)"
+}
+
+function Sanitize-OpenHandsState {
+    param(
+        [string]$RepoRootPath,
+        [string]$RuntimeDirPath
+    )
+
+    $sanitizerScript = Join-Path $RepoRootPath "ops/sanitize_openhands_state.py"
+    if (-not (Test-Path $sanitizerScript)) {
+        Write-Host "WARN OpenHands state sanitizer script missing: $sanitizerScript"
+        return $false
+    }
+
+    $stateRoot = Resolve-GodmodeValue $env:OPENHANDS_STATE_HOST_PATH (Join-Path $HOME ".openhands-state")
+    $evidenceDir = Join-Path $RuntimeDirPath "evidence"
+    $fallbackApiKey = Resolve-GodmodeValue $env:OPENHANDS_LLM_API_KEY (Resolve-GodmodeValue $env:LITELLM_API_KEY "")
+
+    $pythonExecutable = $null
+    $pythonArgsPrefix = @()
+
+    $pyLauncher = Get-Command py -ErrorAction SilentlyContinue
+    if ($pyLauncher) {
+        $pythonExecutable = $pyLauncher.Source
+        $pythonArgsPrefix = @("-3")
+    }
+    else {
+        $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
+        if ($pythonCmd) {
+            $pythonExecutable = $pythonCmd.Source
+        }
+    }
+
+    if (-not $pythonExecutable) {
+        Write-Host "WARN OpenHands state sanitizer skipped (python missing on host)"
+        return $false
+    }
+
+    $args = @()
+    if ($pythonArgsPrefix.Count -gt 0) {
+        $args += $pythonArgsPrefix
+    }
+    $args += @(
+        $sanitizerScript,
+        "--state-root",
+        $stateRoot,
+        "--evidence-dir",
+        $evidenceDir,
+        "--fallback-llm-api-key",
+        $fallbackApiKey
+    )
+
+    & $pythonExecutable @args
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "WARN OpenHands state sanitizer failed"
+        return $false
+    }
+
+    Write-Host "OK  OpenHands state sanitizer completed ($stateRoot)"
+    return $true
 }
 
 if (Test-Path $EnvFile) {
@@ -551,6 +623,8 @@ Assert-RequiredEnv -Name "OPENHANDS_LLM_API_KEY" -Reason "OpenHands needs a non-
 if ($openhandsBaseUrl -match "litellm-godmode|:4000") {
     Assert-RequiredEnv -Name "LITELLM_API_KEY" -Reason "LiteLLM is the configured OpenHands backend, so LITELLM_API_KEY must be present."
 }
+
+$null = Sanitize-OpenHandsState -RepoRootPath $RepoRoot -RuntimeDirPath $RuntimeDir
 
 $dockerContextArgs = @()
 if ($env:CORE_DOCKER_CONTEXT -and $env:CORE_DOCKER_CONTEXT -ne "default") {

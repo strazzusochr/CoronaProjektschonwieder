@@ -112,8 +112,11 @@ export OPENHANDS_ADAPTER_PORT="3001"
 export OPENHANDS_LLM_MODEL="smart-router"
 export OPENHANDS_LLM_BASE_URL="http://litellm-godmode:4000"
 export OPENHANDS_LLM_API_KEY="replace-with-litellm-key"
+export OPENHANDS_RUNTIME_IMAGE="ghcr.io/all-hands-ai/runtime:0.17-nikolaik"
+export OPENHANDS_BASE_CONTAINER_IMAGE="nikolaik/python-nodejs:python3.12-nodejs22"
 export OPENHANDS_FILE_STORE="local"
 export OPENHANDS_FILE_STORE_PATH="/.openhands-state"
+export OPENHANDS_STATE_HOST_PATH="C:/Users/immer/.openhands-state"
 export OPENHANDS_WORKSPACE_HOST_PATH="D:/Web/docs/godmode_setup"
 
 # LangGraph

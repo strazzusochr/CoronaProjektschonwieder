@@ -290,3 +290,7 @@ selfhosted core runtime.
 - 2026-04-13T03:25:13.748892+00:00 BOLT_PROOF: result=PASS scenario=superbrain-hub-smoke proof_id=a431ea25-5049-443a-b803-4819bf1e157d
 - 2026-04-13T04:17:30.784953+00:00 BOLT_PROOF: result=PASS scenario=superbrain-hub-smoke proof_id=574a1db4-1eb7-4af4-bd01-dff5ba1cc70d
 - 2026-04-13T04:56:09.530369+00:00 BOLT_PROOF: result=PASS scenario=superbrain-hub-smoke proof_id=72442bac-e382-4cfd-b661-1c6f6ba7eb01
+- 2026-04-13T14:11:27.984931+00:00 BOLT_PROOF: result=PASS scenario=superbrain-hub-smoke proof_id=e630a19d-9d5c-44b4-a84a-6f37d4bf1426
+- 2026-04-13T15:36:02.275869+00:00 BOLT_PROOF: result=PASS scenario=superbrain-hub-smoke proof_id=4a6cc71c-bc6a-4e95-abb3-85d56029ea5f
+- 2026-04-13T16:05:44.252373+00:00 BOLT_PROOF: result=PASS scenario=superbrain-hub-smoke proof_id=aab343eb-e64e-4546-8749-26836098b5cd
+- 2026-04-13T16:13:18.295051+00:00 BOLT_PROOF: result=PASS scenario=superbrain-hub-smoke proof_id=87f459f4-8a51-41c4-8939-4c2bf0699957

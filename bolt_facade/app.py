@@ -11,9 +11,17 @@ from typing import Any
 from urllib import error, request
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
 app = FastAPI(title="GODMODE Superbrain Dispatch Hub")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def _normalize_hf_space_url(raw: str) -> str:
@@ -153,11 +161,45 @@ METRICS: dict[str, Any] = {
     "policy_denied_total": 0,
     "target_counts": {target: 0 for target in RUNTIME_TARGETS},
     "proof_total": 0,
+    "autonomy_runs_total": 0,
 }
 OLLAMAHF_LAST_BLOCK: dict[str, Any] = {
     "at": 0.0,
     "reason": "",
     "error": "",
+}
+AUTONOMY_PROFILES: dict[str, dict[str, Any]] = {
+    "app_builder": {
+        "label": "App Builder",
+        "description": "Planner -> Research -> Reviewer -> Finalize",
+        "agents": [
+            "local.langgraph.planner",
+            "local.langgraph.research",
+            "local.langgraph.reviewer",
+            "local.langgraph.finalize",
+        ],
+    },
+    "game_builder": {
+        "label": "3D Game Builder",
+        "description": "Planner -> Performance -> UI Review -> External Lead Coder -> Finalize",
+        "agents": [
+            "local.langgraph.planner",
+            "local.langgraph.performance",
+            "local.langgraph.ui_review",
+            "external.ollamahf.lead_coder",
+            "local.langgraph.finalize",
+        ],
+    },
+    "ops_hardening": {
+        "label": "Ops Hardening",
+        "description": "Reviewer -> OpenHands -> Aider Review -> Finalize",
+        "agents": [
+            "local.langgraph.reviewer",
+            "local.openhands.openhands",
+            "local.hf_aider.aider_review",
+            "local.langgraph.finalize",
+        ],
+    },
 }
 
 
@@ -188,6 +230,16 @@ class OllamaProbeRequest(BaseModel):
     timeout: int = Field(default=180, ge=5, le=900)
     dry_run: bool = Field(default=False)
     orchestrate_retries: int = Field(default=3, ge=1, le=5)
+
+
+class AutonomyRunRequest(BaseModel):
+    goal: str = Field(min_length=3)
+    profile_id: str = Field(default="app_builder", min_length=1)
+    source: str = Field(default="platform-autonomy", min_length=1)
+    repo: str = Field(default="strazzusochr/CoronaProjektschonwieder", min_length=1)
+    ref: str = Field(default="main", min_length=1)
+    status: str = Field(default="queued", min_length=1)
+    halt_on_fail: bool = Field(default=False)
 
 
 def _now_iso() -> str:
@@ -965,6 +1017,156 @@ def _target_health_status() -> dict[str, Any]:
     return statuses
 
 
+def _list_autonomy_profiles() -> list[dict[str, Any]]:
+    return [
+        {
+            "id": profile_id,
+            "label": profile_data.get("label", profile_id),
+            "description": profile_data.get("description", ""),
+            "agents": list(profile_data.get("agents", [])),
+        }
+        for profile_id, profile_data in AUTONOMY_PROFILES.items()
+    ]
+
+
+def _capability_summary() -> dict[str, Any]:
+    active_agents = AGENT_REGISTRY.get("active_agents", [])
+    status_counts: dict[str, int] = {}
+    for agent in active_agents:
+        if not isinstance(agent, dict):
+            continue
+        status_class = str(agent.get("status_class", "UNKNOWN"))
+        status_counts[status_class] = status_counts.get(status_class, 0) + 1
+
+    routing = _target_health_status()
+    routing_summary = {
+        target: {
+            "http_status": probe.get("http_status"),
+            "status_class": _http_status_to_status_class(probe.get("http_status")),
+            "reachable": probe.get("reachable", False),
+        }
+        for target, probe in routing.items()
+    }
+
+    limitations: list[str] = []
+    if not OLLAMAHF_BEARER_TOKEN:
+        limitations.append("OLLAMAHF_BEARER_TOKEN missing: external orchestrator may be rate-limited or blocked.")
+    if not OLLAMAHF_MASTER_KEY:
+        limitations.append("OLLAMAHF_MASTER_KEY missing: external orchestrate depth can degrade.")
+    if not BOLTDIY_SPACE_TOKEN:
+        limitations.append("BOLTDIY_SPACE_TOKEN/HF_TOKEN missing: external HF dispatch may return 401/403/404.")
+    if ZERO_COMPUTE_POLICY and not ALLOW_LOCAL_HEAVY:
+        limitations.append("Zero-compute policy blocks heavy local runs; heavy tasks must route to remote targets.")
+
+    no_limits_claim = len(limitations) == 0
+
+    return {
+        "status": "ok",
+        "no_limits_claim": no_limits_claim,
+        "active_agents": len(active_agents),
+        "legacy_agents": len(AGENT_REGISTRY.get("legacy_agents", [])),
+        "agent_status_counts": status_counts,
+        "routing_summary": routing_summary,
+        "limitations": limitations,
+        "notes": (
+            "No-lie rule: if limitations are present, system remains bounded by provider/auth/credit/runtime constraints."
+        ),
+    }
+
+
+def _run_autonomy_pipeline(req: AutonomyRunRequest) -> dict[str, Any]:
+    profile = AUTONOMY_PROFILES.get(req.profile_id.strip())
+    if not profile:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Unknown profile_id '{req.profile_id}'. "
+                f"Available: {', '.join(sorted(AUTONOMY_PROFILES.keys()))}"
+            ),
+        )
+
+    agents = [str(agent).strip() for agent in profile.get("agents", []) if str(agent).strip()]
+    if not agents:
+        raise HTTPException(status_code=422, detail=f"Autonomy profile '{req.profile_id}' has no agents configured.")
+
+    run_id = str(uuid.uuid4())
+    started_at = _now_iso()
+    steps: list[dict[str, Any]] = []
+
+    for index, agent_id in enumerate(agents, start=1):
+        mission = MissionPayload(
+            agent=agent_id,
+            task=f"[AUTONOMY:{req.profile_id}] step {index}/{len(agents)} :: {req.goal.strip()}",
+            source=req.source.strip(),
+            repo=req.repo.strip(),
+            ref=req.ref.strip(),
+            status=req.status.strip(),
+            timestamp=_now_iso(),
+        )
+        try:
+            dispatch_result = dispatch(mission)
+            step_status = str(dispatch_result.get("status", "forward-failed"))
+            steps.append(
+                {
+                    "step": index,
+                    "agent": agent_id,
+                    "status": step_status,
+                    "call_id": dispatch_result.get("call_id"),
+                    "runtime_target": dispatch_result.get("runtime_target"),
+                    "dispatch_artifact": dispatch_result.get("dispatch_artifact"),
+                }
+            )
+            if req.halt_on_fail and step_status != "forwarded":
+                break
+        except HTTPException as exc:
+            steps.append(
+                {
+                    "step": index,
+                    "agent": agent_id,
+                    "status": "blocked",
+                    "error": str(exc.detail),
+                }
+            )
+            if req.halt_on_fail:
+                break
+
+    forwarded = sum(1 for step in steps if step.get("status") == "forwarded")
+    if forwarded == len(agents):
+        overall_status = "PASS"
+    elif forwarded > 0:
+        overall_status = "PARTIAL"
+    else:
+        overall_status = "BLOCKED"
+
+    record = {
+        "run_id": run_id,
+        "started_at": started_at,
+        "goal": req.goal.strip(),
+        "profile_id": req.profile_id.strip(),
+        "profile_label": profile.get("label", req.profile_id.strip()),
+        "agent_chain": agents,
+        "forwarded_steps": forwarded,
+        "total_steps": len(agents),
+        "status": overall_status,
+        "steps": steps,
+    }
+    snapshot = EVIDENCE_DIR / f"autonomy_run_{started_at.replace(':', '-').replace('.', '-')}_{run_id}.json"
+    latest = EVIDENCE_DIR / "autonomy_run_latest.json"
+    _write_json(snapshot, record)
+    _write_json(latest, record)
+    METRICS["autonomy_runs_total"] += 1
+    return {
+        "status": overall_status,
+        "run_id": run_id,
+        "forwarded_steps": forwarded,
+        "total_steps": len(agents),
+        "profile_id": req.profile_id.strip(),
+        "agent_chain": agents,
+        "snapshot": str(snapshot),
+        "steps": steps,
+    }
+
+
 def _run_ollama_probe(req: OllamaProbeRequest) -> dict[str, Any]:
     base = OLLAMAHF_BASE_URL.rstrip("/")
     headers = _ollama_headers()
@@ -1129,6 +1331,28 @@ def metrics() -> dict[str, Any]:
     }
 
 
+@app.get("/autonomy/profiles")
+def autonomy_profiles() -> dict[str, Any]:
+    return {
+        "status": "ok",
+        "profiles": _list_autonomy_profiles(),
+        "count": len(AUTONOMY_PROFILES),
+    }
+
+
+@app.get("/autonomy/capabilities")
+def autonomy_capabilities() -> dict[str, Any]:
+    return _capability_summary()
+
+
+@app.post("/autonomy/run")
+def autonomy_run(req: AutonomyRunRequest) -> dict[str, Any]:
+    _ensure_dirs()
+    if not req.goal.strip():
+        raise HTTPException(status_code=422, detail="goal must not be empty")
+    return _run_autonomy_pipeline(req)
+
+
 @app.post("/dispatch")
 def dispatch(payload: MissionPayload) -> dict[str, Any]:
     _ensure_dirs()
@@ -1258,6 +1482,7 @@ def evidence_latest() -> dict[str, Any]:
     files = {
         "dispatch_latest": DISPATCH_DIR / "latest_dispatch.json",
         "proof_latest": PROOF_DIR / "latest_proof.json",
+        "autonomy_run_latest": EVIDENCE_DIR / "autonomy_run_latest.json",
         "ollama_probe_latest": EVIDENCE_DIR / "ollama_probe_latest.json",
         "superbrain_gate_latest": EVIDENCE_DIR / "superbrain_gate_latest.json",
         "security_rotation_latest": EVIDENCE_DIR / "security_rotation_check_latest.json",

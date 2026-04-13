@@ -42,12 +42,12 @@ select {
   --button-bg: linear-gradient(180deg, rgba(56, 82, 136, 0.95), rgba(28, 44, 83, 0.95));
   --button-border: rgba(168, 202, 255, 0.45);
   --shadow: 0 20px 58px rgba(0, 0, 0, 0.4);
-  display: grid;
-  grid-template-columns: minmax(340px, 490px) minmax(0, 1fr);
-  gap: 1rem;
   min-height: 100vh;
   padding: 1rem;
   background: var(--page-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
 }
 
 .app-shell--contrast {
@@ -62,15 +62,50 @@ select {
   color: #ffffff;
 }
 
+.app-toolbar,
 .control-panel,
 .scene-panel,
-.scene-fallback {
+.scene-fallback,
+.platform-card {
   border: 1px solid var(--panel-border);
   background: var(--panel-bg);
   box-shadow: var(--shadow);
   border-radius: 22px;
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
+}
+
+.app-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+}
+
+.app-content--game {
+  display: grid;
+  grid-template-columns: minmax(340px, 490px) minmax(0, 1fr);
+  gap: 1rem;
+  min-height: 0;
+}
+
+.platform-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.platform-card {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.platform-card h2 {
+  margin: 0;
+  font-size: 1.18rem;
 }
 
 .control-panel {
@@ -91,10 +126,10 @@ select {
   font-weight: 700;
 }
 
-.control-panel h1 {
+h1 {
   margin: 0.1rem 0 0;
-  font-size: clamp(1.6rem, 3.3vw, 2.5rem);
-  line-height: 1.05;
+  font-size: clamp(1.4rem, 2.7vw, 2.2rem);
+  line-height: 1.08;
 }
 
 .control-panel__lede {
@@ -108,6 +143,7 @@ select {
   padding: 0.6rem 0.7rem;
   background: rgba(8, 15, 27, 0.6);
   font-size: 0.9rem;
+  margin: 0;
 }
 
 .metrics-grid {
@@ -260,8 +296,104 @@ select {
   color: var(--text-muted);
 }
 
+.health-list,
+.agent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.health-chip,
+.agent-list li {
+  border: 1px solid rgba(160, 202, 255, 0.28);
+  border-radius: 12px;
+  padding: 0.55rem 0.62rem;
+  background: rgba(4, 10, 20, 0.52);
+  display: grid;
+  gap: 0.2rem;
+}
+
+.health-chip span,
+.agent-list span {
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
+
+.health-chip code,
+.platform-card code {
+  font-size: 0.78rem;
+  color: #b8d8ff;
+}
+
+.health-chip--up {
+  border-color: rgba(114, 255, 179, 0.55);
+}
+
+.health-chip--down {
+  border-color: rgba(255, 146, 146, 0.6);
+}
+
+.health-chip--checking {
+  border-color: rgba(255, 223, 130, 0.6);
+}
+
+.dispatch-form {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.dispatch-form label {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.88rem;
+}
+
+.dispatch-label {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.88rem;
+}
+
+.dispatch-form input,
+.dispatch-form textarea,
+.dispatch-label select {
+  border: 1px solid rgba(167, 205, 255, 0.35);
+  border-radius: 10px;
+  background: rgba(4, 9, 19, 0.72);
+  color: #e7f0ff;
+  padding: 0.45rem 0.55rem;
+}
+
+.dispatch-form textarea {
+  resize: vertical;
+}
+
+.json-panel {
+  margin: 0;
+  border: 1px solid rgba(164, 201, 255, 0.25);
+  border-radius: 11px;
+  background: rgba(3, 9, 18, 0.65);
+  padding: 0.7rem;
+  max-height: 360px;
+  overflow: auto;
+  font-size: 0.78rem;
+}
+
+@media (max-width: 1180px) {
+  .platform-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 1080px) {
-  .app-shell {
+  .app-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .app-content--game {
     grid-template-columns: 1fr;
   }
 

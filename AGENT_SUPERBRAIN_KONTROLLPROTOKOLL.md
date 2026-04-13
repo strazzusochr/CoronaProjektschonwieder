@@ -1,6 +1,6 @@
 # AGENT_SUPERBRAIN_KONTROLLPROTOKOLL
 
-Stand: 2026-04-13 (Snapshot-Refresh 09:20 Europe/Berlin)  
+Stand: 2026-04-13 (Snapshot-Refresh 18:14 Europe/Berlin)  
 Marker: **Superbrain Merge 2026-04-12**
 
 Dieses Dokument ist das zentrale Kontrollprotokoll fuer den Superbrain-Merge aus:
@@ -107,14 +107,20 @@ Quelle:
 
 ## 9) Build-Test Refresh 2026-04-13
 
-- Snapshot vor Frontend-Vollersatz gesetzt: `snapshot-pre-lemmings-3d-2026-04-13`
-  (`9fac5b990bbdf65457fac064916d9f0c8668479e`), dokumentiert in
-  `release_snapshot_pre_lemmings.json`.
-- Aktuelle Frontend-Runtime ersetzt auf Lemmings-inspirierte 3D-Simulation
-  mit deterministischem Tick-Core (`CoronaProjektschonwieder/src/game/sim.ts`).
-- Final Build Evidence ist erneut `PASS` und enthaelt jetzt explizit:
+- One-click Operator-Start ist live stabilisiert:
+  `GODMODE_CONTROL_CENTER.ps1` startet den Stack ohne NativeCommandError-Abbruch
+  (Patch in `START_GODMODE.ps1`, Compose-Defaults in `n8n/docker-compose.yml`
+  und `openhands/docker-compose.yml`).
+- Aktuelle Frontend-Runtime ist plattformfokussiert:
+  All-in-One Operator Homepage mit 26-Agenten-Sicht, Dispatch, Autonomy-Profilen
+  und optionalem 3D-Sandbox-Bereich (`CoronaProjektschonwieder/src/App.tsx`).
+- Final Build Evidence ist `PASS` und enthaelt explizit:
   - `deep_search_probe` (`deep_search_probe_latest.json`, `3/3` Quellen `HTTP 200`)
   - `math_validation` (`math_validation_probe_latest.json`, alle Subchecks `pass`)
   - `agent_participation` (core + external dispatch forward path)
   - `preview_proof` (`final_build_screenshot.png`)
 - Referenzdatei: `final_build_test_result.json` (`status=PASS`, `core_status=PASS`, `full_status=PASS`).
+- E2E-Refresh ist wieder voll gruen:
+  `.godmode_runtime/evidence/e2e_flows_ae_latest.json` zeigt `5/5 VERIFIED`, `100%`.
+- Superpowers-Refresh ist voll gruen:
+  `.godmode_runtime/evidence/superpowers_audit_latest.json` zeigt `12/12 VERIFIED`, `PASS`.

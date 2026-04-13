@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import App from './App';
 
@@ -9,10 +9,95 @@ vi.mock('./SceneCanvas', () => ({
 }));
 
 describe('App', () => {
-  it('wires mission controls, options, and skill assignment flow', () => {
+  beforeEach(() => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes('/agents')) {
+        return new Response(JSON.stringify({ agents: [{ agent_id: 'local.langgraph.planner', status_class: 'VERIFIED' }] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.includes('/routing/status')) {
+        return new Response(JSON.stringify({ status: 'ok', targets: 5 }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.includes('/autonomy/profiles')) {
+        return new Response(
+          JSON.stringify({
+            profiles: [
+              {
+                id: 'app_builder',
+                label: 'App Builder',
+                description: 'Planner to finalize',
+                agents: ['local.langgraph.planner', 'local.langgraph.finalize'],
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+      if (url.includes('/autonomy/capabilities')) {
+        return new Response(
+          JSON.stringify({
+            status: 'ok',
+            no_limits_claim: false,
+            limitations: ['Provider credits required for top-tier models'],
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+      if (url.includes('/autonomy/run')) {
+        return new Response(JSON.stringify({ status: 'PARTIAL', run_id: 'autonomy-test-run' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response('ok', { status: 200, headers: { 'Content-Type': 'text/plain' } });
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('wires platform dashboard and game controls end-to-end', async () => {
     render(<App />);
 
-    expect(screen.getByRole('heading', { name: /godmode lemmings 3d lab/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /godmode superbrain control center/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /ai capability reality check/i })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(/prompt template selector/i), { target: { value: 'webgame-3d' } });
+    fireEvent.click(screen.getByRole('button', { name: /use template for dispatch/i }));
+    expect(screen.getByDisplayValue(/external\.ollamahf\.lead_coder/i)).toBeTruthy();
+
+    const refreshButton = await screen.findByRole('button', { name: /refresh checks|checking/i });
+    if ((refreshButton.textContent ?? '').toLowerCase().includes('refresh')) {
+      fireEvent.click(refreshButton);
+    }
+    await waitFor(() => {
+      expect(screen.getByText(/checks complete/i)).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /send mission dispatch/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/dispatch response http 200/i)).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /run fully autonomous pipeline/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/autonomy response http 200/i)).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /open creator sandbox/i }));
+    expect(screen.getByRole('heading', { name: /godmode 3d sandbox/i })).toBeTruthy();
     expect(screen.getByTestId('metric-state').textContent).toMatch(/ready/i);
 
     fireEvent.click(screen.getByRole('button', { name: /start mission/i }));
@@ -45,5 +130,5 @@ describe('App', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /run math validation/i }));
     expect(screen.getByTestId('metric-math-validation').textContent).toMatch(/pass|fail/i);
-  });
+  }, 20000);
 });

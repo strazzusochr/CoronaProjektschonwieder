@@ -215,8 +215,11 @@ Used by: `aider_godmode.ps1`, pilot execution, and Aider cloud workflows.
 - `OPENHANDS_LLM_MODEL`
 - `OPENHANDS_LLM_BASE_URL`
 - `OPENHANDS_LLM_API_KEY`
+- `OPENHANDS_RUNTIME_IMAGE`
+- `OPENHANDS_BASE_CONTAINER_IMAGE`
 - `OPENHANDS_FILE_STORE`
 - `OPENHANDS_FILE_STORE_PATH`
+- `OPENHANDS_STATE_HOST_PATH`
 - `OPENHANDS_WORKSPACE_HOST_PATH`
 - `DEVTOOLS_BRIDGE_URL`
 - `DEVTOOLS_BRIDGE_TIMEOUT`
@@ -332,7 +335,9 @@ Minimum practical set:
 - `OPENHANDS_LLM_MODEL`
 - `OPENHANDS_LLM_BASE_URL`
 - `OPENHANDS_LLM_API_KEY`
+- `OPENHANDS_RUNTIME_IMAGE` (defaults to `ghcr.io/all-hands-ai/runtime:0.17-nikolaik`)
 - `OPENHANDS_WORKSPACE_HOST_PATH`
+- `OPENHANDS_STATE_HOST_PATH` (used by startup sanitizer for stale conversation/session fixes)
 - `GITHUB_TOKEN`
 - if `OPENHANDS_LLM_BASE_URL` targets LiteLLM (`:4000`), then `LITELLM_API_KEY` is required
 

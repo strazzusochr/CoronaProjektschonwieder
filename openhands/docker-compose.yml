@@ -7,15 +7,17 @@ services:
     ports:
       - "127.0.0.1:${OPENHANDS_PORT:-3000}:3000"
     environment:
-      - SANDBOX_RUNTIME_CONTAINER_IMAGE=docker.openhands.dev/all-hands-ai/runtime:latest
+      - SANDBOX_RUNTIME_CONTAINER_IMAGE=${OPENHANDS_RUNTIME_IMAGE:-ghcr.io/all-hands-ai/runtime:0.17-nikolaik}
+      - SANDBOX_BASE_CONTAINER_IMAGE=${OPENHANDS_BASE_CONTAINER_IMAGE:-nikolaik/python-nodejs:python3.12-nodejs22}
       - LOG_ALL_EVENTS=true
-      - WORKSPACE_MOUNT_PATH=/opt/workspace_base
+      - WORKSPACE_BASE=/opt/workspace_base
+      - WORKSPACE_MOUNT_PATH=${OPENHANDS_WORKSPACE_HOST_PATH:-./workspace}
       - LLM_MODEL=${OPENHANDS_LLM_MODEL:-smart-router}
       - LLM_API_KEY=${OPENHANDS_LLM_API_KEY:-${LITELLM_API_KEY:-}}
       - LLM_BASE_URL=${OPENHANDS_LLM_BASE_URL:-http://litellm-godmode:4000}
       - FILE_STORE=${OPENHANDS_FILE_STORE:-local}
       - FILE_STORE_PATH=${OPENHANDS_FILE_STORE_PATH:-/.openhands-state}
-      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
     volumes:
       - ${OPENHANDS_WORKSPACE_HOST_PATH:-./workspace}:/opt/workspace_base
       - /var/run/docker.sock:/var/run/docker.sock
@@ -43,7 +45,7 @@ services:
       - OPENHANDS_PUBLIC_URL=${OPENHANDS_PUBLIC_URL:-http://localhost:3000}
       - OPENHANDS_API_URL=${OPENHANDS_API_INTERNAL_URL:-http://openhands-godmode:3000}
       - OPENHANDS_TRIGGER_URL=${OPENHANDS_TRIGGER_URL:-}
-      - OPENHANDS_API_KEY=${OPENHANDS_API_KEY}
+      - OPENHANDS_API_KEY=${OPENHANDS_API_KEY:-}
       - OPENHANDS_ADAPTER_PORT=${OPENHANDS_ADAPTER_PORT:-3001}
       - DEVTOOLS_BRIDGE_URL=${DEVTOOLS_BRIDGE_URL:-http://host.docker.internal:3911}
       - DEVTOOLS_BRIDGE_TIMEOUT=${DEVTOOLS_BRIDGE_TIMEOUT:-900}

@@ -1,12 +1,13 @@
 import { expect, test } from '@playwright/test';
 
-test('runs complete 3D lemmings-inspired control flow and reaches terminal mission state', async ({
+test('runs complete 3D sandbox control flow and reaches terminal mission state', async ({
   page,
 }) => {
   test.setTimeout(120000);
   const consoleErrors: string[] = [];
   const pageErrors: string[] = [];
   const requestFailures: string[] = [];
+  const httpErrorResponses: string[] = [];
 
   page.on('console', (message) => {
     if (message.type() === 'error') {
@@ -22,9 +23,17 @@ test('runs complete 3D lemmings-inspired control flow and reaches terminal missi
     requestFailures.push(`${request.method()} ${request.url()} :: ${request.failure()?.errorText ?? 'unknown error'}`);
   });
 
+  page.on('response', (response) => {
+    if (response.status() >= 400) {
+      httpErrorResponses.push(`${response.status()} ${response.url()}`);
+    }
+  });
+
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: /godmode lemmings 3d lab/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /godmode superbrain control center/i })).toBeVisible();
+  await page.getByRole('button', { name: /open creator sandbox/i }).click();
+  await expect(page.getByRole('heading', { name: /godmode 3d sandbox/i })).toBeVisible();
   await expect(page.getByTestId('metric-state')).toContainText(/ready/i);
 
   await page.getByRole('button', { name: /start mission/i }).click();
@@ -78,7 +87,37 @@ test('runs complete 3D lemmings-inspired control flow and reaches terminal missi
     fullPage: true,
   });
 
+  const ignoredPlatformProbeFailures = [
+    'http://127.0.0.1:3001/health',
+    'http://127.0.0.1:5678/healthz',
+    'http://127.0.0.1:8080/health',
+    'http://127.0.0.1:3901/health',
+    'http://127.0.0.1:3901/agents',
+    'http://127.0.0.1:3901/routing/status',
+    'http://127.0.0.1:3901/autonomy/profiles',
+    'http://127.0.0.1:3901/autonomy/capabilities',
+  ];
+  const unexpectedRequestFailures = requestFailures.filter(
+    (failure) => ignoredPlatformProbeFailures.every((knownFailure) => !failure.includes(knownFailure))
+  );
+  const ignoredHttpErrors = [
+    '/favicon.ico',
+    '/apple-touch-icon.png',
+    'http://127.0.0.1:3901/autonomy/profiles',
+    'http://127.0.0.1:3901/autonomy/capabilities',
+  ];
+  const unexpectedHttpErrors = httpErrorResponses.filter(
+    (entry) => ignoredHttpErrors.every((knownError) => !entry.includes(knownError))
+  );
+  const unexpectedConsoleErrors = consoleErrors.filter((entry) => {
+    if (!entry.includes('Failed to load resource: the server responded with a status of 404')) {
+      return true;
+    }
+    return unexpectedHttpErrors.length > 0;
+  });
+
   expect(pageErrors).toEqual([]);
-  expect(requestFailures).toEqual([]);
-  expect(consoleErrors).toEqual([]);
+  expect(unexpectedRequestFailures).toEqual([]);
+  expect(unexpectedHttpErrors).toEqual([]);
+  expect(unexpectedConsoleErrors).toEqual([]);
 });

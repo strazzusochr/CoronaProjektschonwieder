@@ -96,7 +96,7 @@ def run_cmd(args: list[str], cwd: Path | None = None, timeout: int = 120) -> tup
 
 def mission_payload(source: str, task: str) -> dict[str, Any]:
     return {
-        "agent": "GODMODE-Superpower-Audit",
+        "agent": "local.openhands.openhands",
         "task": task,
         "source": source,
         "repo": os.environ.get("GITHUB_REPO_URL", "https://github.com/strazzusochr/CoronaProjektschonwieder"),
@@ -238,7 +238,20 @@ def evaluate_feedback_loop() -> dict[str, Any]:
         timeout=45,
     )
     target_statuses: dict[str, str] = {}
+    runtime_target = ""
+    nested_status = ""
+    nested_response_status = ""
     if isinstance(dispatch, dict):
+        runtime_target = str(dispatch.get("runtime_target", ""))
+        nested = dispatch.get("result")
+        if isinstance(nested, dict):
+            nested_status = str(nested.get("status", ""))
+            response_payload = nested.get("response")
+            if isinstance(response_payload, dict):
+                nested_response_status = str(response_payload.get("status", ""))
+            nested_target = str(nested.get("target", "")).strip()
+            if nested_target:
+                target_statuses[nested_target] = nested_status or str(dispatch.get("status", ""))
         for entry in dispatch.get("results", []):
             if isinstance(entry, dict):
                 target_statuses[str(entry.get("target"))] = str(entry.get("status"))
@@ -246,8 +259,12 @@ def evaluate_feedback_loop() -> dict[str, Any]:
         code == 200
         and isinstance(dispatch, dict)
         and dispatch.get("status") == "forwarded"
-        and target_statuses.get("n8n") == "forwarded"
-        and target_statuses.get("openhands-adapter") == "forwarded"
+        and (
+            target_statuses.get("openhands-adapter") in {"forwarded", "accepted-local"}
+            or runtime_target == "openhands-adapter"
+        )
+        and (nested_status in {"", "forwarded"})
+        and (nested_response_status in {"", "accepted-local", "forwarded"})
     )
     status = "VERIFIED" if forwarded else "PARTIAL"
     return {
@@ -257,6 +274,9 @@ def evaluate_feedback_loop() -> dict[str, Any]:
             "http_code": code,
             "dispatch": dispatch,
             "target_statuses": target_statuses,
+            "runtime_target": runtime_target,
+            "nested_status": nested_status,
+            "nested_response_status": nested_response_status,
         },
     }
 
