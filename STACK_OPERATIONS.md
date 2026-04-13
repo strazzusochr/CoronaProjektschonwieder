@@ -5,6 +5,8 @@ Superbrain Merge 2026-04-12 (sync marker): canonical Superbrain control-plane re
 
 Superbrain Merge 2026-04-13:
 - Dispatch-Hub wurde auf namespaced Agent-Registry + 5 feste runtime targets erweitert.
+- One-click bootstrap/control APIs sind aktiv: `/bootstrap/start`, `/bootstrap/status`, `/control-center/state`.
+- Prompt-gesteuerte Agentenruns laufen ueber `/prompt/execute` (nur wenn Bootstrap `READY`) und `/runs`.
 - Canonical registry source: `agent_registry.json`.
 - New control protocol: `AGENT_SUPERBRAIN_KONTROLLPROTOKOLL.md`.
 - No-Lie rule remains strict: unproven runtime claims stay downgraded (`PARTIAL`, `BLOCKED`, `NOT VERIFIED`).

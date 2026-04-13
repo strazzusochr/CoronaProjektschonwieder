@@ -358,7 +358,9 @@ h1 {
 
 .dispatch-form input,
 .dispatch-form textarea,
-.dispatch-label select {
+.dispatch-label select,
+.dispatch-label input,
+.dispatch-label textarea {
   border: 1px solid rgba(167, 205, 255, 0.35);
   border-radius: 10px;
   background: rgba(4, 9, 19, 0.72);
@@ -367,6 +369,10 @@ h1 {
 }
 
 .dispatch-form textarea {
+  resize: vertical;
+}
+
+.dispatch-label textarea {
   resize: vertical;
 }
 

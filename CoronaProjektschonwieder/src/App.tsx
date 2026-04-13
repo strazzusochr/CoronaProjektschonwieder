@@ -29,6 +29,9 @@ const SPEED_PRESETS: GameSpeed[] = [1, 2, 4];
 const HUB_BASE_URL = 'http://127.0.0.1:3901';
 const SERVICE_CATALOG = [
   { id: 'bolt', label: 'Dispatch Hub (bolt)', targetKey: null, source: '/health' },
+  { id: 'openhands', label: 'OpenHands UI', targetKey: null, source: '/control-center/state' },
+  { id: 'n8n', label: 'n8n', targetKey: null, source: '/control-center/state' },
+  { id: 'litellm', label: 'LiteLLM', targetKey: null, source: '/control-center/state' },
   { id: 'langgraph', label: 'LangGraph', targetKey: 'langgraph-local', source: '/routing/status' },
   { id: 'smolagents', label: 'Smolagents', targetKey: 'smolagents', source: '/routing/status' },
   { id: 'openhands-adapter', label: 'OpenHands Adapter', targetKey: 'openhands-adapter', source: '/routing/status' },
@@ -73,6 +76,14 @@ type CapabilitiesRecord = Record<string, unknown> | null;
 type AgentCounts = {
   active: number;
   legacy: number;
+};
+type BootstrapRecord = {
+  status: string;
+  ready: boolean;
+  summary?: string;
+  started_at?: string;
+  finished_at?: string;
+  phases?: Record<string, unknown>[];
 };
 
 const ONE_CLICK_WINDOWS = '.\\START_GODMODE.ps1';
@@ -293,6 +304,25 @@ function normalizeAutonomyProfiles(payload: Record<string, unknown>): AutonomyPr
   return mapped;
 }
 
+function extractBootstrapErrors(bootstrap: BootstrapRecord): string[] {
+  if (!Array.isArray(bootstrap.phases)) {
+    return [];
+  }
+  const preflight = bootstrap.phases.find((phase) => String(phase.phase ?? '') === 'preflight');
+  if (!preflight || typeof preflight !== 'object') {
+    return [];
+  }
+  const result = (preflight as Record<string, unknown>).result;
+  if (!result || typeof result !== 'object') {
+    return [];
+  }
+  const errors = (result as Record<string, unknown>).errors;
+  if (!Array.isArray(errors)) {
+    return [];
+  }
+  return errors.map((entry) => String(entry)).filter((entry) => entry.length > 0);
+}
+
 export default function App() {
   const engineRef = useRef(new LemmingsEngine(0));
   const [activeView, setActiveView] = useState<ViewMode>('platform');
@@ -308,6 +338,13 @@ export default function App() {
   const [mathValidationLabel, setMathValidationLabel] = useState('not-run');
   const [platformStatus, setPlatformStatus] = useState('Platform checks not run yet.');
   const [platformBusy, setPlatformBusy] = useState(false);
+  const [bootstrapState, setBootstrapState] = useState<BootstrapRecord>({
+    status: 'DOWN',
+    ready: false,
+    summary: 'Bootstrap not started.',
+  });
+  const [bootstrapBusy, setBootstrapBusy] = useState(false);
+  const [readyForPromptExecution, setReadyForPromptExecution] = useState(false);
   const [dispatchBusy, setDispatchBusy] = useState(false);
   const [dispatchMessage, setDispatchMessage] = useState('No mission dispatched yet.');
   const [dispatchPayload, setDispatchPayload] = useState<DispatchPayload>(() => defaultDispatchPayload());
@@ -317,6 +354,10 @@ export default function App() {
   const [autonomyGoal, setAutonomyGoal] = useState(PROMPT_TEMPLATES[0].task);
   const [autonomyBusy, setAutonomyBusy] = useState(false);
   const [autonomyMessage, setAutonomyMessage] = useState('No autonomous run started yet.');
+  const [promptCommand, setPromptCommand] = useState(PROMPT_TEMPLATES[0].task);
+  const [promptBusy, setPromptBusy] = useState(false);
+  const [promptMessage, setPromptMessage] = useState('No prompt command executed yet.');
+  const [showAdvancedPanels, setShowAdvancedPanels] = useState(false);
   const [quickActionStatus, setQuickActionStatus] = useState('No quick action executed yet.');
   const [agents, setAgents] = useState<AgentRecord[]>([]);
   const [agentCounts, setAgentCounts] = useState<AgentCounts>({ active: 0, legacy: 0 });
@@ -440,6 +481,123 @@ export default function App() {
     );
   };
 
+  const refreshBootstrapStatus = async () => {
+    try {
+      const response = await fetchWithTimeout(`${HUB_BASE_URL}/bootstrap/status`, { method: 'GET' }, 7000);
+      const payload = await parseResponseSafely(response);
+      const bootstrap = (payload.bootstrap && typeof payload.bootstrap === 'object'
+        ? (payload.bootstrap as Record<string, unknown>)
+        : {}) as Record<string, unknown>;
+      const status = String(bootstrap.status ?? 'DOWN');
+      const ready = bootstrap.ready === true && status === 'READY';
+      setBootstrapState({
+        status,
+        ready,
+        summary: String(bootstrap.summary ?? ''),
+        started_at: String(bootstrap.started_at ?? ''),
+        finished_at: String(bootstrap.finished_at ?? ''),
+        phases: Array.isArray(bootstrap.phases)
+          ? (bootstrap.phases as Record<string, unknown>[])
+          : [],
+      });
+      setReadyForPromptExecution(Boolean(payload.ready_for_prompt_execute ?? ready));
+      return status;
+    } catch (error) {
+      setBootstrapState({
+        status: 'DOWN',
+        ready: false,
+        summary: `Bootstrap status unreachable: ${parseErrorMessage(error)}`,
+        phases: [],
+      });
+      setReadyForPromptExecution(false);
+      return 'DOWN';
+    }
+  };
+
+  const startBootstrap = async () => {
+    if (typeof fetch !== 'function') {
+      setPlatformStatus('Bootstrap unavailable: fetch API not present.');
+      return;
+    }
+    setBootstrapBusy(true);
+    setPlatformStatus('Starting one-click bootstrap...');
+    try {
+      const response = await fetchWithTimeout(
+        `${HUB_BASE_URL}/bootstrap/start`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            include_script_start: true,
+            source: 'homepage-control-center',
+          }),
+        },
+        10000
+      );
+      const payload = await parseResponseSafely(response);
+      const summary = JSON.stringify(payload).slice(0, 240);
+      setPlatformStatus(`Bootstrap request HTTP ${response.status}. ${summary}`);
+
+      let terminal = '';
+      for (let attempt = 1; attempt <= 30; attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 2000));
+        terminal = await refreshBootstrapStatus();
+        if (terminal !== 'BOOTING') {
+          break;
+        }
+      }
+      if (terminal === 'READY') {
+        setPlatformStatus('Bootstrap READY. Prompt command layer unlocked.');
+      } else if (terminal === 'BOOTING') {
+        setPlatformStatus('Bootstrap still running. Refresh checks to update status.');
+      }
+      void refreshPlatformChecks();
+    } catch (error) {
+      setPlatformStatus(`Bootstrap failed: ${parseErrorMessage(error)}`);
+    } finally {
+      setBootstrapBusy(false);
+    }
+  };
+
+  const executePromptCommand = async () => {
+    if (typeof fetch !== 'function') {
+      setPromptMessage('Prompt execution failed: fetch API unavailable.');
+      return;
+    }
+    if (!promptCommand.trim()) {
+      setPromptMessage('Prompt execution rejected: prompt is empty.');
+      return;
+    }
+    setPromptBusy(true);
+    setPromptMessage('Executing prompt command...');
+    try {
+      const response = await fetchWithTimeout(
+        `${HUB_BASE_URL}/prompt/execute`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: promptCommand.trim(),
+            source: 'homepage-control-center',
+            repo: dispatchPayload.repo,
+            ref: dispatchPayload.ref,
+            status: 'queued',
+            halt_on_fail: false,
+          }),
+        },
+        35000
+      );
+      const payload = await parseResponseSafely(response);
+      const summary = JSON.stringify(payload).slice(0, 420);
+      setPromptMessage(`Prompt response HTTP ${response.status}. ${summary}`);
+      void refreshPlatformChecks();
+    } catch (error) {
+      setPromptMessage(`Prompt execution failed: ${parseErrorMessage(error)}`);
+    } finally {
+      setPromptBusy(false);
+    }
+  };
+
   const refreshPlatformChecks = async () => {
     if (typeof window === 'undefined' || typeof fetch !== 'function') {
       setPlatformStatus('Fetch API unavailable in this runtime.');
@@ -454,6 +612,42 @@ export default function App() {
     let hubState: HealthState = 'down';
     let hubDetail = 'No response from /health';
     let routingTargets: Record<string, Record<string, unknown>> = {};
+    let directServiceProbes: Record<string, Record<string, unknown>> = {};
+    let bootstrapStatusLocal = 'DOWN';
+    let promptReadyLocal = false;
+
+    try {
+      const stateResponse = await fetchWithTimeout(`${HUB_BASE_URL}/control-center/state`, { method: 'GET' }, 7000);
+      const statePayload = await parseResponseSafely(stateResponse);
+      const bootstrap =
+        statePayload.bootstrap && typeof statePayload.bootstrap === 'object' && !Array.isArray(statePayload.bootstrap)
+          ? (statePayload.bootstrap as Record<string, unknown>)
+          : {};
+      const bootstrapStatus = String(bootstrap.status ?? 'DOWN');
+      const bootstrapReady = bootstrap.ready === true && bootstrapStatus === 'READY';
+      bootstrapStatusLocal = bootstrapStatus;
+      promptReadyLocal = Boolean(statePayload.ready_for_prompt_execute ?? bootstrapReady);
+      setBootstrapState({
+        status: bootstrapStatus,
+        ready: bootstrapReady,
+        summary: String(bootstrap.summary ?? ''),
+        started_at: String(bootstrap.started_at ?? ''),
+        finished_at: String(bootstrap.finished_at ?? ''),
+        phases: Array.isArray(bootstrap.phases)
+          ? (bootstrap.phases as Record<string, unknown>[])
+          : [],
+      });
+      setReadyForPromptExecution(promptReadyLocal);
+      if (
+        statePayload.service_probes &&
+        typeof statePayload.service_probes === 'object' &&
+        !Array.isArray(statePayload.service_probes)
+      ) {
+        directServiceProbes = statePayload.service_probes as Record<string, Record<string, unknown>>;
+      }
+    } catch {
+      setReadyForPromptExecution(false);
+    }
 
     try {
       const healthResponse = await fetchWithTimeout(`${HUB_BASE_URL}/health`, { method: 'GET' }, 5000);
@@ -526,12 +720,25 @@ export default function App() {
     const checkedAt = nowIso();
     const serviceResults: ServiceHealth[] = SERVICE_CATALOG.map((service) => {
       if (!service.targetKey) {
+        if (service.id === 'bolt') {
+          return {
+            id: service.id,
+            label: service.label,
+            source: service.source,
+            state: hubState,
+            detail: hubDetail,
+            checkedAt,
+          };
+        }
+        const probe = directServiceProbes[service.id];
+        const statusCode = typeof probe?.http_status === 'number' ? (probe.http_status as number) : null;
+        const probeError = probe?.error ? String(probe.error) : '';
         return {
           id: service.id,
           label: service.label,
           source: service.source,
-          state: hubState,
-          detail: hubDetail,
+          state: statusCode === 200 ? 'up' : 'down',
+          detail: statusCode === null ? probeError || 'No probe result' : `HTTP ${statusCode}${probeError ? ` (${probeError})` : ''}`,
           checkedAt,
         };
       }
@@ -551,7 +758,11 @@ export default function App() {
     setServiceHealth(serviceResults);
 
     const upCount = serviceResults.filter((service) => service.state === 'up').length;
-    setPlatformStatus(`Checks complete: ${upCount}/${serviceResults.length} services responding.`);
+    setPlatformStatus(
+      `Checks complete: ${upCount}/${serviceResults.length} services responding. Bootstrap: ${bootstrapStatusLocal}. Prompt Ready: ${
+        promptReadyLocal ? 'yes' : 'no'
+      }.`
+    );
     setPlatformBusy(false);
   };
 
@@ -589,6 +800,7 @@ export default function App() {
     autonomyProfiles.find((profile) => profile.id === autonomyProfileId) ?? autonomyProfiles[0] ?? AUTONOMY_PROFILE_FALLBACK[0];
   const capabilityLimitations = asStringArray(capabilitiesStatus?.limitations);
   const noLimitsClaim = capabilitiesStatus?.no_limits_claim === true;
+  const bootstrapErrors = useMemo(() => extractBootstrapErrors(bootstrapState), [bootstrapState]);
 
   const copyText = async (value: string, label: string) => {
     try {
@@ -609,6 +821,7 @@ export default function App() {
       timestamp: nowIso(),
     }));
     setAutonomyGoal(selectedTemplate.task);
+    setPromptCommand(selectedTemplate.task);
     setQuickActionStatus(`Template "${selectedTemplate.title}" applied to mission payload.`);
   };
 
@@ -653,6 +866,10 @@ export default function App() {
       setAutonomyMessage('Autonomy run failed: fetch API unavailable.');
       return;
     }
+    if (!readyForPromptExecution) {
+      setAutonomyMessage('Autonomy run blocked: bootstrap is not READY.');
+      return;
+    }
     if (!autonomyGoal.trim()) {
       setAutonomyMessage('Autonomy run rejected: goal prompt is empty.');
       return;
@@ -662,7 +879,7 @@ export default function App() {
     setAutonomyMessage('Autonomous multi-agent run in progress...');
     try {
       const response = await fetchWithTimeout(
-        `${HUB_BASE_URL}/autonomy/run`,
+        `${HUB_BASE_URL}/runs`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -778,7 +995,38 @@ export default function App() {
           </article>
 
           <article className="platform-card">
-            <h2>One-Click Start</h2>
+            <h2>One-Click Bootstrap</h2>
+            <p className="status-banner">
+              Bootstrap status: <strong>{bootstrapState.status}</strong> | Prompt Ready:{' '}
+              <strong>{readyForPromptExecution ? 'YES' : 'NO'}</strong>
+            </p>
+            <p>{bootstrapState.summary ?? 'No bootstrap summary yet.'}</p>
+            {bootstrapErrors.length > 0 ? (
+              <>
+                <p className="hud-muted">Blocking preflight errors:</p>
+                <ul className="health-list">
+                  {bootstrapErrors.map((entry) => (
+                    <li key={entry} className="health-chip health-chip--down">
+                      <strong>BLOCKED</strong>
+                      <span>{entry}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="hud-muted">
+                  Recovery: set missing variables in <code>.godmode_env</code>, restart stack, then run one-click bootstrap again.
+                </p>
+              </>
+            ) : null}
+            <div className="button-row">
+              <button type="button" className="button button--primary" onClick={() => void startBootstrap()} disabled={bootstrapBusy}>
+                {bootstrapBusy ? 'Bootstrapping...' : 'Start system (one-click)'}
+              </button>
+              <button type="button" className="button" onClick={() => void refreshBootstrapStatus()} disabled={bootstrapBusy}>
+                Refresh bootstrap status
+              </button>
+            </div>
+            <p>Started at: <code>{bootstrapState.started_at || '-'}</code></p>
+            <p>Finished at: <code>{bootstrapState.finished_at || '-'}</code></p>
             <p>Windows</p>
             <pre className="json-panel"><code>{ONE_CLICK_WINDOWS}</code></pre>
             <p>Linux</p>
@@ -802,6 +1050,57 @@ export default function App() {
             <p className="status-banner">{quickActionStatus}</p>
           </article>
 
+          <article className="platform-card">
+            <h2>Prompt Command Layer</h2>
+            <p>
+              Gib eine Anweisung in natürlicher Sprache ein. Ausführung ist nur erlaubt, wenn Bootstrap auf READY
+              steht.
+            </p>
+            <label className="dispatch-label">
+              Prompt command
+              <textarea
+                rows={6}
+                value={promptCommand}
+                onChange={(event) => setPromptCommand(event.target.value)}
+                placeholder="Build a production-ready app with tests and artifact evidence."
+              />
+            </label>
+            <div className="button-row">
+              <button
+                type="button"
+                className="button button--primary"
+                onClick={() => void executePromptCommand()}
+                disabled={promptBusy || !readyForPromptExecution}
+              >
+                {promptBusy ? 'Executing...' : 'Execute prompt with autonomous agents'}
+              </button>
+              <button type="button" className="button" onClick={() => void copyText(promptCommand, 'prompt command')}>
+                Copy prompt
+              </button>
+            </div>
+            {!readyForPromptExecution ? (
+              <p className="hud-muted">Prompt execution is locked until one-click bootstrap returns READY.</p>
+            ) : null}
+            <p className="status-banner">{promptMessage}</p>
+          </article>
+
+          <article className="platform-card">
+            <h2>Advanced Panels</h2>
+            <p>Optional expert controls for raw dispatch payloads, profile pipelines and routing JSON.</p>
+            <div className="button-row">
+              <button
+                type="button"
+                className="button"
+                aria-pressed={showAdvancedPanels}
+                onClick={() => setShowAdvancedPanels((current) => !current)}
+              >
+                {showAdvancedPanels ? 'Hide advanced panels' : 'Show advanced panels'}
+              </button>
+            </div>
+          </article>
+
+          {showAdvancedPanels ? (
+            <>
           <article className="platform-card">
             <h2>Prompt Builder (Apps + 3D + Automation)</h2>
             <label className="dispatch-label">
@@ -1017,6 +1316,8 @@ export default function App() {
             </form>
             <p className="status-banner">{dispatchMessage}</p>
           </article>
+            </>
+          ) : null}
         </section>
       ) : (
         <section className="app-content app-content--game">

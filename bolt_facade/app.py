@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
+import threading
 import time
 import uuid
 from datetime import datetime, timezone
@@ -59,6 +61,8 @@ RUNTIME_DIR = Path(
 ).resolve()
 DISPATCH_DIR = RUNTIME_DIR / "dispatch"
 PROOF_DIR = RUNTIME_DIR / "proof"
+RUNS_DIR = RUNTIME_DIR / "runs"
+BOOTSTRAP_DIR = RUNTIME_DIR / "bootstrap"
 EVIDENCE_DIR = Path(
     os.environ.get("GODMODE_EVIDENCE_DIR", str(RUNTIME_DIR.parent / "evidence"))
 ).resolve()
@@ -134,6 +138,32 @@ ALLOW_LOCAL_HEAVY = os.environ.get("GODMODE_ALLOW_LOCAL_HEAVY", "false").strip()
 }
 N8N_WEBHOOK_URL = os.environ.get("N8N_WEBHOOK_URL", "").strip()
 OPENHANDS_ADAPTER_URL = os.environ.get("OPENHANDS_ADAPTER_URL", "").strip()
+LITELLM_URL = os.environ.get("LITELLM_URL", "").strip()
+LITELLM_PORT = os.environ.get("LITELLM_PORT", "4000").strip() or "4000"
+LITELLM_API_KEY = os.environ.get("LITELLM_API_KEY", "").strip()
+OPENHANDS_PUBLIC_URL = os.environ.get("OPENHANDS_PUBLIC_URL", "").strip()
+OPENHANDS_INTERNAL_URL = os.environ.get("OPENHANDS_INTERNAL_URL", "http://openhands-godmode:3000").strip()
+OPENHANDS_LLM_MODEL = os.environ.get("OPENHANDS_LLM_MODEL", "smart-router").strip() or "smart-router"
+OPENHANDS_LLM_BASE_URL = (
+    os.environ.get("OPENHANDS_LLM_BASE_URL", f"http://litellm-godmode:{LITELLM_PORT}").strip()
+    or f"http://litellm-godmode:{LITELLM_PORT}"
+)
+OPENHANDS_LLM_API_KEY = (
+    os.environ.get("OPENHANDS_LLM_API_KEY", "").strip() or LITELLM_API_KEY or "replace-with-litellm-key"
+)
+N8N_API_URL = os.environ.get("N8N_API_URL", "").strip()
+N8N_API_KEY = os.environ.get("N8N_API_KEY", "").strip()
+N8N_MEMORY_PROBE_URL = os.environ.get("N8N_MEMORY_PROBE_URL", "").strip()
+BOLTDIY_FACADE_INTERNAL_URL = os.environ.get("BOLTDIY_FACADE_INTERNAL_URL", "").strip()
+BOOTSTRAP_ALLOW_SCRIPT_START = os.environ.get("BOOTSTRAP_ALLOW_SCRIPT_START", "false").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+BOOTSTRAP_START_SCRIPT = os.environ.get("BOOTSTRAP_START_SCRIPT", "").strip()
+BOOTSTRAP_COMMAND_TIMEOUT = int(os.environ.get("BOOTSTRAP_COMMAND_TIMEOUT", "900"))
+BOOTSTRAP_STATE_PATH = EVIDENCE_DIR / "bootstrap_latest.json"
 STARTED_AT = datetime.now(timezone.utc).isoformat()
 RUNTIME_TARGETS = [
     "langgraph-local",
@@ -162,6 +192,7 @@ METRICS: dict[str, Any] = {
     "target_counts": {target: 0 for target in RUNTIME_TARGETS},
     "proof_total": 0,
     "autonomy_runs_total": 0,
+    "bootstrap_runs_total": 0,
 }
 OLLAMAHF_LAST_BLOCK: dict[str, Any] = {
     "at": 0.0,
@@ -181,13 +212,13 @@ AUTONOMY_PROFILES: dict[str, dict[str, Any]] = {
     },
     "game_builder": {
         "label": "3D Game Builder",
-        "description": "Planner -> Performance -> UI Review -> External Lead Coder -> Finalize",
+        "description": "External Vision -> Research -> Lead Coder -> QA -> Release (cloud-only chain)",
         "agents": [
-            "local.langgraph.planner",
-            "local.langgraph.performance",
-            "local.langgraph.ui_review",
+            "external.ollamahf.vision",
+            "external.ollamahf.research",
             "external.ollamahf.lead_coder",
-            "local.langgraph.finalize",
+            "external.ollamahf.qa",
+            "external.ollamahf.release",
         ],
     },
     "ops_hardening": {
@@ -201,6 +232,7 @@ AUTONOMY_PROFILES: dict[str, dict[str, Any]] = {
         ],
     },
 }
+BOOTSTRAP_LOCK = threading.Lock()
 
 
 class MissionPayload(BaseModel):
@@ -242,6 +274,33 @@ class AutonomyRunRequest(BaseModel):
     halt_on_fail: bool = Field(default=False)
 
 
+class BootstrapStartRequest(BaseModel):
+    include_script_start: bool = Field(default=True)
+    source: str = Field(default="platform-control-center", min_length=1)
+
+
+class PromptExecuteRequest(BaseModel):
+    prompt: str = Field(min_length=3)
+    source: str = Field(default="platform-prompt", min_length=1)
+    repo: str = Field(default="strazzusochr/CoronaProjektschonwieder", min_length=1)
+    ref: str = Field(default="main", min_length=1)
+    status: str = Field(default="queued", min_length=1)
+    agent: str | None = None
+    profile_id: str | None = None
+    halt_on_fail: bool = Field(default=False)
+
+
+class RunCreateRequest(BaseModel):
+    goal: str = Field(min_length=3)
+    source: str = Field(default="platform-run", min_length=1)
+    repo: str = Field(default="strazzusochr/CoronaProjektschonwieder", min_length=1)
+    ref: str = Field(default="main", min_length=1)
+    status: str = Field(default="queued", min_length=1)
+    profile_id: str = Field(default="app_builder", min_length=1)
+    selected_agents: list[str] = Field(default_factory=list)
+    halt_on_fail: bool = Field(default=False)
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -249,6 +308,8 @@ def _now_iso() -> str:
 def _ensure_dirs() -> None:
     DISPATCH_DIR.mkdir(parents=True, exist_ok=True)
     PROOF_DIR.mkdir(parents=True, exist_ok=True)
+    RUNS_DIR.mkdir(parents=True, exist_ok=True)
+    BOOTSTRAP_DIR.mkdir(parents=True, exist_ok=True)
     EVIDENCE_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -404,6 +465,306 @@ def _latest_json(path: Path) -> dict[str, Any]:
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return {}
+
+
+def _bootstrap_default_state() -> dict[str, Any]:
+    return {
+        "status": "DOWN",
+        "ready": False,
+        "boot_id": "",
+        "started_at": "",
+        "finished_at": "",
+        "summary": "Bootstrap not started yet.",
+        "phases": [],
+    }
+
+
+BOOTSTRAP_STATE: dict[str, Any] = _bootstrap_default_state()
+if BOOTSTRAP_STATE_PATH.exists():
+    cached_state = _latest_json(BOOTSTRAP_STATE_PATH)
+    if isinstance(cached_state, dict) and cached_state.get("status"):
+        BOOTSTRAP_STATE = cached_state
+
+
+def _with_masked_env(value: str) -> str:
+    if not value:
+        return ""
+    if len(value) <= 8:
+        return "***"
+    return f"{value[:4]}***{value[-2:]}"
+
+
+def _n8n_health_url() -> str:
+    if N8N_API_URL:
+        base = N8N_API_URL.split("/api/")[0].rstrip("/")
+        return f"{base}/healthz"
+    webhook = N8N_WEBHOOK_URL.strip()
+    if webhook:
+        base = webhook.split("/webhook/")[0].rstrip("/")
+        if base:
+            return f"{base}/healthz"
+    return "http://n8n-godmode:5678/healthz"
+
+
+def _service_probe_catalog() -> list[dict[str, str]]:
+    langgraph_health = ""
+    langgraph_base = (LANGGRAPH_API_INTERNAL_URL or LANGGRAPH_API_URL).rstrip("/")
+    if langgraph_base:
+        langgraph_health = f"{langgraph_base}/health"
+
+    openhands_base = OPENHANDS_PUBLIC_URL.rstrip("/") if OPENHANDS_PUBLIC_URL else OPENHANDS_INTERNAL_URL.rstrip("/")
+    adapter_base = OPENHANDS_ADAPTER_URL.rstrip("/") if OPENHANDS_ADAPTER_URL else ""
+    litellm_base = LITELLM_URL.rstrip("/") if LITELLM_URL else f"http://litellm-godmode:{LITELLM_PORT}"
+    hub_base = BOLTDIY_FACADE_INTERNAL_URL.rstrip("/") if BOLTDIY_FACADE_INTERNAL_URL else "http://127.0.0.1:3901"
+    return [
+        {"id": "hub", "url": f"{hub_base}/health"},
+        {"id": "openhands", "url": openhands_base},
+        {"id": "openhands-adapter", "url": f"{adapter_base}/health" if adapter_base else ""},
+        {"id": "n8n", "url": _n8n_health_url()},
+        {"id": "langgraph", "url": langgraph_health},
+        {"id": "litellm", "url": f"{litellm_base}/"},
+    ]
+
+
+def _run_preflight_checks() -> dict[str, Any]:
+    checks: list[dict[str, Any]] = []
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    required = [
+        ("OPENHANDS_LLM_MODEL", OPENHANDS_LLM_MODEL),
+        ("OPENHANDS_LLM_BASE_URL", OPENHANDS_LLM_BASE_URL),
+        ("OPENHANDS_LLM_API_KEY", OPENHANDS_LLM_API_KEY),
+    ]
+    for name, value in required:
+        ok = bool(value)
+        checks.append({"name": name, "ok": ok})
+        if not ok:
+            errors.append(f"Missing required variable: {name}")
+
+    if (OPENHANDS_LLM_BASE_URL.find("litellm") >= 0 or ":4000" in OPENHANDS_LLM_BASE_URL) and not LITELLM_API_KEY:
+        warnings.append("LITELLM_API_KEY is not set; relying on OPENHANDS_LLM_API_KEY fallback for LiteLLM auth.")
+
+    active_agents = AGENT_REGISTRY.get("active_agents", [])
+    legacy_agents = AGENT_REGISTRY.get("legacy_agents", [])
+    registry_ok = len(active_agents) >= 25 and len(legacy_agents) >= 1 and not AGENT_ALIAS_COLLISIONS
+    checks.append(
+        {
+            "name": "agent_registry",
+            "ok": registry_ok,
+            "active_agents": len(active_agents),
+            "legacy_agents": len(legacy_agents),
+            "alias_collisions": AGENT_ALIAS_COLLISIONS,
+        }
+    )
+    if not registry_ok:
+        errors.append("Agent registry does not satisfy expected 25 active + 1 legacy without alias collisions.")
+
+    zero_policy_ok = ZERO_COMPUTE_POLICY and not ALLOW_LOCAL_HEAVY
+    checks.append(
+        {
+            "name": "zero_compute_policy",
+            "ok": zero_policy_ok,
+            "enabled": ZERO_COMPUTE_POLICY,
+            "allow_local_heavy_override": ALLOW_LOCAL_HEAVY,
+        }
+    )
+    if not zero_policy_ok:
+        errors.append("Zero-compute policy is not strictly enforced (expected enabled + no local heavy override).")
+
+    if not BOLTDIY_SPACE_TOKEN:
+        warnings.append("BOLTDIY_SPACE_TOKEN/HF_TOKEN missing: external HF dispatch may stay BLOCKED.")
+    if not OLLAMAHF_BEARER_TOKEN:
+        warnings.append("OLLAMAHF_BEARER_TOKEN missing: external orchestrator may be BLOCKED.")
+    if not N8N_WEBHOOK_URL:
+        errors.append("N8N_WEBHOOK_URL missing: mission workflow smoke cannot run.")
+
+    return {
+        "ok": len(errors) == 0,
+        "checks": checks,
+        "errors": errors,
+        "warnings": warnings,
+    }
+
+
+def _execute_start_script(include_script_start: bool) -> dict[str, Any]:
+    if not include_script_start:
+        return {"status": "skipped", "reason": "include_script_start=false"}
+    if not BOOTSTRAP_ALLOW_SCRIPT_START:
+        return {"status": "skipped", "reason": "BOOTSTRAP_ALLOW_SCRIPT_START=false"}
+    script = BOOTSTRAP_START_SCRIPT.strip()
+    if not script:
+        return {"status": "blocked", "reason": "BOOTSTRAP_START_SCRIPT not configured"}
+    script_path = Path(script)
+    if not script_path.exists():
+        return {"status": "blocked", "reason": f"BOOTSTRAP_START_SCRIPT not found: {script}"}
+
+    if script_path.suffix.lower() == ".ps1":
+        cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script_path)]
+    elif script_path.suffix.lower() == ".sh":
+        cmd = ["bash", str(script_path)]
+    else:
+        cmd = [str(script_path)]
+    try:
+        completed = subprocess.run(  # noqa: S603
+            cmd,
+            cwd=str(REPO_ROOT),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=BOOTSTRAP_COMMAND_TIMEOUT,
+            check=False,
+        )
+    except Exception as exc:  # pragma: no cover - runtime path
+        return {"status": "blocked", "reason": f"Bootstrap start script failed: {exc}"}
+
+    stdout_tail = "\n".join(completed.stdout.splitlines()[-40:])
+    stderr_tail = "\n".join(completed.stderr.splitlines()[-40:])
+    if completed.returncode == 0:
+        return {
+            "status": "forwarded",
+            "command": cmd,
+            "returncode": completed.returncode,
+            "stdout_tail": stdout_tail,
+            "stderr_tail": stderr_tail,
+        }
+    return {
+        "status": "blocked",
+        "command": cmd,
+        "returncode": completed.returncode,
+        "stdout_tail": stdout_tail,
+        "stderr_tail": stderr_tail,
+        "reason": "Start script returned non-zero exit code.",
+    }
+
+
+def _compute_ready_state(preflight: dict[str, Any], services: dict[str, Any], workflow: dict[str, Any]) -> tuple[str, bool, str]:
+    if not preflight.get("ok", False):
+        return "BLOCKED", False, "Preflight checks failed."
+
+    service_failures = [item for item in services.get("results", []) if not item.get("ok", False)]
+    if service_failures:
+        return "PARTIAL", False, "Core services are not fully reachable."
+
+    mission_status = workflow.get("mission", {}).get("status")
+    memory_status = workflow.get("memory", {}).get("status")
+    if mission_status != "forwarded":
+        return "BLOCKED", False, "n8n mission workflow smoke did not pass."
+    if memory_status not in {"forwarded", "skipped"}:
+        return "PARTIAL", False, "n8n memory workflow is not verified."
+
+    return "READY", True, "Platform ready for prompt execution."
+
+
+def _persist_bootstrap_state(record: dict[str, Any]) -> None:
+    BOOTSTRAP_DIR.mkdir(parents=True, exist_ok=True)
+    snapshot = BOOTSTRAP_DIR / f"bootstrap_{record['started_at'].replace(':', '-').replace('.', '-')}_{record['boot_id']}.json"
+    record["snapshot"] = str(snapshot)
+    _write_json(snapshot, record)
+    _write_json(BOOTSTRAP_STATE_PATH, record)
+
+
+def _run_bootstrap(include_script_start: bool, source: str) -> dict[str, Any]:
+    boot_id = str(uuid.uuid4())
+    started_at = _now_iso()
+    phases: list[dict[str, Any]] = []
+
+    preflight = _run_preflight_checks()
+    phases.append({"phase": "preflight", "result": preflight})
+
+    start_script_result = _execute_start_script(include_script_start=include_script_start)
+    phases.append({"phase": "service_start", "result": start_script_result})
+
+    service_results: list[dict[str, Any]] = []
+    for item in _service_probe_catalog():
+        url = item.get("url", "").strip()
+        if not url:
+            service_results.append({"id": item["id"], "ok": False, "reason": "missing url"})
+            continue
+        probe = _probe_url(url, BOLTDIY_FORWARD_TIMEOUT, headers=None)
+        service_results.append(
+            {
+                "id": item["id"],
+                "url": url,
+                "ok": int(probe.get("http_status") or 0) == 200,
+                "probe": probe,
+            }
+        )
+    services_payload = {"results": service_results}
+    phases.append({"phase": "service_health", "result": services_payload})
+
+    smoke_payload = MissionPayload(
+        agent="local.langgraph.planner",
+        task="Bootstrap n8n mission smoke test.",
+        source=source.strip() or "platform-control-center",
+        repo="https://github.com/strazzusochr/CoronaProjektschonwieder",
+        ref="main",
+        status="triggered",
+        timestamp=_now_iso(),
+    )
+    mission_smoke = _dispatch_n8n(smoke_payload)
+    memory_smoke = {"status": "skipped", "reason": "N8N_MEMORY_PROBE_URL not configured"}
+    if N8N_MEMORY_PROBE_URL:
+        memory_smoke = _post_json(
+            N8N_MEMORY_PROBE_URL,
+            {
+                "source": source.strip() or "platform-control-center",
+                "timestamp": _now_iso(),
+                "event": "bootstrap-memory-smoke",
+            },
+            BOLTDIY_FORWARD_TIMEOUT,
+        )
+    workflow_payload = {"mission": mission_smoke, "memory": memory_smoke}
+    phases.append({"phase": "workflow_smoke", "result": workflow_payload})
+
+    status, ready, summary = _compute_ready_state(preflight, services_payload, workflow_payload)
+    finished_at = _now_iso()
+    record = {
+        "status": status,
+        "ready": ready,
+        "boot_id": boot_id,
+        "started_at": started_at,
+        "finished_at": finished_at,
+        "summary": summary,
+        "source": source,
+        "phases": phases,
+        "policy": {
+            "zero_compute_policy": ZERO_COMPUTE_POLICY,
+            "allow_local_heavy_override": ALLOW_LOCAL_HEAVY,
+        },
+        "tokens": {
+            "hf_token_present": bool(_HF_TOKEN),
+            "bolt_token_present": bool(BOLTDIY_SPACE_TOKEN),
+            "ollamahf_bearer_present": bool(OLLAMAHF_BEARER_TOKEN),
+            "ollamahf_master_present": bool(OLLAMAHF_MASTER_KEY),
+            "masked_hf_token": _with_masked_env(_HF_TOKEN),
+        },
+    }
+    _persist_bootstrap_state(record)
+    return record
+
+
+def _bootstrap_status_snapshot() -> dict[str, Any]:
+    with BOOTSTRAP_LOCK:
+        return dict(BOOTSTRAP_STATE)
+
+
+def _is_ready_for_prompt_execution() -> tuple[bool, str]:
+    state = _bootstrap_status_snapshot()
+    if state.get("status") == "READY" and bool(state.get("ready")):
+        return True, ""
+    status = state.get("status", "DOWN")
+    return False, f"Bootstrap state is {status}. Run POST /bootstrap/start first."
+
+
+def _profile_from_prompt(prompt: str) -> str:
+    lowered = prompt.lower()
+    if any(keyword in lowered for keyword in ("3d", "webgl", "game", "shader", "render")):
+        return "game_builder"
+    if any(keyword in lowered for keyword in ("debug", "fix", "hardening", "incident", "stability")):
+        return "ops_hardening"
+    return "app_builder"
 
 
 def _auth_headers() -> dict[str, str]:
@@ -1058,6 +1419,12 @@ def _capability_summary() -> dict[str, Any]:
     if ZERO_COMPUTE_POLICY and not ALLOW_LOCAL_HEAVY:
         limitations.append("Zero-compute policy blocks heavy local runs; heavy tasks must route to remote targets.")
 
+    bootstrap_state = _bootstrap_status_snapshot()
+    if bootstrap_state.get("status") != "READY":
+        limitations.append(
+            "Bootstrap is not READY: prompt execution is blocked until one-click bootstrap completes successfully."
+        )
+
     no_limits_claim = len(limitations) == 0
 
     return {
@@ -1068,6 +1435,7 @@ def _capability_summary() -> dict[str, Any]:
         "agent_status_counts": status_counts,
         "routing_summary": routing_summary,
         "limitations": limitations,
+        "bootstrap_status": bootstrap_state.get("status", "DOWN"),
         "notes": (
             "No-lie rule: if limitations are present, system remains bounded by provider/auth/credit/runtime constraints."
         ),
@@ -1088,24 +1456,49 @@ def _run_autonomy_pipeline(req: AutonomyRunRequest) -> dict[str, Any]:
     agents = [str(agent).strip() for agent in profile.get("agents", []) if str(agent).strip()]
     if not agents:
         raise HTTPException(status_code=422, detail=f"Autonomy profile '{req.profile_id}' has no agents configured.")
+    result = _run_agent_chain(
+        goal=req.goal.strip(),
+        profile_id=req.profile_id.strip(),
+        profile_label=str(profile.get("label", req.profile_id.strip())),
+        agents=agents,
+        source=req.source.strip(),
+        repo=req.repo.strip(),
+        ref=req.ref.strip(),
+        status=req.status.strip(),
+        halt_on_fail=req.halt_on_fail,
+    )
+    METRICS["autonomy_runs_total"] += 1
+    return result
 
+
+def _run_agent_chain(
+    goal: str,
+    profile_id: str,
+    profile_label: str,
+    agents: list[str],
+    source: str,
+    repo: str,
+    ref: str,
+    status: str,
+    halt_on_fail: bool,
+) -> dict[str, Any]:
     run_id = str(uuid.uuid4())
     started_at = _now_iso()
     steps: list[dict[str, Any]] = []
-
     for index, agent_id in enumerate(agents, start=1):
         mission = MissionPayload(
             agent=agent_id,
-            task=f"[AUTONOMY:{req.profile_id}] step {index}/{len(agents)} :: {req.goal.strip()}",
-            source=req.source.strip(),
-            repo=req.repo.strip(),
-            ref=req.ref.strip(),
-            status=req.status.strip(),
+            task=f"[AUTONOMY:{profile_id}] step {index}/{len(agents)} :: {goal}",
+            source=source,
+            repo=repo,
+            ref=ref,
+            status=status,
             timestamp=_now_iso(),
         )
         try:
             dispatch_result = dispatch(mission)
             step_status = str(dispatch_result.get("status", "forward-failed"))
+            step_result = dispatch_result.get("result", {}) if isinstance(dispatch_result.get("result", {}), dict) else {}
             steps.append(
                 {
                     "step": index,
@@ -1114,9 +1507,10 @@ def _run_autonomy_pipeline(req: AutonomyRunRequest) -> dict[str, Any]:
                     "call_id": dispatch_result.get("call_id"),
                     "runtime_target": dispatch_result.get("runtime_target"),
                     "dispatch_artifact": dispatch_result.get("dispatch_artifact"),
+                    "reason": dispatch_result.get("reason", "") or step_result.get("reason", ""),
                 }
             )
-            if req.halt_on_fail and step_status != "forwarded":
+            if halt_on_fail and step_status != "forwarded":
                 break
         except HTTPException as exc:
             steps.append(
@@ -1127,9 +1521,8 @@ def _run_autonomy_pipeline(req: AutonomyRunRequest) -> dict[str, Any]:
                     "error": str(exc.detail),
                 }
             )
-            if req.halt_on_fail:
+            if halt_on_fail:
                 break
-
     forwarded = sum(1 for step in steps if step.get("status") == "forwarded")
     if forwarded == len(agents):
         overall_status = "PASS"
@@ -1141,9 +1534,9 @@ def _run_autonomy_pipeline(req: AutonomyRunRequest) -> dict[str, Any]:
     record = {
         "run_id": run_id,
         "started_at": started_at,
-        "goal": req.goal.strip(),
-        "profile_id": req.profile_id.strip(),
-        "profile_label": profile.get("label", req.profile_id.strip()),
+        "goal": goal,
+        "profile_id": profile_id,
+        "profile_label": profile_label,
         "agent_chain": agents,
         "forwarded_steps": forwarded,
         "total_steps": len(agents),
@@ -1152,17 +1545,21 @@ def _run_autonomy_pipeline(req: AutonomyRunRequest) -> dict[str, Any]:
     }
     snapshot = EVIDENCE_DIR / f"autonomy_run_{started_at.replace(':', '-').replace('.', '-')}_{run_id}.json"
     latest = EVIDENCE_DIR / "autonomy_run_latest.json"
+    run_file = RUNS_DIR / f"{run_id}.json"
     _write_json(snapshot, record)
     _write_json(latest, record)
-    METRICS["autonomy_runs_total"] += 1
+    _write_json(run_file, record)
+    record["snapshot"] = str(snapshot)
+    record["run_file"] = str(run_file)
     return {
         "status": overall_status,
         "run_id": run_id,
         "forwarded_steps": forwarded,
         "total_steps": len(agents),
-        "profile_id": req.profile_id.strip(),
+        "profile_id": profile_id,
         "agent_chain": agents,
         "snapshot": str(snapshot),
+        "run_file": str(run_file),
         "steps": steps,
     }
 
@@ -1242,6 +1639,234 @@ def _run_ollama_probe(req: OllamaProbeRequest) -> dict[str, Any]:
     }
 
 
+def _set_bootstrap_state(record: dict[str, Any]) -> None:
+    global BOOTSTRAP_STATE
+    with BOOTSTRAP_LOCK:
+        BOOTSTRAP_STATE = dict(record)
+    _persist_bootstrap_state(record)
+
+
+def _bootstrap_worker(include_script_start: bool, source: str) -> None:
+    try:
+        record = _run_bootstrap(include_script_start=include_script_start, source=source)
+    except Exception as exc:  # pragma: no cover - runtime path
+        record = {
+            "status": "BLOCKED",
+            "ready": False,
+            "boot_id": str(uuid.uuid4()),
+            "started_at": _now_iso(),
+            "finished_at": _now_iso(),
+            "summary": f"Bootstrap failed with exception: {exc}",
+            "phases": [],
+        }
+        _persist_bootstrap_state(record)
+    _set_bootstrap_state(record)
+
+
+def _load_run_file(run_id: str) -> dict[str, Any]:
+    candidate = RUNS_DIR / f"{run_id}.json"
+    if not candidate.exists():
+        raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found.")
+    payload = _latest_json(candidate)
+    if not payload:
+        raise HTTPException(status_code=404, detail=f"Run '{run_id}' evidence is empty.")
+    return payload
+
+
+def _control_center_state_payload() -> dict[str, Any]:
+    health_payload = health()
+    routing_payload = routing_status()
+    bootstrap_payload = _bootstrap_status_snapshot()
+    ready, reason = _is_ready_for_prompt_execution()
+    latest_run = _latest_json(EVIDENCE_DIR / "autonomy_run_latest.json")
+    service_probes: dict[str, Any] = {}
+    for item in _service_probe_catalog():
+        url = item.get("url", "").strip()
+        if not url:
+            service_probes[item["id"]] = {"reachable": False, "http_status": None, "error": "missing url"}
+            continue
+        service_probes[item["id"]] = _probe_url(url, BOLTDIY_FORWARD_TIMEOUT)
+    return {
+        "status": "ok",
+        "ready_for_prompt_execute": ready,
+        "ready_reason": "" if ready else reason,
+        "bootstrap": bootstrap_payload,
+        "health": health_payload,
+        "routing": routing_payload,
+        "agents": {
+            "active_count": len(AGENT_REGISTRY.get("active_agents", [])),
+            "legacy_count": len(AGENT_REGISTRY.get("legacy_agents", [])),
+            "alias_collisions": AGENT_ALIAS_COLLISIONS,
+        },
+        "service_probes": service_probes,
+        "latest_run": latest_run,
+    }
+
+
+@app.post("/bootstrap/start")
+def bootstrap_start(req: BootstrapStartRequest) -> dict[str, Any]:
+    _ensure_dirs()
+    with BOOTSTRAP_LOCK:
+        current = dict(BOOTSTRAP_STATE)
+        if current.get("status") == "BOOTING":
+            return {
+                "status": "BOOTING",
+                "ready": False,
+                "message": "Bootstrap already in progress.",
+                "bootstrap": current,
+            }
+        booting_record = {
+            "status": "BOOTING",
+            "ready": False,
+            "boot_id": str(uuid.uuid4()),
+            "started_at": _now_iso(),
+            "finished_at": "",
+            "summary": "Bootstrap in progress.",
+            "source": req.source.strip(),
+            "phases": [],
+        }
+    _set_bootstrap_state(booting_record)
+    thread = threading.Thread(
+        target=_bootstrap_worker,
+        args=(req.include_script_start, req.source.strip()),
+        daemon=True,
+    )
+    thread.start()
+    METRICS["bootstrap_runs_total"] += 1
+    return {
+        "status": "BOOTING",
+        "ready": False,
+        "message": "Bootstrap started.",
+        "bootstrap": booting_record,
+    }
+
+
+@app.get("/bootstrap/status")
+def bootstrap_status() -> dict[str, Any]:
+    _ensure_dirs()
+    state = _bootstrap_status_snapshot()
+    return {
+        "status": "ok",
+        "bootstrap": state,
+        "ready_for_prompt_execute": bool(state.get("ready", False) and state.get("status") == "READY"),
+    }
+
+
+@app.get("/control-center/state")
+def control_center_state() -> dict[str, Any]:
+    _ensure_dirs()
+    return _control_center_state_payload()
+
+
+@app.post("/runs")
+def create_run(req: RunCreateRequest) -> dict[str, Any]:
+    _ensure_dirs()
+    ready, reason = _is_ready_for_prompt_execution()
+    if not ready:
+        raise HTTPException(status_code=409, detail=f"Run blocked: {reason}")
+
+    selected_agents = [item.strip() for item in req.selected_agents if item.strip()]
+    if selected_agents:
+        canonical_agents: list[str] = []
+        for candidate in selected_agents:
+            entry = _resolve_agent_entry(candidate)
+            canonical_agents.append(str(entry.get("agent_id", candidate)).strip())
+        return _run_agent_chain(
+            goal=req.goal.strip(),
+            profile_id="custom_selected",
+            profile_label="Custom Selected Agents",
+            agents=canonical_agents,
+            source=req.source.strip(),
+            repo=req.repo.strip(),
+            ref=req.ref.strip(),
+            status=req.status.strip(),
+            halt_on_fail=req.halt_on_fail,
+        )
+
+    autonomy_req = AutonomyRunRequest(
+        goal=req.goal.strip(),
+        profile_id=req.profile_id.strip(),
+        source=req.source.strip(),
+        repo=req.repo.strip(),
+        ref=req.ref.strip(),
+        status=req.status.strip(),
+        halt_on_fail=req.halt_on_fail,
+    )
+    return _run_autonomy_pipeline(autonomy_req)
+
+
+@app.get("/runs/{run_id}")
+def get_run(run_id: str) -> dict[str, Any]:
+    _ensure_dirs()
+    return {"status": "ok", "run": _load_run_file(run_id)}
+
+
+@app.get("/runs/{run_id}/evidence")
+def get_run_evidence(run_id: str) -> dict[str, Any]:
+    _ensure_dirs()
+    run = _load_run_file(run_id)
+    return {
+        "status": "ok",
+        "run_id": run.get("run_id", run_id),
+        "snapshot": run.get("snapshot", ""),
+        "run_file": str(RUNS_DIR / f"{run_id}.json"),
+        "steps": run.get("steps", []),
+        "summary": {
+            "status": run.get("status", "UNKNOWN"),
+            "forwarded_steps": run.get("forwarded_steps", 0),
+            "total_steps": run.get("total_steps", 0),
+        },
+    }
+
+
+@app.post("/prompt/execute")
+def prompt_execute(req: PromptExecuteRequest) -> dict[str, Any]:
+    _ensure_dirs()
+    ready, reason = _is_ready_for_prompt_execution()
+    if not ready:
+        raise HTTPException(status_code=409, detail=f"Prompt execution blocked: {reason}")
+
+    if req.agent and req.agent.strip():
+        mission = MissionPayload(
+            agent=req.agent.strip(),
+            task=req.prompt.strip(),
+            source=req.source.strip(),
+            repo=req.repo.strip(),
+            ref=req.ref.strip(),
+            status=req.status.strip(),
+            timestamp=_now_iso(),
+        )
+        normalized, _ = _canonicalize_payload(mission)
+        dispatch_result = dispatch(mission)
+        return {
+            "status": "ok",
+            "mode": "single-agent",
+            "ready_state": _bootstrap_status_snapshot().get("status", "UNKNOWN"),
+            "mission_payload": normalized.model_dump(),
+            "dispatch": dispatch_result,
+        }
+
+    selected_profile = req.profile_id.strip() if req.profile_id and req.profile_id.strip() else _profile_from_prompt(req.prompt)
+    run_req = RunCreateRequest(
+        goal=req.prompt.strip(),
+        source=req.source.strip(),
+        repo=req.repo.strip(),
+        ref=req.ref.strip(),
+        status=req.status.strip(),
+        profile_id=selected_profile,
+        selected_agents=[],
+        halt_on_fail=req.halt_on_fail,
+    )
+    run_result = create_run(run_req)
+    return {
+        "status": "ok",
+        "mode": "multi-agent",
+        "selected_profile": selected_profile,
+        "prompt": req.prompt.strip(),
+        "run": run_result,
+    }
+
+
 @app.get("/")
 def root() -> dict[str, Any]:
     return {"status": "online", "service": "superbrain-dispatch-hub"}
@@ -1282,6 +1907,13 @@ def health() -> dict[str, Any]:
             "openhands_adapter_url": OPENHANDS_ADAPTER_URL or "",
         },
         "routing_status": _target_health_status(),
+        "bootstrap": {
+            "status": _bootstrap_status_snapshot().get("status", "DOWN"),
+            "ready": bool(_bootstrap_status_snapshot().get("ready", False)),
+            "allow_script_start": BOOTSTRAP_ALLOW_SCRIPT_START,
+            "script_configured": bool(BOOTSTRAP_START_SCRIPT),
+            "start_script": BOOTSTRAP_START_SCRIPT,
+        },
         "runtime_dir": str(RUNTIME_DIR),
         "evidence_dir": str(EVIDENCE_DIR),
     }
@@ -1482,6 +2114,8 @@ def evidence_latest() -> dict[str, Any]:
     files = {
         "dispatch_latest": DISPATCH_DIR / "latest_dispatch.json",
         "proof_latest": PROOF_DIR / "latest_proof.json",
+        "bootstrap_latest": BOOTSTRAP_STATE_PATH,
+        "run_latest": EVIDENCE_DIR / "autonomy_run_latest.json",
         "autonomy_run_latest": EVIDENCE_DIR / "autonomy_run_latest.json",
         "ollama_probe_latest": EVIDENCE_DIR / "ollama_probe_latest.json",
         "superbrain_gate_latest": EVIDENCE_DIR / "superbrain_gate_latest.json",

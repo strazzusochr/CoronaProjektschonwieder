@@ -294,3 +294,9 @@ selfhosted core runtime.
 - 2026-04-13T15:36:02.275869+00:00 BOLT_PROOF: result=PASS scenario=superbrain-hub-smoke proof_id=4a6cc71c-bc6a-4e95-abb3-85d56029ea5f
 - 2026-04-13T16:05:44.252373+00:00 BOLT_PROOF: result=PASS scenario=superbrain-hub-smoke proof_id=aab343eb-e64e-4546-8749-26836098b5cd
 - 2026-04-13T16:13:18.295051+00:00 BOLT_PROOF: result=PASS scenario=superbrain-hub-smoke proof_id=87f459f4-8a51-41c4-8939-4c2bf0699957
+- 2026-04-13T17:03:23.268606+00:00 BOLT_PROOF: result=PASS scenario=superbrain-hub-smoke proof_id=f6b15a15-1d33-4d8f-a167-af1ea1b2053d
+- 2026-04-13T17:08:03.873100+00:00 BOLT_PROOF: result=PASS scenario=superbrain-hub-smoke proof_id=e658256f-71ab-4224-aee4-067372b6a73a
+- 2026-04-13T17:10:44.578411+00:00 BOLT_PROOF: result=PASS scenario=superbrain-hub-smoke proof_id=ce4c4a75-d084-4382-bf63-e56dc91964da
+- 2026-04-13T19:14:11.315789+00:00 BOLT_PROOF: result=PASS scenario=superbrain-hub-smoke proof_id=857ed195-41b8-4bce-b074-d36949d09a40
+- 2026-04-13T19:24:20.313032+00:00 BOLT_PROOF: result=PASS scenario=superbrain-hub-smoke proof_id=58956d1e-56c5-4d73-ad18-367bc0001386
+- 2026-04-13T19:32:30.950313+00:00 BOLT_PROOF: result=PASS scenario=superbrain-hub-smoke proof_id=23624892-92a7-421a-87bf-7516f1f0f656

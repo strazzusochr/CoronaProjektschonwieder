@@ -12,6 +12,44 @@ describe('App', () => {
   beforeEach(() => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const url = String(input);
+      if (url.includes('/control-center/state')) {
+        return new Response(
+          JSON.stringify({
+            status: 'ok',
+            ready_for_prompt_execute: true,
+            bootstrap: { status: 'READY', ready: true, summary: 'Platform ready for prompt execution.' },
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+      if (url.includes('/bootstrap/start')) {
+        return new Response(
+          JSON.stringify({
+            status: 'BOOTING',
+            bootstrap: { status: 'BOOTING', ready: false, summary: 'Bootstrap in progress.' },
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+      if (url.includes('/bootstrap/status')) {
+        return new Response(
+          JSON.stringify({
+            status: 'ok',
+            ready_for_prompt_execute: true,
+            bootstrap: { status: 'READY', ready: true, summary: 'Platform ready for prompt execution.' },
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
       if (url.includes('/agents')) {
         return new Response(JSON.stringify({ agents: [{ agent_id: 'local.langgraph.planner', status_class: 'VERIFIED' }] }), {
           status: 200,
@@ -61,6 +99,18 @@ describe('App', () => {
           headers: { 'Content-Type': 'application/json' },
         });
       }
+      if (url.includes('/runs')) {
+        return new Response(JSON.stringify({ status: 'PARTIAL', run_id: 'autonomy-test-run' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.includes('/prompt/execute')) {
+        return new Response(JSON.stringify({ status: 'ok', mode: 'multi-agent', run: { status: 'PASS' } }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
       return new Response('ok', { status: 200, headers: { 'Content-Type': 'text/plain' } });
     });
   });
@@ -73,10 +123,7 @@ describe('App', () => {
     render(<App />);
 
     expect(screen.getByRole('heading', { name: /godmode superbrain control center/i })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: /ai capability reality check/i })).toBeTruthy();
-    fireEvent.change(screen.getByLabelText(/prompt template selector/i), { target: { value: 'webgame-3d' } });
-    fireEvent.click(screen.getByRole('button', { name: /use template for dispatch/i }));
-    expect(screen.getByDisplayValue(/external\.ollamahf\.lead_coder/i)).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /prompt command layer/i })).toBeTruthy();
 
     const refreshButton = await screen.findByRole('button', { name: /refresh checks|checking/i });
     if ((refreshButton.textContent ?? '').toLowerCase().includes('refresh')) {
@@ -86,10 +133,23 @@ describe('App', () => {
       expect(screen.getByText(/checks complete/i)).toBeTruthy();
     });
 
+    fireEvent.click(screen.getByRole('button', { name: /show advanced panels/i }));
     fireEvent.click(screen.getByRole('button', { name: /send mission dispatch/i }));
     await waitFor(() => {
       expect(screen.getByText(/dispatch response http 200/i)).toBeTruthy();
     });
+
+    fireEvent.click(screen.getByRole('button', { name: /start system \(one-click\)|bootstrapping/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/bootstrap (ready|request http|still running)/i)).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /execute prompt with autonomous agents|executing/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/prompt response http 200/i)).toBeTruthy();
+    });
+
+    expect(screen.getByRole('heading', { name: /autonomous multi-agent run/i })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: /run fully autonomous pipeline/i }));
     await waitFor(() => {

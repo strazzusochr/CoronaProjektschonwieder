@@ -110,6 +110,9 @@ Used by: cost-aware routing, proxying, and provider compatibility layers.
 - `BOLTDIY_FORWARD_TIMEOUT`
 - `BOLTDIY_SPACE_ID`
 - `BOLTDIY_SPACE_TOKEN`
+- `BOOTSTRAP_ALLOW_SCRIPT_START`
+- `BOOTSTRAP_START_SCRIPT`
+- `BOOTSTRAP_COMMAND_TIMEOUT`
 
 Used by: `bolt_facade/app.py`, `bolt_facade/docker-compose.yml`, pilot dispatch,
 and n8n bridge routing.
@@ -125,6 +128,8 @@ Default tracked mode:
 - startup scripts autoload `HF_TOKEN` from the local Hugging Face cache file
   (`~/.cache/huggingface/token`) when `HF_TOKEN` is unset
 - if `BOLTDIY_SPACE_TOKEN` is unset, startup scripts default it to `HF_TOKEN`
+- when one-click bootstrap API is used, `BOOTSTRAP_ALLOW_SCRIPT_START=true`
+  permits controlled script invocation via `BOOTSTRAP_START_SCRIPT`
 
 ### DevTools / Playwright bridge
 
@@ -205,6 +210,7 @@ Used by: `aider_godmode.ps1`, pilot execution, and Aider cloud workflows.
 
 - `OPENHANDS_PORT`
 - `OPENHANDS_PUBLIC_URL`
+- `OPENHANDS_INTERNAL_URL`
 - `OPENHANDS_API_URL`
 - `OPENHANDS_API_INTERNAL_URL`
 - `OPENHANDS_TRIGGER_URL`
@@ -265,6 +271,7 @@ Used by: local operator automation and OpenHands adapter endpoint forwarding.
 - `N8N_WEBHOOK_BASE_URL`
 - `N8N_WEBHOOK_URL`
 - `N8N_WEBHOOK_INTERNAL_URL`
+- `N8N_MEMORY_PROBE_URL`
 - `N8N_EDITOR_BASE_URL`
 - `N8N_API_URL`
 - `N8N_API_KEY`
@@ -339,7 +346,9 @@ Minimum practical set:
 - `OPENHANDS_WORKSPACE_HOST_PATH`
 - `OPENHANDS_STATE_HOST_PATH` (used by startup sanitizer for stale conversation/session fixes)
 - `GITHUB_TOKEN`
-- if `OPENHANDS_LLM_BASE_URL` targets LiteLLM (`:4000`), then `LITELLM_API_KEY` is required
+- if `OPENHANDS_LLM_BASE_URL` targets LiteLLM (`:4000`), a non-empty auth key
+  must be present (`OPENHANDS_LLM_API_KEY`; `LITELLM_API_KEY` recommended for
+  strict parity with LiteLLM master-key setups)
 
 ### LangGraph
 

@@ -1,6 +1,6 @@
 # AGENT_SUPERBRAIN_KONTROLLPROTOKOLL
 
-Stand: 2026-04-13 (Snapshot-Refresh 18:14 Europe/Berlin)  
+Stand: 2026-04-13 (Snapshot-Refresh 21:31 Europe/Berlin)  
 Marker: **Superbrain Merge 2026-04-12**
 
 Dieses Dokument ist das zentrale Kontrollprotokoll fuer den Superbrain-Merge aus:
@@ -38,8 +38,15 @@ Verbindlich ist der 7-Feld-Vertrag aus
 
 Hub-Endpunkte:
 
+- `POST /bootstrap/start`
+- `GET /bootstrap/status`
+- `GET /control-center/state`
 - `GET /agents`
 - `POST /dispatch`
+- `POST /runs`
+- `GET /runs/{id}`
+- `GET /runs/{id}/evidence`
+- `POST /prompt/execute` (nur bei `READY`)
 - `GET /routing/status`
 - `POST /probe/ollama`
 - `GET /evidence/latest`
@@ -112,8 +119,16 @@ Quelle:
   (Patch in `START_GODMODE.ps1`, Compose-Defaults in `n8n/docker-compose.yml`
   und `openhands/docker-compose.yml`).
 - Aktuelle Frontend-Runtime ist plattformfokussiert:
-  All-in-One Operator Homepage mit 26-Agenten-Sicht, Dispatch, Autonomy-Profilen
-  und optionalem 3D-Sandbox-Bereich (`CoronaProjektschonwieder/src/App.tsx`).
+  All-in-One Operator Homepage mit 26-Agenten-Sicht, Dispatch, Autonomy-Profilen,
+  Bootstrap-Status und Prompt-Gate (`CoronaProjektschonwieder/src/App.tsx`).
+- Bootstrap-Closure wurde technisch gehaertet:
+  `bolt_facade` nutzt jetzt interne Service-Probes fuer OpenHands/LiteLLM,
+  robuste OPENHANDS-LLM-Fallbacks und ENV-Passthrough in
+  `bolt_facade/docker-compose.yml` + `bolt_facade/app.py`.
+- Zero-Compute-konforme 3D-Autonomie ist aktiv:
+  Profil `game_builder` routet cloud-only ueber
+  `external.ollamahf.vision -> research -> lead_coder -> qa -> release`
+  (kein lokaler Heavy-Block mehr bei 3D-Missionen).
 - Final Build Evidence ist `PASS` und enthaelt explizit:
   - `deep_search_probe` (`deep_search_probe_latest.json`, `3/3` Quellen `HTTP 200`)
   - `math_validation` (`math_validation_probe_latest.json`, alle Subchecks `pass`)
