@@ -2543,3 +2543,16 @@
 - 2026-04-13T16:10:58.677383+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.solo_builder target=ollama-hf-orchestrator status=forwarded call_id=83339416-14ec-4dc4-bbff-ec3322231663
 - 2026-04-13T16:13:18.243006+00:00 SUPERBRAIN_DISPATCH: agent=local.openhands.openhands target=openhands-adapter status=forwarded call_id=147e8ee2-ca8e-4d90-b5cb-1d14665dac6d
 - 2026-04-13T16:13:18.295051+00:00 BOLT_PROOF: result=PASS scenario=superbrain-hub-smoke proof_id=87f459f4-8a51-41c4-8939-4c2bf0699957
+- 2026-04-13T16:17:20.074Z MEMORY_PROBE: adapter=healthy
+  openhands=http://127.0.0.1:3000
+  trigger=local-only
+- 2026-04-13T16:17:48.195765+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.planner target=langgraph-local status=forwarded call_id=cdb8e130-c38b-45de-8e44-10ef4f93b441
+- 2026-04-13T16:17:49.405551+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.planner target=langgraph-local status=forwarded call_id=49bb010d-3d37-41a9-a140-9509ec8f7e55
+- 2026-04-13T16:17:50.134320+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.research target=langgraph-local status=forwarded call_id=f36a1ef9-b559-4ae1-8377-b7041cb9cf35
+- 2026-04-13T16:17:51.228231+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.reviewer target=langgraph-local status=forwarded call_id=873163bd-1a98-4c69-8482-4a044ccf11b0
+- 2026-04-13T16:17:51.926594+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.finalize target=langgraph-local status=forwarded call_id=d0c09dd8-6847-46b8-a0c9-fb03e4c29b16
+- 2026-04-13T16:20:41.179744+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.reviewer target=langgraph-local status=forwarded call_id=2b128c9e-9bf1-4422-aa0d-968d6b13bac2
+- 2026-04-13T16:20:42.167994+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.reviewer target=langgraph-local status=forwarded call_id=b4e2d48a-6922-443a-affd-eaaa9ceb6fed
+- 2026-04-13T16:20:43.205261+00:00 SUPERBRAIN_DISPATCH: agent=local.openhands.openhands target=openhands-adapter status=forwarded call_id=0c95e933-50e8-46fc-b25f-c5a7ed8e8169
+- 2026-04-13T16:20:43.265382+00:00 SUPERBRAIN_DISPATCH: agent=local.hf_aider.aider_review target=hf-aider status=forwarded call_id=5fe4a617-1f3b-446b-ab59-513cb3ee6084
+- 2026-04-13T16:20:45.928544+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.finalize target=langgraph-local status=forwarded call_id=4915fdb3-b4ef-44a9-b8c7-b9cf15b7c566
