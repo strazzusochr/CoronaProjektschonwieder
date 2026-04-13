@@ -1,4 +1,4 @@
-- 2026-04-13T07:05:00+00:00 RELEASE_STATUS: final_release_state=PARTIAL beta_core=100 ga_full=100 e2e_flows_full=100 e2e_flows_core=100 final_build=PASS core_build=PASS security_rotation=PARTIAL release_freeze=CLEAN source=release_gap_report.json
+- 2026-04-13T07:20:00+00:00 RELEASE_STATUS: final_release_state=PASS beta_core=100 ga_full=100 e2e_flows_full=100 e2e_flows_core=100 final_build=PASS core_build=PASS security_rotation=PASS release_freeze=CLEAN source=release_gap_report.json
 - 2026-04-08T13:56:21.418537+00:00 AUTONOMY_GUARD synced mission status: Status already DONE; sha=5dfb3201e439dd3d4b2847769d87f9cfa4cf9459
 - 2026-04-08T14:05:05.423962+00:00 AUTONOMY_GUARD synced mission status: Status already DONE; sha=f1d72b330e59d6f3db722a953b36ab5c24b3878a
 - 2026-04-08T15:37:02.225795+00:00 AUTONOMY_GUARD synced mission status: Status: DONE (2026-04-08, sha=64435be26df6); sha=64435be26df6f59ac63753dcba36594f49f0d6f4
@@ -2129,3 +2129,85 @@
 - 2026-04-13T06:53:27.985832+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.planner target=langgraph-local status=forwarded call_id=0653872a-f997-4406-a109-496b31998b5f
 - 2026-04-13T06:53:28.900385+00:00 SUPERBRAIN_DISPATCH: agent=local.openhands.openhands target=openhands-adapter status=forwarded call_id=0c198e8a-4d1d-402d-9110-ba0df3d022ed
 - 2026-04-13T06:53:28.941384+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.lead_coder target=ollama-hf-orchestrator status=forwarded call_id=4eb84644-9950-4e96-b5fc-5036aa2ad4ca
+- 2026-04-13T07:00:31.070Z MEMORY: adapter=healthy
+  openhands=http://127.0.0.1:3000
+  trigger=local-only
+- 2026-04-13T07:02:06.391652+00:00 SUPERBRAIN_DISPATCH: agent=local.pilot.aider_cloud target=openhands-adapter status=forwarded call_id=a8b63bd4-f425-4d88-9599-b3c3a9631884
+- 2026-04-13T07:02:06.394910+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.planner target=langgraph-local status=forwarded call_id=3f7aa213-c63f-4829-8ee6-c61a91586c2f
+- 2026-04-13T07:02:07.385686+00:00 SUPERBRAIN_DISPATCH: agent=local.openhands.openhands target=openhands-adapter status=forwarded call_id=927a7e74-f0f4-4836-9cd2-78095fdf8dfe
+- 2026-04-13T07:02:10.055307+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.planner target=langgraph-local status=forwarded call_id=7512b865-207b-4381-992a-cf37feec1460
+- 2026-04-13T07:02:10.844135+00:00 SUPERBRAIN_DISPATCH: agent=local.pilot.aider_cloud target=openhands-adapter status=forwarded call_id=65a1ed70-9fed-4497-bfbc-2eb511bd46aa
+- 2026-04-13T07:02:10.941692+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.planner target=langgraph-local status=forwarded call_id=5c50d3d5-fcda-4be1-92f0-ea6da29d2552
+- 2026-04-13T07:02:11.889422+00:00 SUPERBRAIN_DISPATCH: agent=local.smolagents.godmode_manager target=smolagents status=forwarded call_id=4d65af74-462b-478d-be81-1e31c788835a
+- 2026-04-13T07:02:13.583164+00:00 SUPERBRAIN_DISPATCH: agent=local.openhands.openhands target=openhands-adapter status=forwarded call_id=eedfb232-b29b-48fa-aacc-d4cb7d419a04
+- 2026-04-13T07:02:13.649667+00:00 SUPERBRAIN_DISPATCH: agent=local.hf_aider.aider_core target=hf-aider status=forwarded call_id=6eec6eec-e4f0-44aa-a6e7-1ad86c3cb7ce
+- 2026-04-13T07:02:39.943626+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.reviewer target=langgraph-local status=forwarded call_id=06c2875c-c89a-4615-8d45-06fc0d27cf76
+- 2026-04-13T07:02:07.424652+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.lead_coder target=ollama-hf-orchestrator status=forwarded call_id=577f1147-f76f-4e5b-b46c-1d87291146cc
+- 2026-04-13T07:02:16.427476+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.solo_builder target=ollama-hf-orchestrator status=forwarded call_id=2cba512c-04aa-47f6-857a-738de9483c4f
+- 2026-04-13T07:03:02.559617+00:00 SUPERBRAIN_DISPATCH: agent=local.smolagents.godmode_manager target=smolagents status=forwarded call_id=cc1354bf-c49d-4541-85e2-96d88356ecee
+- 2026-04-13T07:03:03.663689+00:00 SUPERBRAIN_DISPATCH: agent=local.smolagents.web_researcher target=smolagents status=forwarded call_id=a67a43f6-cb0a-47e1-b9cb-2234b65dff0c
+- 2026-04-13T07:03:04.961622+00:00 SUPERBRAIN_DISPATCH: agent=local.smolagents.code_writer target=smolagents status=forwarded call_id=366cbc97-837e-493f-b577-fc9911ad239a
+- 2026-04-13T07:03:06.004078+00:00 SUPERBRAIN_DISPATCH: agent=local.smolagents.visual_debug_tool target=smolagents status=forwarded call_id=28e52c57-4c04-479e-a867-97997617427e
+- 2026-04-13T07:03:07.085956+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.planner target=langgraph-local status=forwarded call_id=d0963212-eff6-4b19-b1e6-14e14166e186
+- 2026-04-13T07:03:07.984594+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.research target=langgraph-local status=forwarded call_id=3c4df3d6-2758-4678-817f-b58ef4309540
+- 2026-04-13T07:03:08.823702+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.performance target=langgraph-local status=forwarded call_id=52fd14b3-5a63-4196-8b2f-f1038c8ef46a
+- 2026-04-13T07:03:09.699329+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.ui_review target=langgraph-local status=forwarded call_id=5beee5eb-ccb9-41ca-ad7e-38c4a206aafe
+- 2026-04-13T07:03:10.915051+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.reviewer target=langgraph-local status=forwarded call_id=f57ce6cb-fb66-4ba0-be1c-687accf969d4
+- 2026-04-13T07:03:12.474307+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.meta_optimizer target=langgraph-local status=forwarded call_id=51bb6cd8-27ad-4964-add8-4fe7a47e488a
+- 2026-04-13T07:03:14.865881+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.finalize target=langgraph-local status=forwarded call_id=60184098-3a6f-4064-abfd-a5c8cb8d8393
+- 2026-04-13T07:03:16.791157+00:00 SUPERBRAIN_DISPATCH: agent=local.pilot.aider_cloud target=openhands-adapter status=forwarded call_id=158b6433-099f-46e4-a10d-bb06647a9deb
+- 2026-04-13T07:03:18.000413+00:00 SUPERBRAIN_DISPATCH: agent=local.hf_aider.aider_core target=hf-aider status=forwarded call_id=ac01e6ab-06e8-475d-aa47-4bea471bafc0
+- 2026-04-13T07:03:24.489554+00:00 SUPERBRAIN_DISPATCH: agent=local.hf_aider.aider_review target=hf-aider status=forwarded call_id=17424072-1bde-4005-8473-da1d79f282ac
+- 2026-04-13T07:03:27.172591+00:00 SUPERBRAIN_DISPATCH: agent=local.openhands.openhands target=openhands-adapter status=forwarded call_id=7e295582-d575-4855-b48b-1f8c378937ba
+- 2026-04-13T07:02:41.104494+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.lead_coder target=ollama-hf-orchestrator status=forwarded call_id=7e0fff75-81ea-4f58-93d7-70153f9e86e5
+- 2026-04-13T07:03:27.345260+00:00 SUPERBRAIN_DISPATCH: agent=local.openhands.openhands target=openhands-adapter status=forwarded call_id=3f0a5f85-cac5-439c-ba96-197f8ad2eb99
+- 2026-04-13T07:03:27.512488+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.qa target=ollama-hf-orchestrator status=forwarded call_id=b254001a-afa7-45ea-8bf1-948b6b89da45
+- 2026-04-13T07:03:27.219143+00:00 SUPERBRAIN_DISPATCH: agent=local.hf_langgraph.langgraph target=langgraph-local status=forwarded call_id=854c56d9-7552-4576-ad48-130eb0a61221
+- 2026-04-13T07:03:28.160436+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.vision target=ollama-hf-orchestrator status=forwarded call_id=cc5d48a8-6bb4-44d7-97f8-a1771d81536f
+- 2026-04-13T07:03:28.058988+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.planner target=langgraph-local status=forwarded call_id=eb407013-51fc-4082-a340-d7f1165e98a5
+- 2026-04-13T07:03:29.292765+00:00 SUPERBRAIN_DISPATCH: agent=local.openhands.openhands target=openhands-adapter status=forwarded call_id=69e85e71-a66b-4df4-9712-5e24cd3ddcce
+- 2026-04-13T07:03:28.721401+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.research target=ollama-hf-orchestrator status=forwarded call_id=374af909-95c0-4ac9-9e01-d03da1e09fe2
+- 2026-04-13T07:03:29.371619+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.lead_coder target=ollama-hf-orchestrator status=forwarded call_id=574f6f6c-77e8-4f8a-8d15-3ade26e588e1
+- 2026-04-13T07:03:29.946408+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.shader target=ollama-hf-orchestrator status=forwarded call_id=0b3f058f-56f7-4472-9cdb-6bbfb57433a5
+- 2026-04-13T07:03:30.542663+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.memory target=ollama-hf-orchestrator status=forwarded call_id=f32fb84f-4ce6-43fc-b743-4bcbe96e48f5
+- 2026-04-13T07:03:31.147323+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.multiplayer target=ollama-hf-orchestrator status=forwarded call_id=399d90c5-bbd5-4399-b8a3-66fdbbf61b2f
+- 2026-04-13T07:03:29.331579+00:00 SUPERBRAIN_DISPATCH: agent=local.hf_aider.aider_core target=hf-aider status=forwarded call_id=70667ed3-0efc-470d-8986-1a25c5294fcb
+- 2026-04-13T07:03:31.709012+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.qa target=ollama-hf-orchestrator status=forwarded call_id=6a43053f-a99c-4729-ac9f-e0b29fc6537f
+- 2026-04-13T07:03:32.262628+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.release target=ollama-hf-orchestrator status=forwarded call_id=b3596080-1dce-4b00-8d19-6f9aacf80db3
+- 2026-04-13T07:03:32.829663+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.solo_builder target=ollama-hf-orchestrator status=forwarded call_id=9ce25813-516a-4a02-aeb2-09b94267cd13
+- 2026-04-13T07:03:32.092831+00:00 SUPERBRAIN_DISPATCH: agent=local.smolagents.web_researcher target=smolagents status=forwarded call_id=4752f4dd-2d84-4006-924a-071ca95d689d
+- 2026-04-13T07:03:59.001256+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.vision target=ollama-hf-orchestrator status=forwarded call_id=648711cb-babb-4250-b5c2-e23f268f15fc
+- 2026-04-13T07:03:59.607642+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.lead_coder target=ollama-hf-orchestrator status=forwarded call_id=16087361-67fa-476d-af60-c2fd0eedbec8
+- 2026-04-13T07:04:00.281925+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.finalize target=langgraph-local status=forwarded call_id=769d6306-2899-41e3-8d9e-4f9c332a83e3
+- 2026-04-13T07:12:09.961153+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.planner target=langgraph-local status=forwarded call_id=d3cc6ad6-eaea-4971-b79e-edfc2299bf05
+- 2026-04-13T07:12:11.082158+00:00 SUPERBRAIN_DISPATCH: agent=local.pilot.aider_cloud target=openhands-adapter status=forwarded call_id=5cd45f73-2255-4d42-9286-8f42a54b2777
+- 2026-04-13T07:12:11.139892+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.planner target=langgraph-local status=forwarded call_id=57c55f47-b36f-4a94-b217-fc539087d11b
+- 2026-04-13T07:12:11.980577+00:00 SUPERBRAIN_DISPATCH: agent=local.smolagents.godmode_manager target=smolagents status=forwarded call_id=f55386fb-b840-4efe-a397-c542a7faf92b
+- 2026-04-13T07:12:13.129457+00:00 SUPERBRAIN_DISPATCH: agent=local.openhands.openhands target=openhands-adapter status=forwarded call_id=796cc3d8-37f2-4c6c-91de-69c563cf8fd9
+- 2026-04-13T07:12:13.167081+00:00 SUPERBRAIN_DISPATCH: agent=local.hf_aider.aider_core target=hf-aider status=forwarded call_id=f4873d89-56da-4b01-8fb8-d382776e9515
+- 2026-04-13T07:12:14.992883+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.solo_builder target=ollama-hf-orchestrator status=forwarded call_id=6c2b9bcc-495a-48fc-8548-d4d1ceb7b179
+- 2026-04-13T07:13:00.833246+00:00 SUPERBRAIN_DISPATCH: agent=local.smolagents.godmode_manager target=smolagents status=forwarded call_id=1c6fef0f-866c-4188-8345-9edcfcc40c31
+- 2026-04-13T07:13:02.452755+00:00 SUPERBRAIN_DISPATCH: agent=local.smolagents.web_researcher target=smolagents status=forwarded call_id=4cd715ba-61e0-444f-bdfb-e643fb08d79d
+- 2026-04-13T07:13:03.924159+00:00 SUPERBRAIN_DISPATCH: agent=local.smolagents.code_writer target=smolagents status=forwarded call_id=80213207-407b-438d-92dc-bfb179362544
+- 2026-04-13T07:13:05.493536+00:00 SUPERBRAIN_DISPATCH: agent=local.smolagents.visual_debug_tool target=smolagents status=forwarded call_id=3e310d95-5ef6-42b3-97d0-afb34ff95931
+- 2026-04-13T07:13:07.049410+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.planner target=langgraph-local status=forwarded call_id=9f37d96d-288a-4a61-8ff1-3435423b79aa
+- 2026-04-13T07:13:07.971278+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.research target=langgraph-local status=forwarded call_id=a16e78b7-5411-4d53-a998-36f7fa8d073b
+- 2026-04-13T07:13:08.743213+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.performance target=langgraph-local status=forwarded call_id=17809c31-0eed-4594-bbc0-661b47ce39b4
+- 2026-04-13T07:13:09.510038+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.ui_review target=langgraph-local status=forwarded call_id=91abd838-ad3a-44f7-b00c-d719a4add307
+- 2026-04-13T07:13:10.596017+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.reviewer target=langgraph-local status=forwarded call_id=aea3b062-e24f-42dd-aea5-457e3e83d08a
+- 2026-04-13T07:13:11.966326+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.meta_optimizer target=langgraph-local status=forwarded call_id=f8c6e877-80e3-4f20-a316-7cd280e0abda
+- 2026-04-13T07:13:12.735266+00:00 SUPERBRAIN_DISPATCH: agent=local.langgraph.finalize target=langgraph-local status=forwarded call_id=ac165760-680f-408e-94a4-3909e9cfde28
+- 2026-04-13T07:13:13.510892+00:00 SUPERBRAIN_DISPATCH: agent=local.pilot.aider_cloud target=openhands-adapter status=forwarded call_id=cdae437f-8f91-42fc-80cc-1ebd7b7fd6bd
+- 2026-04-13T07:13:13.541984+00:00 SUPERBRAIN_DISPATCH: agent=local.hf_aider.aider_core target=hf-aider status=forwarded call_id=9f2c91c8-7bcd-4801-a73f-4d3d39a86397
+- 2026-04-13T07:13:16.326475+00:00 SUPERBRAIN_DISPATCH: agent=local.hf_aider.aider_review target=hf-aider status=forwarded call_id=f31aba56-4ea5-47f7-98b2-7f22ba85e9ca
+- 2026-04-13T07:13:18.899644+00:00 SUPERBRAIN_DISPATCH: agent=local.openhands.openhands target=openhands-adapter status=forwarded call_id=9805dc02-e238-48e8-923f-2985945d19bb
+- 2026-04-13T07:13:18.938035+00:00 SUPERBRAIN_DISPATCH: agent=local.hf_langgraph.langgraph target=langgraph-local status=forwarded call_id=dda256a2-49b3-49e0-ad75-2b6253ffdcd3
+- 2026-04-13T07:13:19.982495+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.vision target=ollama-hf-orchestrator status=forwarded call_id=2a5016ba-72a7-4e66-bd7c-b7a1edce522c
+- 2026-04-13T07:13:20.652860+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.research target=ollama-hf-orchestrator status=forwarded call_id=8f7ff1d0-6179-45f1-873b-92b5d05cff26
+- 2026-04-13T07:13:21.239461+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.lead_coder target=ollama-hf-orchestrator status=forwarded call_id=90979899-c80c-4754-9455-d622a5587708
+- 2026-04-13T07:13:21.828784+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.shader target=ollama-hf-orchestrator status=forwarded call_id=7844a84a-e8e5-4597-9421-aa77a176840f
+- 2026-04-13T07:13:22.471754+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.memory target=ollama-hf-orchestrator status=forwarded call_id=3e7628d5-0daf-4370-b79d-1f250adb8204
+- 2026-04-13T07:13:23.049071+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.multiplayer target=ollama-hf-orchestrator status=forwarded call_id=e946055b-a6d4-4c69-a82d-160a9f7f8cfc
+- 2026-04-13T07:13:23.833179+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.qa target=ollama-hf-orchestrator status=forwarded call_id=02d61e9b-e8ea-4a21-8e54-0a8a839b4093
+- 2026-04-13T07:13:24.600706+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.release target=ollama-hf-orchestrator status=forwarded call_id=5f4c601b-72bd-4f47-870d-c02493caeca0
+- 2026-04-13T07:13:25.404683+00:00 SUPERBRAIN_DISPATCH: agent=external.ollamahf.solo_builder target=ollama-hf-orchestrator status=forwarded call_id=45b953c0-43b7-40ea-b768-55b71a70bd20

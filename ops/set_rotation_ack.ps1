@@ -23,7 +23,7 @@ function Resolve-AbsolutePath {
 
 function Upsert-ExportLine {
     param(
-        [Parameter(Mandatory = $true)][string[]]$Lines,
+        [Parameter(Mandatory = $true)][AllowEmptyString()][string[]]$Lines,
         [Parameter(Mandatory = $true)][string]$Key,
         [Parameter(Mandatory = $true)][string]$Value
     )

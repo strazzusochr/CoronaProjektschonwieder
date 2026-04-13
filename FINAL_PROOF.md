@@ -5,11 +5,11 @@
 ## Truth Override 2026-04-13
 
 - Diese Datei enthaelt historische PASS-Proofs aus frueheren Runs.
-- Aktueller Final-Release-Stand ist **nicht** voll geschlossen:
+- Aktueller Final-Release-Stand ist im aktuellen Gate-Modell geschlossen:
   - `superbrain_gate_latest.json`: `beta_core=100%`, `ga_full=100%`, `beta_core_go=true`, `ga_full_go=true`
   - `e2e_flows_ae_latest.json`: `flow_percent=100%` (`5/5`), `flow_percent_core=100%` (`5/5`)
   - `final_build_test_result.json`: `status=PASS` (`core_status=PASS`, `full_status=PASS`)
-  - `security_rotation_check_latest.json`: `status=PARTIAL` (Rotation-Acks fehlen)
+  - `security_rotation_check_latest.json`: `status=PASS` (`rotation_ack_complete=true`)
 - Verbindliche Wahrheit fuer den aktuellen Abschlusslauf: `release_gap_report.json` und die neuesten Evidence-JSONs.
 
 - Repository verified: `D:\Web\docs\godmode_setup`

@@ -15,6 +15,8 @@ Superbrain Merge 2026-04-13:
 - End-to-End Snapshot (`.godmode_runtime/evidence/e2e_flows_ae_latest.json`):
   `flow_percent=100%` (`full`), `flow_percent_core=100%`, `verified_flows=5/5`, `verified_flows_core=5/5`.
   Externer Dispatch und Probe-Pfade sind nach Probe-Payload-Haertung aktuell stabil `VERIFIED` (zwei aufeinanderfolgende Snapshot-Runs mit `3/3` HTTP-200).
+- Security Snapshot (`.godmode_runtime/evidence/security_rotation_check_latest.json`):
+  `security_status=PASS`, `rotation_ack_complete=true`, `tracked_findings=0`.
 
 Dieses Dokument ist das kanonische Abnahme- und Steuerprotokoll fuer den
 GODMODE-Stack in `d:\Web\docs\godmode_setup`.

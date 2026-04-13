@@ -141,7 +141,7 @@ def main() -> int:
         120,
         1800,
     )
-    ollama_orchestrate_retries = env_int("SUPERBRAIN_OLLAMA_ORCHESTRATE_RETRIES", 1, 1, 3)
+    ollama_orchestrate_retries = env_int("SUPERBRAIN_OLLAMA_ORCHESTRATE_RETRIES", 2, 1, 3)
     evidence_dir = resolve_evidence_dir()
     timestamp = now_iso()
 

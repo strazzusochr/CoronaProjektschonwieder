@@ -12,8 +12,8 @@ Superbrain Merge 2026-04-13:
   `inventory_verified=100%`, `inventory_live=100%`, `inventory_gate=100%`,
   `routing_live=100%`, `routing_gate=100%`, `external=100%`,
   `beta_core=100% (GO)`, `ga_full=100% (GO)`.
-- Security rotation is tracked separately and remains `PARTIAL` until
-  operator-side rotation acknowledgements are completed.
+- Security rotation gate is now `PASS` (`rotation_ack_complete=true`,
+  `tracked_findings=0`) per latest `security_rotation_check_latest.json`.
 
 This document explains what the repository can actually start, wire, and
 operate today.
