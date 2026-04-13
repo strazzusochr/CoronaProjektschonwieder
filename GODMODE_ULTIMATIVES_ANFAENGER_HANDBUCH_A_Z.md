@@ -155,9 +155,9 @@ Copy-Item .\.godmode_env.example .\.godmode_env -Force
 
 Pflichtwerte setzen (Beispiele, keine Klartext-Secrets im Repo):
 
-- `GITHUB_TOKEN=<local-secret>`
-- `HF_TOKEN=<local-secret>`
-- `LITELLM_API_KEY=<local-secret>`
+- Setze deinen **GitHub-Token** als Wert für `GITHUB_TOKEN`
+- Setze deinen **HF-Token** als Wert für `HF_TOKEN`
+- Setze deinen **LiteLLM-Key** als Wert für `LITELLM_API_KEY`
 - `OPENHANDS_LLM_MODEL=smart-router`
 - `OPENHANDS_LLM_BASE_URL=http://litellm-godmode:4000`
 - `CORE_RUNTIME_PROVIDER=local` (oder `selfhosted`)
