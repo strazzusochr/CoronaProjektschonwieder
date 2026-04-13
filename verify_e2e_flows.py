@@ -191,7 +191,8 @@ def main() -> int:
         ref,
     )
     flow_a_browser = run_cmd(["npm", "run", "test:browser"], FRONTEND_ROOT)
-    flow_a_ok = bool_all(flow_a_dispatch["ok"], flow_a_browser["ok"])
+    flow_a_core_ok = bool_all(flow_a_dispatch["ok"], flow_a_browser["ok"])
+    flow_a_full_ok = flow_a_core_ok
 
     # Flow B: Push -> n8n -> Tests -> Review -> Fix -> Merge (runtime gate approximation)
     flow_b_n8n_payload = {
@@ -223,14 +224,14 @@ def main() -> int:
         ref,
     )
     flow_b_merge_check = run_cmd(["git", "-C", str(REPO_ROOT), "rev-parse", "origin/main"], REPO_ROOT)
-    flow_b_ok = bool_all(
+    flow_b_core_ok = bool_all(
         flow_b_n8n_code == 200,
         flow_b_tests["ok"],
         flow_b_build["ok"],
         flow_b_review["ok"],
-        flow_b_fix["ok"],
         flow_b_merge_check["ok"],
     )
+    flow_b_full_ok = bool_all(flow_b_core_ok, flow_b_fix["ok"])
 
     # Flow C: bolt.diy -> OpenHands -> n8n -> feedback
     flow_c_openhands = dispatch_mission(
@@ -262,7 +263,8 @@ def main() -> int:
         repo_url,
         ref,
     )
-    flow_c_ok = bool_all(flow_c_openhands["ok"], flow_c_n8n_code == 200, flow_c_feedback["ok"])
+    flow_c_core_ok = bool_all(flow_c_openhands["ok"], flow_c_n8n_code == 200)
+    flow_c_full_ok = bool_all(flow_c_core_ok, flow_c_feedback["ok"])
 
     # Flow D: LangGraph -> OpenHands / Aider / smolagents
     flow_d_langgraph = dispatch_mission(
@@ -297,12 +299,13 @@ def main() -> int:
         repo_url,
         ref,
     )
-    flow_d_ok = bool_all(
+    flow_d_core_ok = bool_all(
         flow_d_langgraph["ok"],
         flow_d_openhands["ok"],
         flow_d_aider["ok"],
         flow_d_smol["ok"],
     )
+    flow_d_full_ok = flow_d_core_ok
 
     # Flow E: Vision / screenshot / bugfix loop
     flow_e_browser = run_cmd(["npm", "run", "test:browser"], FRONTEND_ROOT)
@@ -331,22 +334,25 @@ def main() -> int:
         repo_url,
         ref,
     )
-    flow_e_ok = bool_all(
+    flow_e_core_ok = bool_all(
         flow_e_browser["ok"],
         screenshot_info["exists"],
-        flow_e_vision["ok"],
-        flow_e_fix["ok"],
         flow_e_finalize["ok"],
     )
+    flow_e_full_ok = bool_all(flow_e_core_ok, flow_e_vision["ok"], flow_e_fix["ok"])
 
     flows = {
         "A": {
-            "status": "VERIFIED" if flow_a_ok else "BLOCKED",
+            "status_core": "VERIFIED" if flow_a_core_ok else "BLOCKED",
+            "status_full": "VERIFIED" if flow_a_full_ok else "BLOCKED",
+            "status": "VERIFIED" if flow_a_full_ok else "PARTIAL" if flow_a_core_ok else "BLOCKED",
             "dispatch": flow_a_dispatch,
             "browser": flow_a_browser,
         },
         "B": {
-            "status": "VERIFIED" if flow_b_ok else "BLOCKED",
+            "status_core": "VERIFIED" if flow_b_core_ok else "BLOCKED",
+            "status_full": "VERIFIED" if flow_b_full_ok else "BLOCKED",
+            "status": "VERIFIED" if flow_b_full_ok else "PARTIAL" if flow_b_core_ok else "BLOCKED",
             "n8n_http_status": flow_b_n8n_code,
             "n8n_body": flow_b_n8n_body,
             "tests": flow_b_tests,
@@ -356,21 +362,27 @@ def main() -> int:
             "merge_check": flow_b_merge_check,
         },
         "C": {
-            "status": "VERIFIED" if flow_c_ok else "BLOCKED",
+            "status_core": "VERIFIED" if flow_c_core_ok else "BLOCKED",
+            "status_full": "VERIFIED" if flow_c_full_ok else "BLOCKED",
+            "status": "VERIFIED" if flow_c_full_ok else "PARTIAL" if flow_c_core_ok else "BLOCKED",
             "openhands": flow_c_openhands,
             "n8n_http_status": flow_c_n8n_code,
             "n8n_body": flow_c_n8n_body,
             "feedback": flow_c_feedback,
         },
         "D": {
-            "status": "VERIFIED" if flow_d_ok else "BLOCKED",
+            "status_core": "VERIFIED" if flow_d_core_ok else "BLOCKED",
+            "status_full": "VERIFIED" if flow_d_full_ok else "BLOCKED",
+            "status": "VERIFIED" if flow_d_full_ok else "PARTIAL" if flow_d_core_ok else "BLOCKED",
             "langgraph": flow_d_langgraph,
             "openhands": flow_d_openhands,
             "aider": flow_d_aider,
             "smolagents": flow_d_smol,
         },
         "E": {
-            "status": "VERIFIED" if flow_e_ok else "BLOCKED",
+            "status_core": "VERIFIED" if flow_e_core_ok else "BLOCKED",
+            "status_full": "VERIFIED" if flow_e_full_ok else "BLOCKED",
+            "status": "VERIFIED" if flow_e_full_ok else "PARTIAL" if flow_e_core_ok else "BLOCKED",
             "browser": flow_e_browser,
             "screenshot": screenshot_info,
             "vision": flow_e_vision,
@@ -379,18 +391,25 @@ def main() -> int:
         },
     }
 
-    verified = sum(1 for item in flows.values() if item["status"] == "VERIFIED")
-    flow_percent = round((verified / 5.0) * 100.0, 2)
-    all_verified = verified == 5
+    verified_full = sum(1 for item in flows.values() if item["status_full"] == "VERIFIED")
+    verified_core = sum(1 for item in flows.values() if item["status_core"] == "VERIFIED")
+    full_flow_percent = round((verified_full / 5.0) * 100.0, 2)
+    core_flow_percent = round((verified_core / 5.0) * 100.0, 2)
+    all_verified_full = verified_full == 5
+    all_verified_core = verified_core == 5
 
     report = {
         "timestamp": ts,
-        "status": "PASS" if all_verified else "PARTIAL",
+        "status": "PASS" if all_verified_full else "PARTIAL",
+        "core_status": "PASS" if all_verified_core else "PARTIAL",
+        "full_status": "PASS" if all_verified_full else "PARTIAL",
         "hub_base_url": hub,
         "n8n_webhook_url": n8n_webhook,
-        "verified_flows": verified,
+        "verified_flows": verified_full,
+        "verified_flows_core": verified_core,
         "total_flows": 5,
-        "flow_percent": flow_percent,
+        "flow_percent": full_flow_percent,
+        "flow_percent_core": core_flow_percent,
         "flows": flows,
     }
 
@@ -402,8 +421,10 @@ def main() -> int:
             {
                 "status": "ok",
                 "snapshot": str(out_file),
-                "flow_percent": flow_percent,
-                "verified_flows": verified,
+                "flow_percent": full_flow_percent,
+                "flow_percent_core": core_flow_percent,
+                "verified_flows": verified_full,
+                "verified_flows_core": verified_core,
                 "total_flows": 5,
             },
             ensure_ascii=True,

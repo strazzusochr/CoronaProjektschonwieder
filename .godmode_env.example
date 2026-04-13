@@ -24,8 +24,13 @@ export HF_VERIFY_STRICT="true"
 
 # External orchestrator (OllamaHfTrae)
 export OLLAMAHF_BASE_URL="https://cgjgj-ollamahftrae.hf.space"
+# Optional explicit auth. If unset, runtime falls back to HF_TOKEN.
 export OLLAMAHF_MASTER_KEY=""
 export OLLAMAHF_BEARER_TOKEN=""
+export OLLAMAHF_FORWARD_TIMEOUT="45"
+export OLLAMAHF_BLOCK_CACHE_SECONDS="180"
+export OLLAMAHF_DISPATCH_WORKSPACE_FALLBACK="true"
+export OLLAMAHF_WORKSPACE_TASK_ID="workspace_overview"
 
 # Hetzner selfhosted deployment metadata
 export HETZNER_HOST_IP="65.108.253.14"
@@ -109,6 +114,7 @@ export OPENHANDS_LLM_BASE_URL="http://litellm-godmode:4000"
 export OPENHANDS_LLM_API_KEY="replace-with-litellm-key"
 export OPENHANDS_FILE_STORE="local"
 export OPENHANDS_FILE_STORE_PATH="/.openhands-state"
+export OPENHANDS_WORKSPACE_HOST_PATH="D:/Web/docs/godmode_setup"
 
 # LangGraph
 export LANGGRAPH_PORT="8080"

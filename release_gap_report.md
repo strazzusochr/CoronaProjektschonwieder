@@ -1,42 +1,48 @@
 # Release Gap Report
 
-Stand: 2026-04-12  
+Stand: 2026-04-13  
 Scope: GODMODE / Superbrain / All-in-One 3D Webgame Stack  
-Quelle: Repo- und Runtime-Stand in `d:/Web/docs/godmode_setup`
+Quelle: Runtime-Evidence unter `d:/Web/docs/godmode_setup/.godmode_runtime/evidence/` + lokale Testartefakte
 
 ## Kurzfazit
 
-Der Stack ist im Core aktuell **beta-fähig**, aber der Gesamtabschluss bleibt
-**PARTIAL**, weil Security-Rotation noch nicht vollständig quittiert ist und der
-Release-Freeze noch nicht komplett sauber ist.
+Der Stack ist **betriebsbereit im Core und im Superbrain-GA-Pfad**; der Final-Release bleibt wegen Security-/Release-Hygiene **PARTIAL**.
+Harte Restluecken sind aktuell: unvollstaendige Security-Rotation-Acks und kein sauberer Release-Freeze.
 
-## Frisch geschlossene Punkte (mit Evidence)
+Aktueller Prozentstand (evidence-basiert):
 
-1. OpenHands One-Click Bootstrap-Check: `PASS`  
-   - [openhands_ui_bootstrap_latest.json](/d:/Web/docs/godmode_setup/.godmode_runtime/evidence/openhands_ui_bootstrap_latest.json)
-2. Superbrain Gate: `PASS`  
-   - [superbrain_gate_latest.json](/d:/Web/docs/godmode_setup/.godmode_runtime/evidence/superbrain_gate_latest.json)
-3. Finaler Multi-Agent-Build-Test: `PASS`  
-   - [final_build_test_result.json](/d:/Web/docs/godmode_setup/final_build_test_result.json)
-   - [final_build_test_log.txt](/d:/Web/docs/godmode_setup/final_build_test_log.txt)
-   - [final_build_artifact_manifest.json](/d:/Web/docs/godmode_setup/final_build_artifact_manifest.json)
-   - [final_build_screenshot.png](/d:/Web/docs/godmode_setup/final_build_screenshot.png)
-4. n8n Memory Probe Lauf: `PASS`  
-   - [n8n_memory_probe_workflow.json](/d:/Web/docs/godmode_setup/n8n_memory_probe_workflow.json)
-   - [memory_vault.md](/d:/Web/docs/godmode_setup/memory_vault.md)
+- `Superbrain beta_core`: `100.0%` (`GO`)
+- `Superbrain ga_full`: `100.0%` (`GO`)
+- `E2E flows A-E`: `100.0% full` (`5/5`) bei `100.0% core` (`5/5`)
+- `Final multi-agent build test`: `PASS`
+- `Security rotation`: `PARTIAL`
 
-## Offene Restgaps
+## Frisch geschlossene Punkte
 
-1. `GAP-SEC-001` Security rotation acknowledgements: `PARTIAL`  
-   - Rotationszeitpunkte `ROTATED_*_AT` sind lokal noch leer.  
-   - Evidence: [security_rotation_check_latest.json](/d:/Web/docs/godmode_setup/.godmode_runtime/evidence/security_rotation_check_latest.json)
-2. `GAP-OPS-002` Dirty submodule pointer (`hf_pilot_actual`): `PARTIAL`  
-   - Release-Freeze noch nicht final sauber.
-3. `GAP-DOC-003` Kanonische Doku nicht überall auf neueste Evidence-Timestamps synchron: `PARTIAL`
+1. OpenHands UI Bootstrap-Check ist `PASS`.  
+Evidence:
+   [openhands_ui_bootstrap_latest.json](/d:/Web/docs/godmode_setup/.godmode_runtime/evidence/openhands_ui_bootstrap_latest.json)
+2. HF Runtime Gate ist `PASS` inkl. private Gate.  
+Evidence:
+   [hf_runtime_latest.json](/d:/Web/docs/godmode_setup/.godmode_runtime/evidence/hf_runtime_latest.json)
+3. Core-Stack + Compose-Kontrakte bleiben lauffaehig.  
+Evidence:
+   [bolt_facade_api_latest.json](/d:/Web/docs/godmode_setup/.godmode_runtime/evidence/bolt_facade_api_latest.json)
+4. Externer OllamaHfTrae-Probe-Gate ist aktuell geschlossen (`3/3` gruen in zwei aufeinanderfolgenden Runs).  
+Evidence:
+   [superbrain_gate_latest.json](/d:/Web/docs/godmode_setup/.godmode_runtime/evidence/superbrain_gate_latest.json),
+   [ollama_probe_latest.json](/d:/Web/docs/godmode_setup/.godmode_runtime/evidence/ollama_probe_latest.json)
 
-## Nächste Closure-Schritte
+## Offene Gaps (ehrlich)
 
-1. Security-Rotation wirklich durchführen (operatorseitig) und Ack-Felder setzen:  
-   - `.\ops\set_rotation_ack.ps1 -SetNowAll`
-2. `hf_pilot_actual` Submodule-Stand finalisieren (commit oder reset).
-3. Kanonische Dokus auf aktuelle Evidence-Läufe nachziehen und final commit/push.
+1. `GAP-SEC-001` Rotation-Ack-Felder fehlen (`PARTIAL`, operator).  
+Evidence:
+   [security_rotation_check_latest.json](/d:/Web/docs/godmode_setup/.godmode_runtime/evidence/security_rotation_check_latest.json)
+2. `GAP-REL-001` Release-Freeze ist nicht clean (`PARTIAL`, release).  
+Evidence:
+   `git status --short` (lokale Aenderungen + dirty Submodule-Zeiger)
+
+## Naechste Closure-Schritte (priorisiert)
+
+1. Rotation real durchfuehren und Acks setzen (`ops/set_rotation_ack.ps1`), danach `security_preflight.py` auf `PASS`.
+2. Danach Release-Freeze herstellen (Commit + sauberer Git-Status).

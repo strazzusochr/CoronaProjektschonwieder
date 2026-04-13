@@ -82,14 +82,14 @@ def weighted_beta_core(
     inventory_pct: float,
     contract_pct: float,
     routing_pct: float,
-    external_pct: float,
     doc_pct: float,
 ) -> float:
+    # Beta-Core is the local/selfhosted release tier:
+    # external orchestration remains part of GA-Full only.
     return round(
-        (inventory_pct * 0.25)
-        + (contract_pct * 0.20)
-        + (routing_pct * 0.25)
-        + (external_pct * 0.15)
+        (inventory_pct * 0.30)
+        + (contract_pct * 0.25)
+        + (routing_pct * 0.30)
         + (doc_pct * 0.15),
         2,
     )
@@ -112,8 +112,36 @@ def weighted_ga_full(
     )
 
 
+def env_int(name: str, default: int, minimum: int, maximum: int) -> int:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    return max(minimum, min(maximum, value))
+
+
 def main() -> int:
     base_url = os.environ.get("BOLTDIY_FACADE_URL", "http://127.0.0.1:3901").rstrip("/")
+    forward_timeout = env_int("BOLTDIY_FORWARD_TIMEOUT", 20, 3, 180)
+    dispatch_timeout = env_int("SUPERBRAIN_DISPATCH_TIMEOUT", forward_timeout + 5, 3, 240)
+    external_dispatch_timeout = env_int(
+        "SUPERBRAIN_EXTERNAL_DISPATCH_TIMEOUT",
+        max(dispatch_timeout, 90),
+        10,
+        900,
+    )
+    # External probes can legitimately take multiple minutes under HF queue/load.
+    ollama_task_timeout = env_int("SUPERBRAIN_OLLAMA_TASK_TIMEOUT", 360, 30, 900)
+    ollama_probe_timeout = env_int(
+        "SUPERBRAIN_OLLAMA_PROBE_TIMEOUT",
+        max(900, ollama_task_timeout * 3),
+        120,
+        1800,
+    )
+    ollama_orchestrate_retries = env_int("SUPERBRAIN_OLLAMA_ORCHESTRATE_RETRIES", 1, 1, 3)
     evidence_dir = resolve_evidence_dir()
     timestamp = now_iso()
 
@@ -144,27 +172,27 @@ def main() -> int:
     }
     checks = []
 
-    code, _ = post_json(f"{base_url}/dispatch", valid_payload)
+    code, _ = post_json(f"{base_url}/dispatch", valid_payload, timeout=dispatch_timeout)
     checks.append({"name": "valid_payload", "pass": code == 200, "http_status": code})
 
     alias_payload = dict(valid_payload)
     alias_payload["agent"] = "Aider-Cloud"
-    code, _ = post_json(f"{base_url}/dispatch", alias_payload)
+    code, _ = post_json(f"{base_url}/dispatch", alias_payload, timeout=dispatch_timeout)
     checks.append({"name": "legacy_alias_payload", "pass": code == 200, "http_status": code})
 
     unknown_payload = dict(valid_payload)
     unknown_payload["agent"] = "unknown.agent"
-    code, _ = post_json(f"{base_url}/dispatch", unknown_payload)
+    code, _ = post_json(f"{base_url}/dispatch", unknown_payload, timeout=dispatch_timeout)
     checks.append({"name": "unknown_agent_rejected", "pass": code == 422, "http_status": code})
 
     missing_field_payload = dict(valid_payload)
     missing_field_payload.pop("timestamp", None)
-    code, _ = post_json(f"{base_url}/dispatch", missing_field_payload)
+    code, _ = post_json(f"{base_url}/dispatch", missing_field_payload, timeout=dispatch_timeout)
     checks.append({"name": "missing_field_rejected", "pass": code == 422, "http_status": code})
 
     extra_field_payload = dict(valid_payload)
     extra_field_payload["unexpected"] = "x"
-    code, _ = post_json(f"{base_url}/dispatch", extra_field_payload)
+    code, _ = post_json(f"{base_url}/dispatch", extra_field_payload, timeout=dispatch_timeout)
     checks.append({"name": "extra_field_rejected", "pass": code == 422, "http_status": code})
 
     contract_passed = sum(1 for item in checks if item["pass"])
@@ -185,7 +213,8 @@ def main() -> int:
         payload = dict(valid_payload)
         payload["agent"] = agent_id
         payload["task"] = f"Routing gate probe for {target}"
-        code, body = post_json(f"{base_url}/dispatch", payload, timeout=45)
+        timeout_value = external_dispatch_timeout if agent_id.startswith("external.") else dispatch_timeout
+        code, body = post_json(f"{base_url}/dispatch", payload, timeout=timeout_value)
         status = body.get("status", "unknown")
         result_payload = body.get("result", {})
         has_blocked_evidence = (
@@ -227,7 +256,8 @@ def main() -> int:
         payload = dict(valid_payload)
         payload["agent"] = agent_id
         payload["task"] = f"Inventory verification probe for {agent_id}"
-        code, body = post_json(f"{base_url}/dispatch", payload, timeout=45)
+        timeout_value = external_dispatch_timeout if agent_id.startswith("external.") else dispatch_timeout
+        code, body = post_json(f"{base_url}/dispatch", payload, timeout=timeout_value)
         status = str(body.get("status", "unknown"))
         inventory_checked += 1
         if status == "forwarded":
@@ -257,10 +287,11 @@ def main() -> int:
         {
             "task": "External gate probe for superbrain merge.",
             "model": "qwen2.5-coder-7b",
-            "timeout": 600,
+            "timeout": ollama_task_timeout,
             "dry_run": False,
+            "orchestrate_retries": ollama_orchestrate_retries,
         },
-        timeout=660,
+        timeout=ollama_probe_timeout,
     )
     external_success_raw = int(probe.get("successful_probes", 0))
     probe_results = probe.get("results", {}) if isinstance(probe.get("results", {}), dict) else {}
@@ -297,7 +328,6 @@ def main() -> int:
         inventory_gate_pct,
         contract_pct,
         routing_gate_pct,
-        external_pct,
         doc_pct,
     )
     ga_full_pct = weighted_ga_full(

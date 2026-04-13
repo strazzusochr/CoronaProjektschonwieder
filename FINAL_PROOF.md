@@ -2,6 +2,16 @@
 
 ## Verification Summary
 
+## Truth Override 2026-04-13
+
+- Diese Datei enthaelt historische PASS-Proofs aus frueheren Runs.
+- Aktueller Final-Release-Stand ist **nicht** voll geschlossen:
+  - `superbrain_gate_latest.json`: `beta_core=100%`, `ga_full=100%`, `beta_core_go=true`, `ga_full_go=true`
+  - `e2e_flows_ae_latest.json`: `flow_percent=100%` (`5/5`), `flow_percent_core=100%` (`5/5`)
+  - `final_build_test_result.json`: `status=PASS` (`core_status=PASS`, `full_status=PASS`)
+  - `security_rotation_check_latest.json`: `status=PARTIAL` (Rotation-Acks fehlen)
+- Verbindliche Wahrheit fuer den aktuellen Abschlusslauf: `release_gap_report.json` und die neuesten Evidence-JSONs.
+
 - Repository verified: `D:\Web\docs\godmode_setup`
 - Frontend project verified: `D:\Web\docs\godmode_setup\CoronaProjektschonwieder`
 - Last fully reverified pushed platform snapshot during this proof: `62c5baa900a44203481c31dec00c87d33ee79db3`
@@ -258,3 +268,7 @@ selfhosted core runtime.
 - 2026-04-12T16:44:41.284831+00:00 BOLT_PROOF: result=PASS scenario=superbrain-hub-smoke proof_id=1f1a23e3-a03a-4392-be55-0e3f84381371
 - 2026-04-12T18:11:09.288536+00:00 BOLT_PROOF: result=PASS scenario=superbrain-hub-smoke proof_id=274a1c68-34cf-4a18-a81e-c85b12f62e8c
 - 2026-04-12T20:58:31.529847+00:00 BOLT_PROOF: result=PASS scenario=superbrain-hub-smoke proof_id=77bbb67e-b546-40a6-be2d-deed8dedee1e
+- 2026-04-13T01:56:32.193380+00:00 BOLT_PROOF: result=PASS scenario=superbrain-hub-smoke proof_id=843036c8-3c4d-4c41-9b18-04b7663b4ddf
+- 2026-04-13T03:25:13.748892+00:00 BOLT_PROOF: result=PASS scenario=superbrain-hub-smoke proof_id=a431ea25-5049-443a-b803-4819bf1e157d
+- 2026-04-13T04:17:30.784953+00:00 BOLT_PROOF: result=PASS scenario=superbrain-hub-smoke proof_id=574a1db4-1eb7-4af4-bd01-dff5ba1cc70d
+- 2026-04-13T04:56:09.530369+00:00 BOLT_PROOF: result=PASS scenario=superbrain-hub-smoke proof_id=72442bac-e382-4cfd-b661-1c6f6ba7eb01

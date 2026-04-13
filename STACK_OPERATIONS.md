@@ -1,16 +1,17 @@
 # GODMODE Stack Operations
 
-Stand: 2026-04-11
+Stand: 2026-04-13
+Superbrain Merge 2026-04-12 (sync marker): canonical Superbrain control-plane remains active.
 
-Superbrain Merge 2026-04-12:
+Superbrain Merge 2026-04-13:
 - Dispatch-Hub wurde auf namespaced Agent-Registry + 5 feste runtime targets erweitert.
 - Canonical registry source: `agent_registry.json`.
 - New control protocol: `AGENT_SUPERBRAIN_KONTROLLPROTOKOLL.md`.
 - No-Lie rule remains strict: unproven runtime claims stay downgraded (`PARTIAL`, `BLOCKED`, `NOT VERIFIED`).
 - Latest gate evidence (`.godmode_runtime/evidence/superbrain_gate_latest.json`):
-  `inventory_verified=96.15%`, `inventory_live=100%`, `inventory_gate=100%`,
+  `inventory_verified=100%`, `inventory_live=100%`, `inventory_gate=100%`,
   `routing_live=100%`, `routing_gate=100%`, `external=100%`,
-  `beta_core=100%`, `ga_full=100%`.
+  `beta_core=100% (GO)`, `ga_full=100% (GO)`.
 - Security rotation is tracked separately and remains `PARTIAL` until
   operator-side rotation acknowledgements are completed.
 

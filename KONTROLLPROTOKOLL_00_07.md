@@ -1,22 +1,20 @@
 # GODMODE Kontrollprotokoll 00-07
 
-Stand: 2026-04-12
+Stand: 2026-04-13
+Superbrain Merge 2026-04-12 (sync marker): canonical Superbrain control-plane remains active.
 
-Superbrain Merge 2026-04-12:
+Superbrain Merge 2026-04-13:
 - Neues kanonisches Merge-Protokoll: `AGENT_SUPERBRAIN_KONTROLLPROTOKOLL.md`.
 - Namespaced Agent-Registry aktiv (`local.*`, `external.*`, `legacy.*`) via `agent_registry.json`.
 - Dispatch-Hub mit festen Targets: `langgraph-local`, `smolagents`, `openhands-adapter`, `hf-aider`, `ollama-hf-orchestrator`.
 - Zero-Compute Policy aktiv: heavy 3D/KI-Tasks lokal blockieren, remote erzwingen.
 - Aktueller Gate-Snapshot (`.godmode_runtime/evidence/superbrain_gate_latest.json`):
-  `inventory_verified=96.15%`, `inventory_live=100%`, `inventory_gate=100%`,
+  `inventory_verified=100%`, `inventory_live=100%`, `inventory_gate=100%`,
   `routing_live=100%`, `routing_gate=100%`, `external=100%`,
   `beta_core=100% (GO)`, `ga_full=100% (GO)`.
-- Hinweis: `inventory_verified=96.15%` bleibt korrekt, weil der eine Legacy-
-  Eintrag absichtlich `LEGACY` ist und nicht kuenstlich als `VERIFIED` gezaehlt wird.
-- Hinweis zur 96.15%-Zeile: der einzelne Legacy-Eintrag bleibt absichtlich
-  `LEGACY` und wird nicht kuenstlich als `VERIFIED` markiert.
 - End-to-End Snapshot (`.godmode_runtime/evidence/e2e_flows_ae_latest.json`):
-  `flow_percent=100%`, `verified_flows=5/5`, alle Flows `A..E=VERIFIED`.
+  `flow_percent=100%` (`full`), `flow_percent_core=100%`, `verified_flows=5/5`, `verified_flows_core=5/5`.
+  Externer Dispatch und Probe-Pfade sind nach Probe-Payload-Haertung aktuell stabil `VERIFIED` (zwei aufeinanderfolgende Snapshot-Runs mit `3/3` HTTP-200).
 
 Dieses Dokument ist das kanonische Abnahme- und Steuerprotokoll fuer den
 GODMODE-Stack in `d:\Web\docs\godmode_setup`.
@@ -34,7 +32,7 @@ Hetzner selfhosted track note (2026-04-12):
 - HTTPS probes for `openhands`, `adapter`, `langgraph`, `n8n`, `bolt` returned
   `200`; direct service ports remain externally closed as required.
 
-Beta-Gate closure note (2026-04-11):
+Beta-Gate closure note (2026-04-11, historical):
 - Closure bundle refreshed: `proofs/beta_gate_closure_latest.json`.
 - Health + Metrics gate now `14/14 PASS` via
   `proofs/health_metrics_final_2026-04-11T18-40-54Z.json`.

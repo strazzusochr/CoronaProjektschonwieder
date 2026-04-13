@@ -489,6 +489,13 @@ if (-not $env:OPENHANDS_FILE_STORE_PATH) {
     $env:OPENHANDS_FILE_STORE_PATH = "/.openhands-state"
 }
 
+if (-not $env:OPENHANDS_WORKSPACE_HOST_PATH) {
+    $env:OPENHANDS_WORKSPACE_HOST_PATH = $RepoRoot
+}
+if (-not (Test-Path -LiteralPath $env:OPENHANDS_WORKSPACE_HOST_PATH)) {
+    throw "Preflight failed: OPENHANDS_WORKSPACE_HOST_PATH '$($env:OPENHANDS_WORKSPACE_HOST_PATH)' does not exist."
+}
+
 if (-not $env:LANGGRAPH_API_INTERNAL_URL) {
     $env:LANGGRAPH_API_INTERNAL_URL = "http://langgraph-godmode-local:8080"
 }

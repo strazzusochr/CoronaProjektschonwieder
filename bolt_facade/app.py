@@ -70,10 +70,14 @@ GODMODE_GOAL_PATH = Path(
 
 BOLTDIY_MODE = os.environ.get("BOLTDIY_MODE", "hybrid").strip().lower()
 BOLTDIY_FORWARD_TIMEOUT = int(os.environ.get("BOLTDIY_FORWARD_TIMEOUT", "20"))
+OLLAMAHF_FORWARD_TIMEOUT = int(
+    os.environ.get("OLLAMAHF_FORWARD_TIMEOUT", str(max(BOLTDIY_FORWARD_TIMEOUT, 45)))
+)
 BOLTDIY_SPACE_URL = os.environ.get("BOLTDIY_SPACE_URL", "").strip()
 BOLTDIY_SPACE_ID = os.environ.get("BOLTDIY_SPACE_ID", "Wrzzzrzr/bolt-diy-godmode").strip()
+_HF_TOKEN = os.environ.get("HF_TOKEN", "").strip()
 _BOLTDIY_SPACE_TOKEN_RAW = os.environ.get("BOLTDIY_SPACE_TOKEN", "").strip()
-BOLTDIY_SPACE_TOKEN = _BOLTDIY_SPACE_TOKEN_RAW or os.environ.get("HF_TOKEN", "").strip()
+BOLTDIY_SPACE_TOKEN = _BOLTDIY_SPACE_TOKEN_RAW or _HF_TOKEN
 HF_AIDER_SPACE_URL = os.environ.get("HF_AIDER_SPACE_URL", "").strip()
 HF_SMOLAGENTS_SPACE_URL = os.environ.get("HF_SMOLAGENTS_SPACE_URL", "").strip()
 HF_AIDER_URL = _first_non_empty(
@@ -94,8 +98,20 @@ OLLAMAHF_BASE_URL = os.environ.get(
     "OLLAMAHF_BASE_URL",
     "https://cgjgj-ollamahftrae.hf.space",
 ).strip()
-OLLAMAHF_MASTER_KEY = os.environ.get("OLLAMAHF_MASTER_KEY", "").strip()
-OLLAMAHF_BEARER_TOKEN = os.environ.get("OLLAMAHF_BEARER_TOKEN", "").strip()
+OLLAMAHF_MASTER_KEY = os.environ.get("OLLAMAHF_MASTER_KEY", "").strip() or _HF_TOKEN
+OLLAMAHF_BEARER_TOKEN = os.environ.get("OLLAMAHF_BEARER_TOKEN", "").strip() or _HF_TOKEN
+OLLAMAHF_BLOCK_CACHE_SECONDS = int(os.environ.get("OLLAMAHF_BLOCK_CACHE_SECONDS", "180"))
+OLLAMAHF_DISPATCH_WORKSPACE_FALLBACK = (
+    os.environ.get("OLLAMAHF_DISPATCH_WORKSPACE_FALLBACK", "true").strip().lower()
+    in {"1", "true", "yes", "on"}
+)
+OLLAMAHF_WORKSPACE_TASK_ID = os.environ.get("OLLAMAHF_WORKSPACE_TASK_ID", "workspace_overview").strip() or "workspace_overview"
+OLLAMAHF_DISPATCH_DRY_RUN = os.environ.get("OLLAMAHF_DISPATCH_DRY_RUN", "false").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 ZERO_COMPUTE_POLICY = os.environ.get("ZERO_COMPUTE_POLICY", "true").strip().lower() in {
     "1",
     "true",
@@ -137,6 +153,11 @@ METRICS: dict[str, Any] = {
     "policy_denied_total": 0,
     "target_counts": {target: 0 for target in RUNTIME_TARGETS},
     "proof_total": 0,
+}
+OLLAMAHF_LAST_BLOCK: dict[str, Any] = {
+    "at": 0.0,
+    "reason": "",
+    "error": "",
 }
 
 
@@ -772,19 +793,64 @@ def _dispatch_hf_aider(payload: MissionPayload) -> dict[str, Any]:
 
 
 def _dispatch_ollamahf(payload: MissionPayload) -> dict[str, Any]:
+    def _workspace_task_fallback(base_url: str, reason: str) -> dict[str, Any]:
+        if not OLLAMAHF_DISPATCH_WORKSPACE_FALLBACK:
+            return {
+                "target": "ollama-hf-orchestrator",
+                "status": "blocked",
+                "reason": reason,
+                "fallback_enabled": False,
+            }
+        fallback = _post_json(
+            f"{base_url}/workspace/api/tasks/run",
+            {"task_id": OLLAMAHF_WORKSPACE_TASK_ID},
+            min(30, OLLAMAHF_FORWARD_TIMEOUT),
+            headers=_ollama_headers(),
+        )
+        fallback["target"] = "ollama-hf-orchestrator"
+        fallback["fallback_used"] = True
+        fallback["fallback_endpoint"] = f"{base_url}/workspace/api/tasks/run"
+        fallback["fallback_task_id"] = OLLAMAHF_WORKSPACE_TASK_ID
+        fallback["fallback_reason"] = reason
+        if fallback.get("status") == "forwarded":
+            return fallback
+        return {
+            "target": "ollama-hf-orchestrator",
+            "status": "blocked",
+            "reason": reason,
+            "fallback_used": True,
+            "fallback_endpoint": fallback.get("fallback_endpoint"),
+            "fallback_task_id": OLLAMAHF_WORKSPACE_TASK_ID,
+            "fallback_result": fallback,
+        }
+
     if not OLLAMAHF_BASE_URL:
         return {
             "target": "ollama-hf-orchestrator",
             "status": "blocked",
             "reason": "OLLAMAHF_BASE_URL missing",
         }
+    now = time.time()
+    cache_age = now - float(OLLAMAHF_LAST_BLOCK.get("at", 0.0) or 0.0)
+    if (
+        OLLAMAHF_BLOCK_CACHE_SECONDS > 0
+        and OLLAMAHF_LAST_BLOCK.get("at")
+        and cache_age <= OLLAMAHF_BLOCK_CACHE_SECONDS
+    ):
+        return _workspace_task_fallback(
+            OLLAMAHF_BASE_URL.rstrip("/"),
+            (
+                "External orchestrator is in recent BLOCKED cache window; "
+                "primary orchestration skipped."
+            ),
+        )
     base = OLLAMAHF_BASE_URL.rstrip("/")
     body = {
         "prompt": payload.task,
         "master_key": OLLAMAHF_MASTER_KEY,
         "mode": "single_model",
         "selected_model": "qwen2.5-coder-7b",
-        "dry_run": True,
+        "dry_run": OLLAMAHF_DISPATCH_DRY_RUN,
         "project_profile": "3d_web_game",
         "task_type": "implementation",
         "language": "typescript",
@@ -795,9 +861,43 @@ def _dispatch_ollamahf(payload: MissionPayload) -> dict[str, Any]:
     response = _post_json(
         f"{base}/orchestrate",
         body,
-        BOLTDIY_FORWARD_TIMEOUT,
+        OLLAMAHF_FORWARD_TIMEOUT,
         headers=_ollama_headers(),
     )
+    response_payload = response.get("response")
+    response_error = str(response.get("error", "")).lower()
+    if response.get("status") == "forward-failed":
+        if "timed out" in response_error or "timeout" in response_error:
+            response["status"] = "blocked"
+            response["reason"] = (
+                "External orchestrator did not complete within timeout window; "
+                "kept as BLOCKED with evidence."
+            )
+        elif response.get("http_status") in {401, 403, 404, 408, 429, 500, 502, 503, 504}:
+            response["status"] = "blocked"
+            response["reason"] = "External orchestrator returned non-usable status."
+    if (
+        response.get("status") == "forwarded"
+        and isinstance(response_payload, dict)
+        and response_payload.get("dry_run") is True
+    ):
+        response["status"] = "blocked"
+        response["reason"] = "External orchestrator returned dry_run=true for dispatch path."
+    if response.get("status") in {"blocked", "forward-failed"}:
+        fallback_reason = str(response.get("reason", "") or response.get("error", "")).strip()
+        fallback_result = _workspace_task_fallback(base, fallback_reason or "Primary orchestrate path blocked.")
+        if fallback_result.get("status") == "forwarded":
+            OLLAMAHF_LAST_BLOCK["at"] = time.time()
+            OLLAMAHF_LAST_BLOCK["reason"] = fallback_reason or "Primary orchestrate path blocked."
+            OLLAMAHF_LAST_BLOCK["error"] = str(response.get("error", "")).strip()
+            return fallback_result
+        OLLAMAHF_LAST_BLOCK["at"] = time.time()
+        OLLAMAHF_LAST_BLOCK["reason"] = str(response.get("reason", "")).strip()
+        OLLAMAHF_LAST_BLOCK["error"] = str(response.get("error", "")).strip()
+    elif response.get("status") == "forwarded":
+        OLLAMAHF_LAST_BLOCK["at"] = 0.0
+        OLLAMAHF_LAST_BLOCK["reason"] = ""
+        OLLAMAHF_LAST_BLOCK["error"] = ""
     response["target"] = "ollama-hf-orchestrator"
     return response
 
@@ -889,7 +989,11 @@ def _run_ollama_probe(req: OllamaProbeRequest) -> dict[str, Any]:
         "project_profile": "3d_web_game",
         "language": "typescript",
         "framework": "react-three-fiber",
-        "output_format": "code",
+        # Keep probe payload lightweight so endpoint availability is measured,
+        # not long code-generation latency.
+        "output_format": "text",
+        "max_tokens": 64,
+        "temperature": 0.0,
     }
     if OLLAMAHF_MASTER_KEY:
         orchestrate_payload["master_key"] = OLLAMAHF_MASTER_KEY
@@ -911,14 +1015,19 @@ def _run_ollama_probe(req: OllamaProbeRequest) -> dict[str, Any]:
         if attempt < req.orchestrate_retries:
             time.sleep(min(2 * attempt, 5))
     if orchestrate_attempts:
-        orchestrate_result["attempts"] = orchestrate_attempts
+        orchestrate_result = dict(orchestrate_result)
+        orchestrate_result["attempts"] = [dict(item) for item in orchestrate_attempts]
     results = {
         "models": models_result,
         "chat_completions": chat_result,
         "orchestrate": orchestrate_result,
     }
     success_count = 0
-    for item in results.values():
+    for name, item in results.items():
+        if name == "orchestrate":
+            response_payload = item.get("response")
+            if isinstance(response_payload, dict) and response_payload.get("dry_run") is True:
+                continue
         if item.get("status") == "forwarded":
             success_count += 1
         elif item.get("http_status") == 200:

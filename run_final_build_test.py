@@ -22,6 +22,10 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def is_external_agent(agent_id: str) -> bool:
+    return agent_id.strip().lower().startswith("external.")
+
+
 def post_json(url: str, payload: dict, timeout: int = 45) -> tuple[int, dict]:
     body = json.dumps(payload, ensure_ascii=True).encode("utf-8")
     req = request.Request(
@@ -110,17 +114,33 @@ def main() -> int:
     PAYLOAD_FILE.write_text(json.dumps({"missions": missions}, indent=2), encoding="utf-8")
 
     dispatch_results = []
+    dry_run_detected_any = False
+    dry_run_detected_core = False
     for mission in missions:
         code, body = post_json(HUB_URL, mission, timeout=60)
+        result_payload = body.get("result", {}) if isinstance(body.get("result", {}), dict) else {}
+        response_payload = (
+            result_payload.get("response", {})
+            if isinstance(result_payload.get("response", {}), dict)
+            else {}
+        )
+        response_dry_run = bool(response_payload.get("dry_run", False))
+        external_agent = is_external_agent(mission["agent"])
+        if response_dry_run:
+            dry_run_detected_any = True
+            if not external_agent:
+                dry_run_detected_core = True
         dispatch_results.append(
             {
                 "agent": mission["agent"],
+                "scope": "external" if external_agent else "core",
                 "http_status": code,
                 "status": body.get("status", "unknown"),
                 "runtime_target": body.get("runtime_target", ""),
                 "dispatch_artifact": body.get("dispatch_artifact", ""),
                 "reason": body.get("reason") or body.get("result", {}).get("reason", ""),
                 "error": body.get("result", {}).get("error", ""),
+                "response_dry_run": response_dry_run,
             }
         )
 
@@ -169,43 +189,74 @@ def main() -> int:
     ]
     LOG_FILE.write_text("\n".join(log_lines), encoding="utf-8")
 
-    dispatch_ok = all(
+    core_dispatch_results = [item for item in dispatch_results if item["scope"] == "core"]
+    external_dispatch_results = [item for item in dispatch_results if item["scope"] == "external"]
+
+    dispatch_core_ok = all(
+        item["http_status"] == 200 and item["status"] == "forwarded"
+        for item in core_dispatch_results
+    ) and not dry_run_detected_core
+
+    dispatch_full_ok = all(
         item["http_status"] == 200 and item["status"] == "forwarded"
         for item in dispatch_results
-    )
-    status = "PASS" if all(
+    ) and not dry_run_detected_any
+
+    common_checks_ok = all(
         [
-            dispatch_ok,
             build_cmd["ok"],
             browser_cmd["ok"],
             screenshot_exists,
             SCREENSHOT_FILE.exists(),
             len(dist_files) > 0,
         ]
-    ) else "FAIL"
+    )
+    core_status = "PASS" if dispatch_core_ok and common_checks_ok else "FAIL"
+    if core_status == "PASS" and dispatch_full_ok:
+        status = "PASS"
+    elif core_status == "PASS":
+        status = "PARTIAL"
+    else:
+        status = "FAIL"
 
-    blockers: list[str] = []
-    if not dispatch_ok:
-        blockers.append("Dispatch did not forward for all selected agents.")
+    blockers_core: list[str] = []
+    blockers_full: list[str] = []
+    if not dispatch_core_ok:
+        blockers_core.append(
+            "Core dispatch did not forward for all selected non-external agents or returned dry_run=true."
+        )
+    if not dispatch_full_ok:
+        blockers_full.append(
+            "Full dispatch did not forward for all selected agents (external path still blocked/partial) or returned dry_run=true."
+        )
     if not build_cmd["ok"]:
-        blockers.append("npm run build failed.")
+        blockers_core.append("npm run build failed.")
     if not browser_cmd["ok"]:
-        blockers.append("npm run test:browser failed.")
+        blockers_core.append("npm run test:browser failed.")
     if not screenshot_exists:
-        blockers.append("No Playwright screenshot produced.")
+        blockers_core.append("No Playwright screenshot produced.")
     if not SCREENSHOT_FILE.exists():
-        blockers.append("final_build_screenshot.png was not written.")
+        blockers_core.append("final_build_screenshot.png was not written.")
     if len(dist_files) == 0:
-        blockers.append("No build artifacts in frontend dist directory.")
+        blockers_core.append("No build artifacts in frontend dist directory.")
 
     result = {
         "timestamp": now_iso(),
         "status": status,
-        "dispatch_ok": dispatch_ok,
+        "core_status": core_status,
+        "full_status": "PASS" if dispatch_full_ok and common_checks_ok else "FAIL",
+        "dispatch_core_ok": dispatch_core_ok,
+        "dispatch_full_ok": dispatch_full_ok,
         "build_ok": build_cmd["ok"],
         "browser_ok": browser_cmd["ok"],
         "screenshot_ok": SCREENSHOT_FILE.exists(),
         "dist_ok": len(dist_files) > 0,
+        "dispatch_breakdown": {
+            "core_count": len(core_dispatch_results),
+            "external_count": len(external_dispatch_results),
+            "dry_run_detected_any": dry_run_detected_any,
+            "dry_run_detected_core": dry_run_detected_core,
+        },
         "artifacts": {
             "payload": str(PAYLOAD_FILE),
             "log": str(LOG_FILE),
@@ -213,7 +264,9 @@ def main() -> int:
             "manifest": str(MANIFEST_FILE),
             "screenshot": str(SCREENSHOT_FILE),
         },
-        "blockers": blockers,
+        "blockers_core": blockers_core,
+        "blockers_full": blockers_full,
+        "blockers": blockers_core + blockers_full,
     }
     RESULT_FILE.write_text(json.dumps(result, indent=2), encoding="utf-8")
 

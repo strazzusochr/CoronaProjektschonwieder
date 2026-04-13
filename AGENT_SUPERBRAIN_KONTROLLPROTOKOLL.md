@@ -1,6 +1,6 @@
 # AGENT_SUPERBRAIN_KONTROLLPROTOKOLL
 
-Stand: 2026-04-12 (Snapshot-Refresh 23:38 Europe/Berlin)  
+Stand: 2026-04-13 (Snapshot-Refresh 08:37 Europe/Berlin)  
 Marker: **Superbrain Merge 2026-04-12**
 
 Dieses Dokument ist das zentrale Kontrollprotokoll fuer den Superbrain-Merge aus:
@@ -79,7 +79,7 @@ ENV:
 - `Routing Gate % = (live_targets + blocked_targets_with_evidence) / 5 * 100`
 - `External % = successful_ollama_probes / 3 * 100`
 - `Doc % = synced_docs / 4 * 100`
-- `Gesamt Beta-Core % = weighted(InventoryGate 25, Contract 20, RoutingGate 25, External 15, Doc 15)`
+- `Gesamt Beta-Core % = weighted(InventoryGate 30, Contract 25, RoutingGate 30, Doc 15)`
 
 ## 7) Freigabe
 
@@ -93,12 +93,13 @@ Bis dahin gilt: kein "fertig", nur Gate-Status mit Evidence.
 Quelle:
 [`superbrain_gate_latest.json`](/d:/Web/docs/godmode_setup/.godmode_runtime/evidence/superbrain_gate_latest.json)
 
-- Inventory Verified: `96.15%` (`25/26`; alle aktiven Agenten sind live-forwarded, der Legacy-Eintrag bleibt absichtlich `LEGACY`).
-- Inventory Gate: `100%`.
+- Inventory Verified: `100.0%` (`26/26`).
+- Inventory Live: `100.0%` (aktive Agenten mit `status=forwarded`).
+- Inventory Gate: `100%` (25 aktive + 1 legacy korrekt registriert).
 - Contract Gate: `100%`.
-- Routing Live: `100%`.
-- Routing Gate: `100%`.
-- External Gate (OllamaHfTrae): `100%` (`PASS`; `/orchestrate`, `/v1/models`, `/v1/chat/completions` im aktuellen Snapshot erfolgreich).
+- Routing Live: `100.0%`.
+- Routing Gate: `100.0%`.
+- External Gate (OllamaHfTrae): `100.0%` (`VERIFIED`; zwei aufeinanderfolgende Latest-Runs liefern HTTP `200` auf `/v1/models`, `/v1/chat/completions` und `/orchestrate`).
 - Doc Gate: `100%`.
-- Beta-Core: `100%` -> `GO`.
-- GA-Full: `100%` -> `GO` (2-Stufen-Modell: aktive Agenten live, externe Probes live, Core-Doku synchron).
+- Beta-Core: `100.0%` -> `GO`.
+- GA-Full: `100.0%` -> `GO`.

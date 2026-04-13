@@ -217,6 +217,7 @@ Used by: `aider_godmode.ps1`, pilot execution, and Aider cloud workflows.
 - `OPENHANDS_LLM_API_KEY`
 - `OPENHANDS_FILE_STORE`
 - `OPENHANDS_FILE_STORE_PATH`
+- `OPENHANDS_WORKSPACE_HOST_PATH`
 - `DEVTOOLS_BRIDGE_URL`
 - `DEVTOOLS_BRIDGE_TIMEOUT`
 
@@ -331,6 +332,7 @@ Minimum practical set:
 - `OPENHANDS_LLM_MODEL`
 - `OPENHANDS_LLM_BASE_URL`
 - `OPENHANDS_LLM_API_KEY`
+- `OPENHANDS_WORKSPACE_HOST_PATH`
 - `GITHUB_TOKEN`
 - if `OPENHANDS_LLM_BASE_URL` targets LiteLLM (`:4000`), then `LITELLM_API_KEY` is required
 
@@ -381,11 +383,20 @@ Minimum practical set:
 - `OLLAMAHF_BASE_URL`
 - `OLLAMAHF_MASTER_KEY`
 - `OLLAMAHF_BEARER_TOKEN`
+- `OLLAMAHF_FORWARD_TIMEOUT`
+- `OLLAMAHF_BLOCK_CACHE_SECONDS`
+- `OLLAMAHF_DISPATCH_WORKSPACE_FALLBACK`
+- `OLLAMAHF_WORKSPACE_TASK_ID`
 - `ZERO_COMPUTE_POLICY`
 - `GODMODE_ALLOW_LOCAL_HEAVY`
 
 Used by: `bolt_facade/app.py`, `START_GODMODE.ps1`, and `START_GODMODE.sh`.
 These values are part of the Superbrain Merge 2026-04-12 runtime policy.
+When `/orchestrate` is unstable, dispatch can use the documented non-dry-run
+workspace fallback endpoint (`/workspace/api/tasks/run`) while external probes
+remain honestly `PARTIAL`.
+If `OLLAMAHF_MASTER_KEY` or `OLLAMAHF_BEARER_TOKEN` are unset, the runtime
+falls back to `HF_TOKEN` for authenticated external probes and dispatch.
 
 ## Related Files
 

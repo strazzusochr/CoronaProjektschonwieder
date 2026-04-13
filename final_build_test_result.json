@@ -1,11 +1,20 @@
 {
-  "timestamp": "2026-04-12T21:56:05.633763+00:00",
+  "timestamp": "2026-04-13T06:36:23.342346+00:00",
   "status": "PASS",
-  "dispatch_ok": true,
+  "core_status": "PASS",
+  "full_status": "PASS",
+  "dispatch_core_ok": true,
+  "dispatch_full_ok": true,
   "build_ok": true,
   "browser_ok": true,
   "screenshot_ok": true,
   "dist_ok": true,
+  "dispatch_breakdown": {
+    "core_count": 2,
+    "external_count": 1,
+    "dry_run_detected_any": false,
+    "dry_run_detected_core": false
+  },
   "artifacts": {
     "payload": "d:\\Web\\docs\\godmode_setup\\final_build_test_payload.json",
     "log": "d:\\Web\\docs\\godmode_setup\\final_build_test_log.txt",
@@ -13,5 +22,7 @@
     "manifest": "d:\\Web\\docs\\godmode_setup\\final_build_artifact_manifest.json",
     "screenshot": "d:\\Web\\docs\\godmode_setup\\final_build_screenshot.png"
   },
+  "blockers_core": [],
+  "blockers_full": [],
   "blockers": []
 }

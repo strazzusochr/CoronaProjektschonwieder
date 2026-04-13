@@ -134,6 +134,7 @@ export OPENHANDS_LLM_BASE_URL="${OPENHANDS_LLM_BASE_URL:-http://litellm-godmode:
 export OPENHANDS_LLM_API_KEY="${OPENHANDS_LLM_API_KEY:-${LITELLM_API_KEY:-}}"
 export OPENHANDS_FILE_STORE="${OPENHANDS_FILE_STORE:-local}"
 export OPENHANDS_FILE_STORE_PATH="${OPENHANDS_FILE_STORE_PATH:-/.openhands-state}"
+export OPENHANDS_WORKSPACE_HOST_PATH="${OPENHANDS_WORKSPACE_HOST_PATH:-$REPO_ROOT}"
 export N8N_PORT="${N8N_PORT:-5678}"
 export N8N_WEBHOOK_URL="${N8N_WEBHOOK_URL:-http://$CORE_RUNTIME_HOST:$N8N_PORT/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission}"
 export N8N_WEBHOOK_INTERNAL_URL="${N8N_WEBHOOK_INTERNAL_URL:-http://n8n-godmode:5678/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission}"
@@ -151,6 +152,10 @@ assert_required_env "OPENHANDS_LLM_BASE_URL" "OpenHands needs a preconfigured LL
 assert_required_env "OPENHANDS_LLM_API_KEY" "OpenHands needs a non-empty API key value for automatic provider bootstrapping."
 if [[ "$OPENHANDS_LLM_BASE_URL" == *"litellm-godmode"* || "$OPENHANDS_LLM_BASE_URL" == *":4000"* ]]; then
   assert_required_env "LITELLM_API_KEY" "LiteLLM is the configured OpenHands backend, so LITELLM_API_KEY must be present."
+fi
+if [[ ! -d "$OPENHANDS_WORKSPACE_HOST_PATH" ]]; then
+  echo "Preflight failed: OPENHANDS_WORKSPACE_HOST_PATH '$OPENHANDS_WORKSPACE_HOST_PATH' does not exist." >&2
+  exit 1
 fi
 
 sync_n8n_workflow() {

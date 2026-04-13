@@ -17,7 +17,7 @@ services:
       - FILE_STORE_PATH=${OPENHANDS_FILE_STORE_PATH:-/.openhands-state}
       - GITHUB_TOKEN=${GITHUB_TOKEN}
     volumes:
-      - ./workspace:/opt/workspace_base
+      - ${OPENHANDS_WORKSPACE_HOST_PATH:-./workspace}:/opt/workspace_base
       - /var/run/docker.sock:/var/run/docker.sock
       - ~/.openhands-state:/.openhands-state
       - ./healthcheck.py:/opt/godmode/healthcheck.py:ro
@@ -52,7 +52,7 @@ services:
     volumes:
       - ./adapter.py:/app/adapter.py:ro
       - ./adapter_requirements.txt:/app/requirements.txt:ro
-      - ./workspace:/app/workspace
+      - ${OPENHANDS_WORKSPACE_HOST_PATH:-./workspace}:/app/workspace
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
