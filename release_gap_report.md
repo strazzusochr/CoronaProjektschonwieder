@@ -6,8 +6,8 @@ Quelle: Runtime-Evidence unter `d:/Web/docs/godmode_setup/.godmode_runtime/evide
 
 ## Kurzfazit
 
-Der Stack ist **betriebsbereit im Core und im Superbrain-GA-Pfad**; der Final-Release bleibt wegen Security-/Release-Hygiene **PARTIAL**.
-Harte Restluecken sind aktuell: unvollstaendige Security-Rotation-Acks und kein sauberer Release-Freeze.
+Der Stack ist **betriebsbereit im Core und im Superbrain-GA-Pfad**; der Final-Release bleibt wegen Security-Hygiene **PARTIAL**.
+Harte Restluecke ist aktuell nur noch: unvollstaendige Security-Rotation-Acks.
 
 Aktueller Prozentstand (evidence-basiert):
 
@@ -16,6 +16,7 @@ Aktueller Prozentstand (evidence-basiert):
 - `E2E flows A-E`: `100.0% full` (`5/5`) bei `100.0% core` (`5/5`)
 - `Final multi-agent build test`: `PASS`
 - `Security rotation`: `PARTIAL`
+- `Release freeze`: `CLOSED` (aktueller Commitstand ist gepusht und synchron)
 
 ## Frisch geschlossene Punkte
 
@@ -38,11 +39,7 @@ Evidence:
 1. `GAP-SEC-001` Rotation-Ack-Felder fehlen (`PARTIAL`, operator).  
 Evidence:
    [security_rotation_check_latest.json](/d:/Web/docs/godmode_setup/.godmode_runtime/evidence/security_rotation_check_latest.json)
-2. `GAP-REL-001` Release-Freeze ist nicht clean (`PARTIAL`, release).  
-Evidence:
-   `git status --short` (lokale Aenderungen + dirty Submodule-Zeiger)
 
 ## Naechste Closure-Schritte (priorisiert)
 
 1. Rotation real durchfuehren und Acks setzen (`ops/set_rotation_ack.ps1`), danach `security_preflight.py` auf `PASS`.
-2. Danach Release-Freeze herstellen (Commit + sauberer Git-Status).

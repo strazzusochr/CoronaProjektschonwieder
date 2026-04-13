@@ -59,6 +59,15 @@ Es kombiniert vier Sichten in einer Datei:
   Schritt-IDs
 - Overlay fuer die 12 Superpowers
 
+Wichtiger Hinweis zur Konsistenz:
+
+- Die folgenden Phasen- und Horizontaltabellen enthalten teilweise historische
+  Auditzeilen aus frueheren Stufen.
+- Verbindlicher Runtime-Status fuer die aktuelle Freigabe liegt bei den
+  neuesten Evidence-JSONs (`superbrain_gate_latest.json`,
+  `e2e_flows_ae_latest.json`, `security_rotation_check_latest.json`) und den
+  Override-Bloecken am Dokumentanfang.
+
 ## Legende
 
 - Statusvokabular: `implemented`, `partial`, `missing`, `external`

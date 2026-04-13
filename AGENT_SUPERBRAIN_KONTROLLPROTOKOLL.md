@@ -1,6 +1,6 @@
 # AGENT_SUPERBRAIN_KONTROLLPROTOKOLL
 
-Stand: 2026-04-13 (Snapshot-Refresh 08:37 Europe/Berlin)  
+Stand: 2026-04-13 (Snapshot-Refresh 09:00 Europe/Berlin)  
 Marker: **Superbrain Merge 2026-04-12**
 
 Dieses Dokument ist das zentrale Kontrollprotokoll fuer den Superbrain-Merge aus:
@@ -103,3 +103,4 @@ Quelle:
 - Doc Gate: `100%`.
 - Beta-Core: `100.0%` -> `GO`.
 - GA-Full: `100.0%` -> `GO`.
+- Security-Rotation (separates Release-Gate): `PARTIAL` bis `ROTATED_*_AT` Acks gesetzt sind (siehe `security_rotation_check_latest.json`).

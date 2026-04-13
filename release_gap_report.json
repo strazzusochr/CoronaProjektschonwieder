@@ -3,10 +3,10 @@
   "scope": "godmode-superbrain-final-release-closure",
   "summary": {
     "status": "PARTIAL",
-    "core_truth": "Core runtime, Superbrain Beta/GA, E2E flows, and final build gates are green; final release remains PARTIAL because security rotation acknowledgement and release-freeze cleanliness are still open.",
-    "overall_progress_percent": 94.0,
-    "hard_blockers": 2,
-    "open_gaps": 2
+    "core_truth": "Core runtime, Superbrain Beta/GA, E2E flows, and final build gates are green; final release remains PARTIAL only because security rotation acknowledgements are still open.",
+    "overall_progress_percent": 97.0,
+    "hard_blockers": 1,
+    "open_gaps": 1
   },
   "latest_evidence": {
     "superbrain_gate": ".godmode_runtime/evidence/superbrain_gate_latest.json",
@@ -157,36 +157,35 @@
     {
       "id": "GAP-REL-001",
       "title": "Release freeze cleanliness not achieved",
-      "aktueller_status": "PARTIAL",
-      "blocker_typ": "release",
+      "aktueller_status": "CLOSED",
+      "blocker_typ": "resolved",
       "evidence": [
-        "git status --short"
+        "git status -sb",
+        "git rev-parse --short HEAD",
+        "git rev-parse --short origin/main"
       ],
       "betroffene_dateien": [
-        ".godmode_env.example",
-        "ENV_REFERENCE.md",
-        "START_GODMODE.ps1",
-        "START_GODMODE.sh",
-        "bolt_facade/app.py",
-        "run_final_build_test.py",
-        "verify_superbrain_merge.py",
-        "openhands/docker-compose.yml",
-        "CoronaProjektschonwieder/vite.config.ts",
-        "CoronaProjektschonwieder/vitest.config.ts",
+        "release_gap_report.json",
+        "release_gap_report.md",
+        "GODMODE_GOAL.md",
         "memory_vault.md",
-        "hf_pilot_actual (submodule pointer)"
+        "final_build_test_result.json",
+        "final_build_test_log.txt",
+        "final_build_test_payload.json",
+        "final_build_artifact_manifest.json",
+        "final_build_screenshot.png"
       ],
       "betroffene_services_endpoints": [
         "release packaging and push path"
       ],
-      "warum_offen": "Working tree and one submodule pointer are still dirty, so release-freeze state is not canonical.",
-      "fix_strategy": "Finalize intended edits, commit with evidence references, and leave unrelated submodule drift explicitly documented if unresolved.",
+      "warum_offen": "Resolved: release-freeze was re-established on current main by committing the fresh verification artifacts and protocol sync, then pushing to origin/main.",
+      "fix_strategy": "Keep freeze discipline: run gates, sync docs/evidence, commit once, and push before marking freeze as clean.",
       "closure_proof_required": [
         "git status clean (or documented intentional exceptions)",
         "commit SHA referencing updated evidence and docs"
       ],
-      "user_impact": "Operator cannot safely compare runtime claims to a frozen commit baseline.",
-      "release_impact": "Blocks clean final release tag."
+      "user_impact": "Operator can compare runtime claims against a frozen commit baseline again.",
+      "release_impact": "None (closed)."
     },
     {
       "id": "GAP-DOC-001",
