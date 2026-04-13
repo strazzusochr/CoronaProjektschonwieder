@@ -38,8 +38,16 @@ For the detailed horizontal/vertical phase control model, use
   tooling
 - `ORACLE_DUAL_TRACK_RUNBOOK.md`: Oracle recovery and gate rules for the
   parallel dual-track model
-- `BEGINNER_DEV_PLAYBOOK_3D_AND_APPS.md`: step-by-step guide for 3D games,
-  normal apps, and Open-Source-AI usage
+- `GODMODE_ULTIMATIVES_ANFAENGER_HANDBUCH_A_Z.md`: vollständiges A-Z
+  Anfängerhandbuch (Windows, Linux, Hetzner, HF)
+- `GODMODE_ULTIMATIVES_ANFAENGER_HANDBUCH_TROUBLESHOOTING.md`: Fehlerkatalog
+  mit Recovery-Schritten
+- `GODMODE_ULTIMATIVES_ANFAENGER_HANDBUCH_GLOSSAR.md`: zentrale Begriffe und
+  Statusklassen
+- `GODMODE_ULTIMATIVES_ANFAENGER_HANDBUCH_CHECKLISTEN.md`: Setup-, Gate-,
+  Security- und Release-Checklisten
+- `BEGINNER_DEV_PLAYBOOK_3D_AND_APPS.md`: Quick-Start-Kurzpfad, der auf das
+  Master-Handbuch verweist
 - `AGENT_SUPERBRAIN_KONTROLLPROTOKOLL.md`: merged agent registry, routing gates,
   zero-compute policy, and beta/ga release criteria
 

@@ -12,6 +12,10 @@ Superbrain Merge 2026-04-13:
 - Frontend wurde auf ein Lemmings-inspiriertes 3D-Webgame mit deterministischem Sim-Core ersetzt (`CoronaProjektschonwieder/src/game/sim.ts`, neue App-/Scene-Pipeline).
 - Neuer Final-Build-Lauf ist `PASS` mit erweiterten Gates (`unit+build+browser`, Deep-Search, Math-Validation, Agent-Participation, Preview-Proof):
   `final_build_test_result.json`, `final_build_artifact_manifest.json`, `deep_search_probe_latest.json`, `math_validation_probe_latest.json`, `final_build_screenshot.png`.
+- Neues kanonisches Anfänger-Onboarding steht bereit:
+  `GODMODE_ULTIMATIVES_ANFAENGER_HANDBUCH_A_Z.md` + 3 Anhänge
+  (`..._TROUBLESHOOTING.md`, `..._GLOSSAR.md`, `..._CHECKLISTEN.md`).
+  `BEGINNER_DEV_PLAYBOOK_3D_AND_APPS.md` ist jetzt der Quick-Start-Index.
 - Aktueller Gate-Snapshot (`.godmode_runtime/evidence/superbrain_gate_latest.json`):
   `inventory_verified=100%`, `inventory_live=100%`, `inventory_gate=100%`,
   `routing_live=100%`, `routing_gate=100%`, `external=100%`,

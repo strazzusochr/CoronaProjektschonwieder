@@ -1,0 +1,645 @@
+# GODMODE Ultimatives Anfänger-Handbuch A-Z
+
+Stand: 2026-04-13  
+Zielgruppe: absolute Einsteiger ohne Vorwissen  
+Gültig für: Windows lokal, Linux/selfhosted, Hetzner-Deploy, Hugging Face Integration
+
+---
+
+## So benutzt du dieses Handbuch
+
+1. Arbeite **linear von A nach L**.
+2. Führe jeden Schritt aus und prüfe die erwartete Ausgabe.
+3. Wenn ein Schritt fehlschlägt, nutze sofort den Troubleshooting-Anhang.
+4. Überspringe keine Security-Schritte und poste keine Secrets in Chat/Repo.
+
+---
+
+## Status-Legende (verbindlich)
+
+- `VERIFIED`: live geprüft, Endpunkt/Test/Log ist belegt.
+- `PARTIAL`: teilweise verdrahtet oder teilweise bewiesen.
+- `BLOCKED`: durch Auth, Zugriff oder Infrastruktur blockiert.
+- `LEGACY`: historisch/abgelöst, nicht mehr Hauptpfad.
+- `PLAN`: Zielzustand, noch kein Beweis.
+- `UNKNOWN`: unklar oder widersprüchlich.
+- `NOT VERIFIED`: plausibel, aber nicht nachgewiesen.
+
+---
+
+## A) Systemüberblick in Klartext
+
+### Ziel
+Du verstehst, **was** läuft, **wo** es läuft und **wofür** es da ist.
+
+### Komponenten und Ports (lokal)
+
+| Komponente | Zweck | URL |
+|---|---|---|
+| 3D Frontend (Vite) | Entwicklung/Preview des Spiels | `http://127.0.0.1:5173` |
+| OpenHands | Agent-Runtime UI | `http://127.0.0.1:3000` |
+| OpenHands Adapter | Brücke/Dispatch | `http://127.0.0.1:3001` |
+| bolt-facade | Zentrale Dispatch-Fassade | `http://127.0.0.1:3901` |
+| LiteLLM | Modell-Router | `http://127.0.0.1:4000` |
+| n8n | Workflow-Automation | `http://127.0.0.1:5678` |
+| LangGraph | Orchestrierung | `http://127.0.0.1:8080` |
+
+### Was wurde gebaut?
+
+- 3D-Spiel ersetzt: `CoronaProjektschonwieder/src/App.tsx`
+- Deterministischer Sim-Core: `CoronaProjektschonwieder/src/game/sim.ts`
+- 3D-Renderer + Mausinteraktion: `CoronaProjektschonwieder/src/SceneCanvas.tsx`
+- Final-Build-Evidence: `final_build_test_result.json`
+
+### Erwartete Ausgabe
+
+- Du kannst jede Komponente einer URL zuordnen.
+- Du kennst die 3 Hauptordner:
+  - `CoronaProjektschonwieder/` (Spiel)
+  - `ops/` (Deploy/Control)
+  - Root-Dokumente und Evidence (`*.md`, `*.json`)
+
+### Häufige Fehler
+
+- Verwechslung zwischen Vite-Dev-Port (`5173`) und n8n (`5678`).
+- Annahme, dass alles nur über einen Dienst läuft.
+
+### Recovery
+
+- Nutze Abschnitt D (Control Center), dort sind alle Hauptpfade schon gebündelt.
+
+### Evidence-Datei
+
+- `STACK_OPERATIONS.md`
+
+---
+
+## B) Sicherheits-Start (Pflicht vor allem)
+
+### Ziel
+Secrets absichern und kompromittierte Werte rotieren.
+
+### Exakter Befehl (PowerShell)
+
+```powershell
+cd d:\Web\docs\godmode_setup
+powershell -ExecutionPolicy Bypass -File .\ops\set_rotation_ack.ps1 -SetNowAll
+py -3 .\security_preflight.py
+```
+
+### Exakter Befehl (Linux/Bash)
+
+```bash
+cd /opt/godmode_setup
+pwsh -ExecutionPolicy Bypass -File ./ops/set_rotation_ack.ps1 -SetNowAll
+py -3 ./security_preflight.py
+```
+
+### Erwartete Ausgabe
+
+- `security_preflight.py` endet mit `PASS`.
+- `rotation_ack_complete=true` in der neuesten Security-Evidence.
+
+### Häufige Fehler
+
+- Alte Tokens weiterverwenden.
+- Tokens in Markdown/Commits speichern.
+
+### Recovery
+
+1. Hetzner API Token neu erstellen, alten deaktivieren.
+2. HF Token neu erstellen, alten deaktivieren.
+3. GitHub Token neu erstellen, alten deaktivieren.
+4. Werte nur lokal in `.godmode_env` speichern.
+
+### Evidence-Datei
+
+- `.godmode_runtime/evidence/security_rotation_check_latest.json`
+
+---
+
+## C) Vorbereitung (Accounts, Tools, Ordner, `.godmode_env`)
+
+### Ziel
+Du bereitest alles vor, damit Start, Build, Tests und Deploy reproduzierbar laufen.
+
+### Pflicht-Accounts
+
+1. GitHub (Repo-Zugriff + Push)
+2. Hugging Face (Spaces + Token)
+3. Hetzner (Server + API Token)
+4. Optional Vercel (Frontend Hosting)
+
+### Pflicht-Tools (Windows)
+
+1. Git
+2. Docker Desktop
+3. Node.js (LTS)
+4. Python 3 (`py -3`)
+5. PowerShell 7 (empfohlen)
+
+### Pflicht-Tools (Linux)
+
+1. Git
+2. Docker + Compose Plugin
+3. Node.js (LTS)
+4. Python 3
+5. Bash + optional `pwsh`
+
+### `.godmode_env` vorbereiten
+
+```powershell
+cd d:\Web\docs\godmode_setup
+Copy-Item .\.godmode_env.example .\.godmode_env -Force
+```
+
+Pflichtwerte setzen (Beispiele, keine Klartext-Secrets im Repo):
+
+- `GITHUB_TOKEN=<local-secret>`
+- `HF_TOKEN=<local-secret>`
+- `LITELLM_API_KEY=<local-secret>`
+- `OPENHANDS_LLM_MODEL=smart-router`
+- `OPENHANDS_LLM_BASE_URL=http://litellm-godmode:4000`
+- `CORE_RUNTIME_PROVIDER=local` (oder `selfhosted`)
+
+### Erwartete Ausgabe
+
+- `.godmode_env` existiert.
+- Keine Platzhalter wie `replace-with` mehr in Pflichtvariablen.
+
+### Häufige Fehler
+
+- `.godmode_env` vergessen.
+- Token in committed Dateien statt lokal.
+
+### Recovery
+
+- `.godmode_env` neu aus Vorlage erstellen und Werte erneut setzen.
+
+### Evidence-Datei
+
+- `ENV_REFERENCE.md`
+
+---
+
+## D) Ein-Knopf-Start (Control Center + direkte Startskripte)
+
+### Ziel
+Stack zuverlässig starten und Status sofort sehen.
+
+### Exakter Befehl (Windows, Menü)
+
+```powershell
+cd d:\Web\docs\godmode_setup
+powershell -ExecutionPolicy Bypass -File .\ops\GODMODE_CONTROL_CENTER.ps1
+```
+
+### Exakter Befehl (Windows, direkt)
+
+```powershell
+.\ops\GODMODE_CONTROL_CENTER.ps1 -Action start-stack
+.\ops\GODMODE_CONTROL_CENTER.ps1 -Action status
+```
+
+### Exakter Befehl (Linux/selfhosted)
+
+```bash
+cd /opt/godmode_setup
+bash ./START_GODMODE.sh
+```
+
+### Erwartete Ausgabe
+
+- Dienste starten ohne harte Preflight-Fehler.
+- Status listet Haupt-URLs.
+- n8n Mission- und Memory-Workflow-Sync läuft.
+
+### Häufige Fehler
+
+- Preflight stoppt wegen fehlender `OPENHANDS_LLM_*` oder `LITELLM_API_KEY`.
+- Docker nicht gestartet.
+
+### Recovery
+
+1. Docker starten.
+2. `.godmode_env` prüfen.
+3. Startbefehl erneut ausführen.
+
+### Evidence-Datei
+
+- `START_GODMODE.ps1`
+- `START_GODMODE.sh`
+- `ops/GODMODE_CONTROL_CENTER.ps1`
+
+---
+
+## E) Lokale Runtime prüfen
+
+### Ziel
+Sicherstellen, dass alle Kernkomponenten wirklich antworten.
+
+### Exakter Befehl (PowerShell)
+
+```powershell
+Invoke-WebRequest http://127.0.0.1:3001/health -UseBasicParsing
+Invoke-WebRequest http://127.0.0.1:5678/healthz -UseBasicParsing
+Invoke-WebRequest http://127.0.0.1:8080/health -UseBasicParsing
+Invoke-WebRequest http://127.0.0.1:3901/health -UseBasicParsing
+```
+
+### Optionaler Gesamtcheck
+
+```powershell
+.\ops\GODMODE_CONTROL_CENTER.ps1 -Action verify-runtime
+```
+
+### Erwartete Ausgabe
+
+- HTTP `200` für Health-Endpunkte.
+- Runtime-Verifier laufen ohne harte Fehler.
+
+### Häufige Fehler
+
+- Portkonflikte.
+- Ein Container läuft nicht.
+
+### Recovery
+
+1. `docker ps` prüfen.
+2. Fehlenden Dienst neu starten.
+3. Health-Aufrufe wiederholen.
+
+### Evidence-Datei
+
+- `.godmode_runtime/evidence/bolt_facade_api_latest.json`
+
+---
+
+## F) 3D-Game-Entwicklung (Lemmings-3D)
+
+### Ziel
+Du entwickelst das Spiel kontrolliert und testbar weiter.
+
+### Exakter Befehl (Dev)
+
+```powershell
+cd d:\Web\docs\godmode_setup\CoronaProjektschonwieder
+npm install
+npm run dev -- --host 127.0.0.1 --port 5173
+```
+
+### Wo ändern?
+
+1. UI/Steuerung: `src/App.tsx`
+2. Simulation: `src/game/sim.ts`
+3. 3D-Rendering: `src/SceneCanvas.tsx`
+4. Browser-E2E: `tests/app.spec.ts`
+
+### Qualitätsgates
+
+```powershell
+npm test
+npm run build
+npm run test:browser
+```
+
+### Erwartete Ausgabe
+
+- Alle 3 Befehle `PASS`.
+- Screenshot in `test-results/`.
+
+### Häufige Fehler
+
+- Browser-Test Timeout.
+- Build warning mit großen Chunks (kein Build-Fehler).
+
+### Recovery
+
+1. Flaky-Schritt isolieren (`npm run test:browser` separat).
+2. Screenshot/Trace aus `test-results/` auswerten.
+3. Nur kleinsten fix committen.
+
+### Evidence-Datei
+
+- `final_build_screenshot.png`
+
+---
+
+## G) Missionssystem (7-Feld-Contract, Agenten, Routing)
+
+### Ziel
+Du verstehst und testest den kanonischen Dispatch.
+
+### 7-Feld-Vertrag (verbindlich)
+
+`agent`, `task`, `source`, `repo`, `ref`, `status`, `timestamp`
+
+### Beispielpayload
+
+```json
+{
+  "agent": "local.langgraph.planner",
+  "task": "Anfänger-Dispatch-Probe",
+  "source": "manual",
+  "repo": "https://github.com/strazzusochr/CoronaProjektschonwieder",
+  "ref": "main",
+  "status": "triggered",
+  "timestamp": "2026-04-13T12:00:00Z"
+}
+```
+
+### Exakter Befehl (PowerShell)
+
+```powershell
+$payload = @{
+  agent = "local.langgraph.planner"
+  task = "Anfaenger-Dispatch-Probe"
+  source = "manual"
+  repo = "https://github.com/strazzusochr/CoronaProjektschonwieder"
+  ref = "main"
+  status = "triggered"
+  timestamp = (Get-Date).ToUniversalTime().ToString("o")
+} | ConvertTo-Json
+
+Invoke-WebRequest -Uri "http://127.0.0.1:3901/dispatch" -Method POST -Body $payload -ContentType "application/json"
+```
+
+### Erwartete Ausgabe
+
+- HTTP `200`
+- Status `forwarded`
+
+### Häufige Fehler
+
+- Fehlende Felder -> `422`.
+- Unbekannte Agent-ID -> `422`.
+
+### Recovery
+
+- Payload strikt auf 7 Felder korrigieren.
+
+### Evidence-Datei
+
+- `MISSION_PAYLOAD_CONTRACT.md`
+- `agent_registry.json`
+
+---
+
+## H) n8n Mission + Memory Schritt-für-Schritt
+
+### Ziel
+Mission-Webhooks und Memory-Pipeline reproduzierbar aktivieren.
+
+### Exakter Befehl (manuell, falls nötig)
+
+```powershell
+docker exec n8n-godmode n8n import:workflow --input=/backups/n8n_mission_workflow.json
+docker exec n8n-godmode n8n import:workflow --input=/backups/n8n_memory_workflow.json
+docker exec n8n-godmode n8n import:workflow --input=/backups/n8n_memory_probe_workflow.json
+docker exec n8n-godmode n8n publish:workflow --id=godmodeMissionTrigger01
+docker exec n8n-godmode n8n publish:workflow --id=godmodeMemoryProbe01
+```
+
+### Webhook-Smoke-Test
+
+```powershell
+$body = @{
+  agent = "local.pilot.aider_cloud"
+  task = "n8n mission webhook smoke"
+  source = "manual"
+  repo = "https://github.com/strazzusochr/CoronaProjektschonwieder"
+  ref = "main"
+  status = "triggered"
+  timestamp = (Get-Date).ToUniversalTime().ToString("o")
+} | ConvertTo-Json
+
+Invoke-WebRequest -Uri "http://127.0.0.1:5678/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission" -Method POST -Body $body -ContentType "application/json"
+```
+
+### Erwartete Ausgabe
+
+- Import/Publish ohne Fehler.
+- Webhook liefert `200`.
+
+### Häufige Fehler
+
+- Workflow nicht aktiv.
+- Falscher Webhook-Pfad.
+
+### Recovery
+
+1. Workflows neu importieren.
+2. Container `n8n-godmode` neustarten.
+3. Smoke-Test wiederholen.
+
+### Evidence-Datei
+
+- `n8n_mission_workflow.json`
+- `n8n_memory_workflow.json`
+
+---
+
+## I) Hetzner-Deploy Schritt-für-Schritt
+
+### Ziel
+Selfhosted Core-Runtime per Skript ausrollen.
+
+### Exakter Befehl
+
+```powershell
+cd d:\Web\docs\godmode_setup
+.\ops\deploy_hetzner_core.ps1 `
+  -HostIp 65.108.253.14 `
+  -SshUser root `
+  -FqdnRoot <deine-domain> `
+  -TlsEmail <deine-email>
+```
+
+### Was der Deploy macht
+
+1. SSH-Preflight
+2. Docker/Nginx/Certbot/UFW Bootstrap
+3. Repo-Sync
+4. `.godmode_env` Rendering serverseitig
+5. Start via `START_GODMODE.sh`
+6. TLS + Reverse-Proxy für `openhands`, `adapter`, `langgraph`, `n8n`, `bolt`
+
+### Erwartete Ausgabe
+
+- Deploy-Status `PASS`
+- HTTPS-Endpunkte `200`
+- Nur Ports `22/80/443` extern offen
+
+### Häufige Fehler
+
+- SSH-Auth fehlt.
+- DNS/FQDN zeigt nicht korrekt.
+
+### Recovery
+
+1. SSH-Key/Passwort prüfen.
+2. DNS A-Record prüfen.
+3. Deploy erneut ausführen.
+
+### Evidence-Datei
+
+- `.godmode_runtime/evidence/hetzner_deploy_latest.json`
+
+---
+
+## J) HF-Integration Schritt-für-Schritt
+
+### Ziel
+Hosted-Komponenten prüfen und BLOCKED-Fälle sauber einordnen.
+
+### Exakter Befehl (CLI)
+
+```powershell
+hf auth whoami
+hf spaces info Wrzzzrzr/openhands-godmode
+hf spaces info Wrzzzrzr/langgraph-godmode
+hf spaces info Wrzzzrzr/smolagents-godmode
+hf spaces info Wrzzzrzr/aider-godmode-safe
+```
+
+### Private Spaces
+
+- Mit gültigem `HF_TOKEN` prüfen.
+- Bei `401/404` nicht schönreden: Status bleibt `BLOCKED` oder `NOT VERIFIED`.
+
+### Erwartete Ausgabe
+
+- Öffentliche Spaces sind erreichbar.
+- Private Spaces liefern mit Token verwertbare Antworten.
+
+### Häufige Fehler
+
+- Token fehlt/abgelaufen.
+- Falscher Namespace.
+
+### Recovery
+
+1. `hf auth login` erneut.
+2. Space-ID gegen Dokumentation prüfen.
+
+### Evidence-Datei
+
+- `.godmode_runtime/evidence/hf_runtime_latest.json`
+
+---
+
+## K) Finale Gates (PASS/FAIL-Interpretation)
+
+### Ziel
+Vollständige technische Abnahme.
+
+### Exakter Befehl (Root)
+
+```powershell
+cd d:\Web\docs\godmode_setup
+py -3 .\verify_superbrain_merge.py
+py -3 .\verify_e2e_flows.py
+py -3 .\run_final_build_test.py
+```
+
+### Exakter Befehl (Frontend)
+
+```powershell
+cd d:\Web\docs\godmode_setup\CoronaProjektschonwieder
+npm test
+npm run build
+npm run test:browser
+```
+
+### PASS-Bedingung
+
+- Alle Kommandos erfolgreich.
+- `final_build_test_result.json` hat `status=PASS`.
+- Keine offenen Core-Blocker in den aktuellen Evidence-Dateien.
+
+### FAIL-Bedingung
+
+- Mindestens ein Pflichtgate rot.
+- Evidence zeigt offene Blocker.
+
+### Recovery
+
+1. Erst roten Gate-Schritt isolieren.
+2. Minimalen Fix durchführen.
+3. Gate erneut laufen lassen.
+
+### Evidence-Datei
+
+- `final_build_test_result.json`
+- `.godmode_runtime/evidence/superbrain_gate_latest.json`
+- `.godmode_runtime/evidence/e2e_flows_ae_latest.json`
+
+---
+
+## L) Release- und Recovery-Flow (Snapshot, Rollback, Push)
+
+### Ziel
+Sicher veröffentlichen und bei Bedarf sauber zurückrollen.
+
+### Snapshot setzen
+
+```powershell
+git -C d:\Web\docs\godmode_setup tag snapshot-<name>-<datum>
+git -C d:\Web\docs\godmode_setup rev-parse refs/tags/snapshot-<name>-<datum>
+```
+
+### Rollback (Dateibereich)
+
+```powershell
+git -C d:\Web\docs\godmode_setup checkout snapshot-<name>-<datum> -- CoronaProjektschonwieder
+```
+
+### Release-Push
+
+```powershell
+git -C d:\Web\docs\godmode_setup add -A
+git -C d:\Web\docs\godmode_setup commit -m "docs: update ultimate beginner handbook and references"
+git -C d:\Web\docs\godmode_setup push origin main
+```
+
+### Erwartete Ausgabe
+
+- Commit erfolgreich.
+- Push auf `origin/main` erfolgreich.
+
+### Häufige Fehler
+
+- `index.lock` blockiert.
+- Nicht gepullter Remote-Stand.
+
+### Recovery
+
+1. Laufende Git-Prozesse schließen.
+2. `git pull --rebase` (falls erforderlich).
+3. Push erneut.
+
+### Evidence-Datei
+
+- `release_snapshot_pre_lemmings.json`
+
+---
+
+## Verbindliche Quellenliste (für dieses Handbuch)
+
+- `STACK_OPERATIONS.md`
+- `KONTROLLPROTOKOLL_00_07.md`
+- `ENV_REFERENCE.md`
+- `MISSION_PAYLOAD_CONTRACT.md`
+- `HETZNER_SELFHOSTED_DEPLOY_RUNBOOK.md`
+- `SELFHOSTED_CORE_RUNTIME_BETA_RUNBOOK.md`
+- `AGENT_SUPERBRAIN_KONTROLLPROTOKOLL.md`
+- `FINAL_PROOF.md`
+
+---
+
+## Anhänge
+
+- Troubleshooting: `GODMODE_ULTIMATIVES_ANFAENGER_HANDBUCH_TROUBLESHOOTING.md`
+- Glossar: `GODMODE_ULTIMATIVES_ANFAENGER_HANDBUCH_GLOSSAR.md`
+- Checklisten: `GODMODE_ULTIMATIVES_ANFAENGER_HANDBUCH_CHECKLISTEN.md`
+
