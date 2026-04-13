@@ -18,6 +18,18 @@
     },
     {
       "parameters": {
+        "httpMethod": "POST",
+        "path": "godmode-memory-probe",
+        "responseMode": "lastNode"
+      },
+      "id": "memory-probe-webhook",
+      "name": "memory-probe-webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 460]
+    },
+    {
+      "parameters": {
         "method": "GET",
         "url": "={{ ($env.OPENHANDS_ADAPTER_INTERNAL_URL || $env.OPENHANDS_ADAPTER_URL || 'http://openhands-godmode-adapter:3001') + '/health' }}",
         "sendHeaders": true,
@@ -59,6 +71,17 @@
   ],
   "connections": {
     "When Executed by CLI": {
+      "main": [
+        [
+          {
+            "node": "Fetch Runtime Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "memory-probe-webhook": {
       "main": [
         [
           {

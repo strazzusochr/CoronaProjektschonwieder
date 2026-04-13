@@ -32,6 +32,7 @@ const SERVICE_CATALOG = [
   { id: 'openhands', label: 'OpenHands UI', targetKey: null, source: '/control-center/state' },
   { id: 'n8n', label: 'n8n', targetKey: null, source: '/control-center/state' },
   { id: 'litellm', label: 'LiteLLM', targetKey: null, source: '/control-center/state' },
+  { id: 'devtools-bridge', label: 'DevTools Bridge', targetKey: null, source: '/control-center/state' },
   { id: 'langgraph', label: 'LangGraph', targetKey: 'langgraph-local', source: '/routing/status' },
   { id: 'smolagents', label: 'Smolagents', targetKey: 'smolagents', source: '/routing/status' },
   { id: 'openhands-adapter', label: 'OpenHands Adapter', targetKey: 'openhands-adapter', source: '/routing/status' },
@@ -133,13 +134,13 @@ const AUTONOMY_PROFILE_FALLBACK: AutonomyProfile[] = [
   {
     id: 'game_builder',
     label: '3D Game Builder',
-    description: 'Planner -> Performance -> UI Review -> External Lead Coder -> Finalize',
+    description: 'External Vision -> Research -> Lead Coder -> QA -> Release (cloud-only)',
     agents: [
-      'local.langgraph.planner',
-      'local.langgraph.performance',
-      'local.langgraph.ui_review',
+      'external.ollamahf.vision',
+      'external.ollamahf.research',
       'external.ollamahf.lead_coder',
-      'local.langgraph.finalize',
+      'external.ollamahf.qa',
+      'external.ollamahf.release',
     ],
   },
   {
@@ -379,6 +380,20 @@ export default function App() {
   const missionState = deferredSnapshot.state;
   const selectedAgent = deferredSnapshot.agents.find((agent) => agent.id === deferredSnapshot.selectedAgentId) ?? null;
   const webglReady = useMemo(() => webglAvailable(), []);
+  const refreshRequestIdRef = useRef(0);
+  const lastPromptReadyAtRef = useRef(0);
+
+  const applyPromptReadiness = (candidateReady: boolean) => {
+    const stickyWindowMs = 60000;
+    if (candidateReady) {
+      lastPromptReadyAtRef.current = Date.now();
+      setReadyForPromptExecution(true);
+      return;
+    }
+    if (Date.now() - lastPromptReadyAtRef.current > stickyWindowMs) {
+      setReadyForPromptExecution(false);
+    }
+  };
 
   const refreshSnapshot = () => {
     startTransition(() => {
@@ -483,7 +498,7 @@ export default function App() {
 
   const refreshBootstrapStatus = async () => {
     try {
-      const response = await fetchWithTimeout(`${HUB_BASE_URL}/bootstrap/status`, { method: 'GET' }, 7000);
+      const response = await fetchWithTimeout(`${HUB_BASE_URL}/bootstrap/status`, { method: 'GET' }, 12000);
       const payload = await parseResponseSafely(response);
       const bootstrap = (payload.bootstrap && typeof payload.bootstrap === 'object'
         ? (payload.bootstrap as Record<string, unknown>)
@@ -500,7 +515,7 @@ export default function App() {
           ? (bootstrap.phases as Record<string, unknown>[])
           : [],
       });
-      setReadyForPromptExecution(Boolean(payload.ready_for_prompt_execute ?? ready));
+      applyPromptReadiness(Boolean(payload.ready_for_prompt_execute ?? ready));
       return status;
     } catch (error) {
       setBootstrapState({
@@ -509,7 +524,7 @@ export default function App() {
         summary: `Bootstrap status unreachable: ${parseErrorMessage(error)}`,
         phases: [],
       });
-      setReadyForPromptExecution(false);
+      applyPromptReadiness(false);
       return 'DOWN';
     }
   };
@@ -603,6 +618,10 @@ export default function App() {
       setPlatformStatus('Fetch API unavailable in this runtime.');
       return;
     }
+    const requestId = refreshRequestIdRef.current + 1;
+    refreshRequestIdRef.current = requestId;
+    const isCurrentRequest = () => requestId === refreshRequestIdRef.current;
+
     setPlatformBusy(true);
     setPlatformStatus('Running live checks for services, routing, and agent registry...');
     setServiceHealth((current) =>
@@ -617,7 +636,7 @@ export default function App() {
     let promptReadyLocal = false;
 
     try {
-      const stateResponse = await fetchWithTimeout(`${HUB_BASE_URL}/control-center/state`, { method: 'GET' }, 7000);
+      const stateResponse = await fetchWithTimeout(`${HUB_BASE_URL}/control-center/state`, { method: 'GET' }, 12000);
       const statePayload = await parseResponseSafely(stateResponse);
       const bootstrap =
         statePayload.bootstrap && typeof statePayload.bootstrap === 'object' && !Array.isArray(statePayload.bootstrap)
@@ -627,17 +646,19 @@ export default function App() {
       const bootstrapReady = bootstrap.ready === true && bootstrapStatus === 'READY';
       bootstrapStatusLocal = bootstrapStatus;
       promptReadyLocal = Boolean(statePayload.ready_for_prompt_execute ?? bootstrapReady);
-      setBootstrapState({
-        status: bootstrapStatus,
-        ready: bootstrapReady,
-        summary: String(bootstrap.summary ?? ''),
-        started_at: String(bootstrap.started_at ?? ''),
-        finished_at: String(bootstrap.finished_at ?? ''),
-        phases: Array.isArray(bootstrap.phases)
-          ? (bootstrap.phases as Record<string, unknown>[])
-          : [],
-      });
-      setReadyForPromptExecution(promptReadyLocal);
+      if (isCurrentRequest()) {
+        setBootstrapState({
+          status: bootstrapStatus,
+          ready: bootstrapReady,
+          summary: String(bootstrap.summary ?? ''),
+          started_at: String(bootstrap.started_at ?? ''),
+          finished_at: String(bootstrap.finished_at ?? ''),
+          phases: Array.isArray(bootstrap.phases)
+            ? (bootstrap.phases as Record<string, unknown>[])
+            : [],
+        });
+        applyPromptReadiness(promptReadyLocal);
+      }
       if (
         statePayload.service_probes &&
         typeof statePayload.service_probes === 'object' &&
@@ -646,11 +667,13 @@ export default function App() {
         directServiceProbes = statePayload.service_probes as Record<string, Record<string, unknown>>;
       }
     } catch {
-      setReadyForPromptExecution(false);
+      if (isCurrentRequest()) {
+        applyPromptReadiness(false);
+      }
     }
 
     try {
-      const healthResponse = await fetchWithTimeout(`${HUB_BASE_URL}/health`, { method: 'GET' }, 5000);
+      const healthResponse = await fetchWithTimeout(`${HUB_BASE_URL}/health`, { method: 'GET' }, 8000);
       const healthPayload = await parseResponseSafely(healthResponse);
       hubState = healthResponse.ok ? 'up' : 'down';
       hubDetail = `HTTP ${healthResponse.status}`;
@@ -667,22 +690,28 @@ export default function App() {
     }
 
     try {
-      const agentsResponse = await fetchWithTimeout(`${HUB_BASE_URL}/agents`, { method: 'GET' }, 5000);
+      const agentsResponse = await fetchWithTimeout(`${HUB_BASE_URL}/agents`, { method: 'GET' }, 8000);
       const agentsPayload = await parseResponseSafely(agentsResponse);
-      setAgents(normalizeAgentsPayload(agentsPayload));
-      setAgentCounts({
-        active: Number(agentsPayload.active_count ?? 0),
-        legacy: Number(agentsPayload.legacy_count ?? 0),
-      });
+      if (isCurrentRequest()) {
+        setAgents(normalizeAgentsPayload(agentsPayload));
+        setAgentCounts({
+          active: Number(agentsPayload.active_count ?? 0),
+          legacy: Number(agentsPayload.legacy_count ?? 0),
+        });
+      }
     } catch {
-      setAgents([]);
-      setAgentCounts({ active: 0, legacy: 0 });
+      if (isCurrentRequest()) {
+        setAgents([]);
+        setAgentCounts({ active: 0, legacy: 0 });
+      }
     }
 
     try {
-      const routingResponse = await fetchWithTimeout(`${HUB_BASE_URL}/routing/status`, { method: 'GET' }, 5000);
+      const routingResponse = await fetchWithTimeout(`${HUB_BASE_URL}/routing/status`, { method: 'GET' }, 8000);
       const routingPayload = await parseResponseSafely(routingResponse);
-      setRoutingStatus(routingPayload);
+      if (isCurrentRequest()) {
+        setRoutingStatus(routingPayload);
+      }
       if (
         routingPayload.targets &&
         typeof routingPayload.targets === 'object' &&
@@ -691,30 +720,44 @@ export default function App() {
         routingTargets = routingPayload.targets as Record<string, Record<string, unknown>>;
       }
     } catch {
-      setRoutingStatus({ status: 'unreachable', detail: 'Could not fetch /routing/status from dispatch hub.' });
+      if (isCurrentRequest()) {
+        setRoutingStatus({ status: 'unreachable', detail: 'Could not fetch /routing/status from dispatch hub.' });
+      }
     }
 
     try {
-      const profilesResponse = await fetchWithTimeout(`${HUB_BASE_URL}/autonomy/profiles`, { method: 'GET' }, 5000);
+      const profilesResponse = await fetchWithTimeout(`${HUB_BASE_URL}/autonomy/profiles`, { method: 'GET' }, 8000);
       const profilesPayload = await parseResponseSafely(profilesResponse);
       const profiles = normalizeAutonomyProfiles(profilesPayload);
-      setAutonomyProfiles(profiles);
-      if (!profiles.some((profile) => profile.id === autonomyProfileId)) {
-        setAutonomyProfileId(profiles[0]?.id ?? AUTONOMY_PROFILE_FALLBACK[0].id);
+      if (isCurrentRequest()) {
+        setAutonomyProfiles(profiles);
+        if (!profiles.some((profile) => profile.id === autonomyProfileId)) {
+          setAutonomyProfileId(profiles[0]?.id ?? AUTONOMY_PROFILE_FALLBACK[0].id);
+        }
       }
     } catch {
-      setAutonomyProfiles(AUTONOMY_PROFILE_FALLBACK);
-      if (!AUTONOMY_PROFILE_FALLBACK.some((profile) => profile.id === autonomyProfileId)) {
-        setAutonomyProfileId(AUTONOMY_PROFILE_FALLBACK[0].id);
+      if (isCurrentRequest()) {
+        setAutonomyProfiles(AUTONOMY_PROFILE_FALLBACK);
+        if (!AUTONOMY_PROFILE_FALLBACK.some((profile) => profile.id === autonomyProfileId)) {
+          setAutonomyProfileId(AUTONOMY_PROFILE_FALLBACK[0].id);
+        }
       }
     }
 
     try {
-      const capabilitiesResponse = await fetchWithTimeout(`${HUB_BASE_URL}/autonomy/capabilities`, { method: 'GET' }, 5000);
+      const capabilitiesResponse = await fetchWithTimeout(`${HUB_BASE_URL}/autonomy/capabilities`, { method: 'GET' }, 8000);
       const capabilitiesPayload = await parseResponseSafely(capabilitiesResponse);
-      setCapabilitiesStatus(capabilitiesPayload);
+      if (isCurrentRequest()) {
+        setCapabilitiesStatus(capabilitiesPayload);
+      }
     } catch {
-      setCapabilitiesStatus({ status: 'unreachable', limitations: ['Capabilities endpoint unreachable'] });
+      if (isCurrentRequest()) {
+        setCapabilitiesStatus({ status: 'unreachable', limitations: ['Capabilities endpoint unreachable'] });
+      }
+    }
+
+    if (!isCurrentRequest()) {
+      return;
     }
 
     const checkedAt = nowIso();
@@ -756,6 +799,7 @@ export default function App() {
       };
     });
     setServiceHealth(serviceResults);
+    applyPromptReadiness(promptReadyLocal);
 
     const upCount = serviceResults.filter((service) => service.state === 'up').length;
     setPlatformStatus(

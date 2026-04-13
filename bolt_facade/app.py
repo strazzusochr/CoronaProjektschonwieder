@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import concurrent.futures
 import json
 import os
 import re
@@ -154,6 +155,7 @@ OPENHANDS_LLM_API_KEY = (
 N8N_API_URL = os.environ.get("N8N_API_URL", "").strip()
 N8N_API_KEY = os.environ.get("N8N_API_KEY", "").strip()
 N8N_MEMORY_PROBE_URL = os.environ.get("N8N_MEMORY_PROBE_URL", "").strip()
+DEVTOOLS_BRIDGE_URL = os.environ.get("DEVTOOLS_BRIDGE_URL", "http://host.docker.internal:3911").strip()
 BOLTDIY_FACADE_INTERNAL_URL = os.environ.get("BOLTDIY_FACADE_INTERNAL_URL", "").strip()
 BOOTSTRAP_ALLOW_SCRIPT_START = os.environ.get("BOOTSTRAP_ALLOW_SCRIPT_START", "false").strip().lower() in {
     "1",
@@ -163,6 +165,13 @@ BOOTSTRAP_ALLOW_SCRIPT_START = os.environ.get("BOOTSTRAP_ALLOW_SCRIPT_START", "f
 }
 BOOTSTRAP_START_SCRIPT = os.environ.get("BOOTSTRAP_START_SCRIPT", "").strip()
 BOOTSTRAP_COMMAND_TIMEOUT = int(os.environ.get("BOOTSTRAP_COMMAND_TIMEOUT", "900"))
+CONTROL_CENTER_STATUS_CACHE_TTL = int(os.environ.get("CONTROL_CENTER_STATUS_CACHE_TTL", "8"))
+DISPATCH_APPEND_PROJECT_LOGS = os.environ.get("DISPATCH_APPEND_PROJECT_LOGS", "false").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 BOOTSTRAP_STATE_PATH = EVIDENCE_DIR / "bootstrap_latest.json"
 STARTED_AT = datetime.now(timezone.utc).isoformat()
 RUNTIME_TARGETS = [
@@ -233,6 +242,11 @@ AUTONOMY_PROFILES: dict[str, dict[str, Any]] = {
     },
 }
 BOOTSTRAP_LOCK = threading.Lock()
+CONTROL_CENTER_CACHE_LOCK = threading.Lock()
+CONTROL_CENTER_CACHE: dict[str, Any] = {
+    "expires_at": 0.0,
+    "payload": None,
+}
 
 
 class MissionPayload(BaseModel):
@@ -516,6 +530,7 @@ def _service_probe_catalog() -> list[dict[str, str]]:
     adapter_base = OPENHANDS_ADAPTER_URL.rstrip("/") if OPENHANDS_ADAPTER_URL else ""
     litellm_base = LITELLM_URL.rstrip("/") if LITELLM_URL else f"http://litellm-godmode:{LITELLM_PORT}"
     hub_base = BOLTDIY_FACADE_INTERNAL_URL.rstrip("/") if BOLTDIY_FACADE_INTERNAL_URL else "http://127.0.0.1:3901"
+    devtools_bridge_base = DEVTOOLS_BRIDGE_URL.rstrip("/") if DEVTOOLS_BRIDGE_URL else "http://host.docker.internal:3911"
     return [
         {"id": "hub", "url": f"{hub_base}/health"},
         {"id": "openhands", "url": openhands_base},
@@ -523,6 +538,7 @@ def _service_probe_catalog() -> list[dict[str, str]]:
         {"id": "n8n", "url": _n8n_health_url()},
         {"id": "langgraph", "url": langgraph_health},
         {"id": "litellm", "url": f"{litellm_base}/"},
+        {"id": "devtools-bridge", "url": f"{devtools_bridge_base}/health"},
     ]
 
 
@@ -578,6 +594,14 @@ def _run_preflight_checks() -> dict[str, Any]:
         warnings.append("OLLAMAHF_BEARER_TOKEN missing: external orchestrator may be BLOCKED.")
     if not N8N_WEBHOOK_URL:
         errors.append("N8N_WEBHOOK_URL missing: mission workflow smoke cannot run.")
+    if not N8N_MEMORY_PROBE_URL:
+        warnings.append(
+            "N8N_MEMORY_PROBE_URL missing: bootstrap memory smoke will be BLOCKED until an execute/webhook path is configured."
+        )
+    if not BOOTSTRAP_ALLOW_SCRIPT_START:
+        warnings.append(
+            "BOOTSTRAP_ALLOW_SCRIPT_START=false: one-click script start is disabled and will be reported as BLOCKED when requested."
+        )
 
     return {
         "ok": len(errors) == 0,
@@ -591,13 +615,25 @@ def _execute_start_script(include_script_start: bool) -> dict[str, Any]:
     if not include_script_start:
         return {"status": "skipped", "reason": "include_script_start=false"}
     if not BOOTSTRAP_ALLOW_SCRIPT_START:
-        return {"status": "skipped", "reason": "BOOTSTRAP_ALLOW_SCRIPT_START=false"}
+        return {
+            "status": "blocked",
+            "reason": "BOOTSTRAP_ALLOW_SCRIPT_START=false",
+            "recovery": "Set BOOTSTRAP_ALLOW_SCRIPT_START=true and configure BOOTSTRAP_START_SCRIPT.",
+        }
     script = BOOTSTRAP_START_SCRIPT.strip()
     if not script:
-        return {"status": "blocked", "reason": "BOOTSTRAP_START_SCRIPT not configured"}
+        return {
+            "status": "blocked",
+            "reason": "BOOTSTRAP_START_SCRIPT not configured",
+            "recovery": "Set BOOTSTRAP_START_SCRIPT to START_GODMODE.sh or an equivalent startup script path.",
+        }
     script_path = Path(script)
     if not script_path.exists():
-        return {"status": "blocked", "reason": f"BOOTSTRAP_START_SCRIPT not found: {script}"}
+        return {
+            "status": "blocked",
+            "reason": f"BOOTSTRAP_START_SCRIPT not found: {script}",
+            "recovery": "Provide an existing script path inside the runtime environment where bolt-facade executes.",
+        }
 
     if script_path.suffix.lower() == ".ps1":
         cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script_path)]
@@ -636,12 +672,23 @@ def _execute_start_script(include_script_start: bool) -> dict[str, Any]:
         "stdout_tail": stdout_tail,
         "stderr_tail": stderr_tail,
         "reason": "Start script returned non-zero exit code.",
+        "recovery": "Inspect stdout/stderr tails, fix script runtime dependencies, then rerun bootstrap.",
     }
 
 
-def _compute_ready_state(preflight: dict[str, Any], services: dict[str, Any], workflow: dict[str, Any]) -> tuple[str, bool, str]:
+def _compute_ready_state(
+    preflight: dict[str, Any],
+    services: dict[str, Any],
+    workflow: dict[str, Any],
+    service_start: dict[str, Any],
+    include_script_start: bool,
+) -> tuple[str, bool, str]:
     if not preflight.get("ok", False):
         return "BLOCKED", False, "Preflight checks failed."
+
+    if include_script_start and service_start.get("status") != "forwarded":
+        reason = service_start.get("reason", "one-click start script did not run")
+        return "BLOCKED", False, f"One-click start blocked: {reason}"
 
     service_failures = [item for item in services.get("results", []) if not item.get("ok", False)]
     if service_failures:
@@ -651,7 +698,7 @@ def _compute_ready_state(preflight: dict[str, Any], services: dict[str, Any], wo
     memory_status = workflow.get("memory", {}).get("status")
     if mission_status != "forwarded":
         return "BLOCKED", False, "n8n mission workflow smoke did not pass."
-    if memory_status not in {"forwarded", "skipped"}:
+    if memory_status != "forwarded":
         return "PARTIAL", False, "n8n memory workflow is not verified."
 
     return "READY", True, "Platform ready for prompt execution."
@@ -677,15 +724,15 @@ def _run_bootstrap(include_script_start: bool, source: str) -> dict[str, Any]:
     phases.append({"phase": "service_start", "result": start_script_result})
 
     service_results: list[dict[str, Any]] = []
-    for item in _service_probe_catalog():
-        url = item.get("url", "").strip()
-        if not url:
-            service_results.append({"id": item["id"], "ok": False, "reason": "missing url"})
-            continue
-        probe = _probe_url(url, BOLTDIY_FORWARD_TIMEOUT, headers=None)
+    service_catalog = _service_probe_catalog()
+    probed_services = _probe_catalog_parallel(service_catalog, BOLTDIY_FORWARD_TIMEOUT)
+    for item in service_catalog:
+        service_id = str(item.get("id", "")).strip()
+        url = str(item.get("url", "")).strip()
+        probe = probed_services.get(service_id, {"reachable": False, "http_status": None, "error": "missing probe"})
         service_results.append(
             {
-                "id": item["id"],
+                "id": service_id,
                 "url": url,
                 "ok": int(probe.get("http_status") or 0) == 200,
                 "probe": probe,
@@ -704,8 +751,15 @@ def _run_bootstrap(include_script_start: bool, source: str) -> dict[str, Any]:
         timestamp=_now_iso(),
     )
     mission_smoke = _dispatch_n8n(smoke_payload)
-    memory_smoke = {"status": "skipped", "reason": "N8N_MEMORY_PROBE_URL not configured"}
+    memory_smoke = {
+        "status": "blocked",
+        "reason": "N8N_MEMORY_PROBE_URL not configured",
+        "recovery": "Set N8N_MEMORY_PROBE_URL to a real n8n execute/webhook endpoint for memory probe verification.",
+    }
     if N8N_MEMORY_PROBE_URL:
+        memory_headers: dict[str, str] = {}
+        if N8N_API_KEY:
+            memory_headers["X-N8N-API-KEY"] = N8N_API_KEY
         memory_smoke = _post_json(
             N8N_MEMORY_PROBE_URL,
             {
@@ -714,11 +768,18 @@ def _run_bootstrap(include_script_start: bool, source: str) -> dict[str, Any]:
                 "event": "bootstrap-memory-smoke",
             },
             BOLTDIY_FORWARD_TIMEOUT,
+            headers=memory_headers,
         )
     workflow_payload = {"mission": mission_smoke, "memory": memory_smoke}
     phases.append({"phase": "workflow_smoke", "result": workflow_payload})
 
-    status, ready, summary = _compute_ready_state(preflight, services_payload, workflow_payload)
+    status, ready, summary = _compute_ready_state(
+        preflight,
+        services_payload,
+        workflow_payload,
+        service_start=start_script_result,
+        include_script_start=include_script_start,
+    )
     finished_at = _now_iso()
     record = {
         "status": status,
@@ -851,6 +912,42 @@ def _probe_url(url: str, timeout: int, headers: dict[str, str] | None = None) ->
             "http_status": None,
             "error": str(exc),
         }
+
+
+def _probe_catalog_parallel(
+    catalog: list[dict[str, Any]],
+    timeout: int,
+) -> dict[str, dict[str, Any]]:
+    if not catalog:
+        return {}
+
+    max_workers = max(1, min(len(catalog), 12))
+    results: dict[str, dict[str, Any]] = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_map: dict[concurrent.futures.Future[dict[str, Any]], tuple[str, str]] = {}
+        for item in catalog:
+            item_id = str(item.get("id", "")).strip()
+            url = str(item.get("url", "")).strip()
+            headers = item.get("headers")
+            if not item_id:
+                continue
+            if not url:
+                results[item_id] = {"reachable": False, "http_status": None, "error": "missing url"}
+                continue
+            future = executor.submit(_probe_url, url, timeout, headers)
+            future_map[future] = (item_id, url)
+
+        for future, (item_id, url) in future_map.items():
+            try:
+                results[item_id] = future.result(timeout=timeout + 1)
+            except Exception as exc:  # pragma: no cover - runtime path
+                results[item_id] = {
+                    "reachable": False,
+                    "http_status": None,
+                    "url": url,
+                    "error": str(exc),
+                }
+    return results
 
 
 def _space_candidates(space_url: str) -> dict[str, str]:
@@ -1335,46 +1432,44 @@ def _dispatch_by_target(runtime_target: str, payload: MissionPayload) -> dict[st
     return dispatcher(payload)
 
 
-def _target_health_status() -> dict[str, Any]:
-    statuses: dict[str, Any] = {}
+def _target_health_status(probe_timeout: int | None = None) -> dict[str, Any]:
+    timeout = probe_timeout if probe_timeout is not None else BOLTDIY_FORWARD_TIMEOUT
+    probe_catalog: list[dict[str, Any]] = []
     langgraph_url = (LANGGRAPH_API_INTERNAL_URL or LANGGRAPH_API_URL).rstrip("/")
     if langgraph_url:
-        statuses["langgraph-local"] = _probe_url(f"{langgraph_url}/health", BOLTDIY_FORWARD_TIMEOUT)
+        probe_catalog.append({"id": "langgraph-local", "url": f"{langgraph_url}/health"})
     else:
-        statuses["langgraph-local"] = {"reachable": False, "http_status": None, "error": "missing url"}
+        probe_catalog.append({"id": "langgraph-local", "url": ""})
 
     smol_url = (SMOLAGENTS_URL or SMOLAGENTS_DISPATCH_URL).rstrip("/")
     if smol_url:
-        statuses["smolagents"] = _probe_url(smol_url, BOLTDIY_FORWARD_TIMEOUT)
+        probe_catalog.append({"id": "smolagents", "url": smol_url})
     else:
-        statuses["smolagents"] = {"reachable": False, "http_status": None, "error": "missing url"}
+        probe_catalog.append({"id": "smolagents", "url": ""})
 
     if OPENHANDS_ADAPTER_URL:
-        statuses["openhands-adapter"] = _probe_url(
-            f"{OPENHANDS_ADAPTER_URL.rstrip('/')}/health",
-            BOLTDIY_FORWARD_TIMEOUT,
-        )
+        probe_catalog.append({"id": "openhands-adapter", "url": f"{OPENHANDS_ADAPTER_URL.rstrip('/')}/health"})
     else:
-        statuses["openhands-adapter"] = {"reachable": False, "http_status": None, "error": "missing url"}
+        probe_catalog.append({"id": "openhands-adapter", "url": ""})
 
     aider_url = (HF_AIDER_DISPATCH_URL or HF_AIDER_URL).rstrip("/")
     if aider_url:
-        statuses["hf-aider"] = _probe_url(aider_url, BOLTDIY_FORWARD_TIMEOUT)
+        probe_catalog.append({"id": "hf-aider", "url": aider_url})
     else:
-        statuses["hf-aider"] = {"reachable": False, "http_status": None, "error": "missing url"}
+        probe_catalog.append({"id": "hf-aider", "url": ""})
 
     if OLLAMAHF_BASE_URL:
-        statuses["ollama-hf-orchestrator"] = _probe_url(
-            f"{OLLAMAHF_BASE_URL.rstrip('/')}/v1/models",
-            BOLTDIY_FORWARD_TIMEOUT,
-            headers=_ollama_headers(),
+        probe_catalog.append(
+            {
+                "id": "ollama-hf-orchestrator",
+                "url": f"{OLLAMAHF_BASE_URL.rstrip('/')}/v1/models",
+                "headers": _ollama_headers(),
+            }
         )
     else:
-        statuses["ollama-hf-orchestrator"] = {
-            "reachable": False,
-            "http_status": None,
-            "error": "missing url",
-        }
+        probe_catalog.append({"id": "ollama-hf-orchestrator", "url": ""})
+
+    statuses = _probe_catalog_parallel(probe_catalog, timeout)
     return statuses
 
 
@@ -1644,6 +1739,9 @@ def _set_bootstrap_state(record: dict[str, Any]) -> None:
     with BOOTSTRAP_LOCK:
         BOOTSTRAP_STATE = dict(record)
     _persist_bootstrap_state(record)
+    with CONTROL_CENTER_CACHE_LOCK:
+        CONTROL_CENTER_CACHE["expires_at"] = 0.0
+        CONTROL_CENTER_CACHE["payload"] = None
 
 
 def _bootstrap_worker(include_script_start: bool, source: str) -> None:
@@ -1673,20 +1771,79 @@ def _load_run_file(run_id: str) -> dict[str, Any]:
     return payload
 
 
-def _control_center_state_payload() -> dict[str, Any]:
-    health_payload = health()
-    routing_payload = routing_status()
+def _control_center_state_payload(force_refresh: bool = False) -> dict[str, Any]:
+    now_epoch = time.time()
+    if not force_refresh and CONTROL_CENTER_STATUS_CACHE_TTL > 0:
+        with CONTROL_CENTER_CACHE_LOCK:
+            expires_at = float(CONTROL_CENTER_CACHE.get("expires_at", 0.0) or 0.0)
+            cached_payload = CONTROL_CENTER_CACHE.get("payload")
+            if cached_payload and expires_at > now_epoch:
+                return dict(cached_payload)
+
+    target_timeout = max(2, min(BOLTDIY_FORWARD_TIMEOUT, 8))
+    target_probes = _target_health_status(probe_timeout=target_timeout)
+    routing_targets = {
+        target: {
+            **probe,
+            "status_class": _http_status_to_status_class(probe.get("http_status")),
+        }
+        for target, probe in target_probes.items()
+    }
+    latest_dispatch = _latest_json(DISPATCH_DIR / "latest_dispatch.json")
+    routing_payload = {
+        "status": "ok",
+        "targets": routing_targets,
+        "latest_dispatch": latest_dispatch.get("dispatch_artifact", ""),
+        "checked_at": _now_iso(),
+    }
+
+    active_agents = AGENT_REGISTRY.get("active_agents", [])
+    legacy_agents = AGENT_REGISTRY.get("legacy_agents", [])
+    health_payload = {
+        "status": "healthy",
+        "service": "superbrain-dispatch-hub",
+        "contract": "agent/task/source/repo/ref/status/timestamp",
+        "runtime_targets": RUNTIME_TARGETS,
+        "zero_compute_policy": {
+            "enabled": ZERO_COMPUTE_POLICY,
+            "allow_local_heavy_override": ALLOW_LOCAL_HEAVY,
+            "blocked_targets_for_heavy": sorted(LOCAL_HEAVY_BLOCKED_TARGETS),
+        },
+        "registry": {
+            "path": str(AGENT_REGISTRY_PATH),
+            "active_agents": len(active_agents),
+            "legacy_agents": len(legacy_agents),
+            "alias_collisions": AGENT_ALIAS_COLLISIONS,
+        },
+        "targets": {
+            "smolagents_url": SMOLAGENTS_URL or "",
+            "smolagents_dispatch_url": SMOLAGENTS_DISPATCH_URL or "",
+            "langgraph_api_internal_url": LANGGRAPH_API_INTERNAL_URL or "",
+            "langgraph_api_url": LANGGRAPH_API_URL or "",
+            "hf_aider_url": HF_AIDER_URL or "",
+            "hf_aider_dispatch_url": HF_AIDER_DISPATCH_URL or "",
+            "ollamahf_base_url": OLLAMAHF_BASE_URL or "",
+            "bolt_space_id": BOLTDIY_SPACE_ID or "",
+            "n8n_webhook_url": N8N_WEBHOOK_URL or "",
+            "openhands_adapter_url": OPENHANDS_ADAPTER_URL or "",
+        },
+        "routing_status": target_probes,
+        "bootstrap": {
+            "status": _bootstrap_status_snapshot().get("status", "DOWN"),
+            "ready": bool(_bootstrap_status_snapshot().get("ready", False)),
+            "allow_script_start": BOOTSTRAP_ALLOW_SCRIPT_START,
+            "script_configured": bool(BOOTSTRAP_START_SCRIPT),
+            "start_script": BOOTSTRAP_START_SCRIPT,
+        },
+        "runtime_dir": str(RUNTIME_DIR),
+        "evidence_dir": str(EVIDENCE_DIR),
+    }
+
     bootstrap_payload = _bootstrap_status_snapshot()
     ready, reason = _is_ready_for_prompt_execution()
     latest_run = _latest_json(EVIDENCE_DIR / "autonomy_run_latest.json")
-    service_probes: dict[str, Any] = {}
-    for item in _service_probe_catalog():
-        url = item.get("url", "").strip()
-        if not url:
-            service_probes[item["id"]] = {"reachable": False, "http_status": None, "error": "missing url"}
-            continue
-        service_probes[item["id"]] = _probe_url(url, BOLTDIY_FORWARD_TIMEOUT)
-    return {
+    service_probes = _probe_catalog_parallel(_service_probe_catalog(), target_timeout)
+    payload = {
         "status": "ok",
         "ready_for_prompt_execute": ready,
         "ready_reason": "" if ready else reason,
@@ -1700,7 +1857,14 @@ def _control_center_state_payload() -> dict[str, Any]:
         },
         "service_probes": service_probes,
         "latest_run": latest_run,
+        "computed_at": _now_iso(),
+        "cache_ttl_seconds": CONTROL_CENTER_STATUS_CACHE_TTL,
     }
+    if CONTROL_CENTER_STATUS_CACHE_TTL > 0:
+        with CONTROL_CENTER_CACHE_LOCK:
+            CONTROL_CENTER_CACHE["expires_at"] = now_epoch + float(CONTROL_CENTER_STATUS_CACHE_TTL)
+            CONTROL_CENTER_CACHE["payload"] = dict(payload)
+    return payload
 
 
 @app.post("/bootstrap/start")
@@ -2060,17 +2224,22 @@ def dispatch(payload: MissionPayload) -> dict[str, Any]:
     _write_json(dispatch_file, record)
     _write_json(latest_file, record)
 
-    _append_line(
-        MEMORY_VAULT_PATH,
-        (
-            f"- {started_at} SUPERBRAIN_DISPATCH: agent={normalized_payload.agent} "
-            f"target={runtime_target} status={overall} call_id={call_id}"
-        ),
-    )
-    _append_line(
-        GODMODE_GOAL_PATH,
-        f"SUPERBRAIN_DISPATCH {started_at} agent={normalized_payload.agent} target={runtime_target} status={overall} call_id={call_id}",
-    )
+    if DISPATCH_APPEND_PROJECT_LOGS:
+        _append_line(
+            MEMORY_VAULT_PATH,
+            (
+                f"- {started_at} SUPERBRAIN_DISPATCH: agent={normalized_payload.agent} "
+                f"target={runtime_target} status={overall} call_id={call_id}"
+            ),
+        )
+        _append_line(
+            GODMODE_GOAL_PATH,
+            f"SUPERBRAIN_DISPATCH {started_at} agent={normalized_payload.agent} target={runtime_target} status={overall} call_id={call_id}",
+        )
+
+    with CONTROL_CENTER_CACHE_LOCK:
+        CONTROL_CENTER_CACHE["expires_at"] = 0.0
+        CONTROL_CENTER_CACHE["payload"] = None
 
     return {
         "status": overall,
@@ -2154,24 +2323,25 @@ def proof(payload: ProofPayload) -> dict[str, Any]:
     _write_json(latest_file, record)
     METRICS["proof_total"] += 1
 
-    _append_line(
-        FINAL_PROOF_PATH,
-        (
-            f"- {created_at} BOLT_PROOF: result={payload.result} "
-            f"scenario={payload.scenario} proof_id={proof_id}"
-        ),
-    )
-    _append_line(
-        MEMORY_VAULT_PATH,
-        (
-            f"- {created_at} BOLT_PROOF: result={payload.result} "
-            f"scenario={payload.scenario} proof_id={proof_id}"
-        ),
-    )
-    _append_line(
-        GODMODE_GOAL_PATH,
-        f"BOLT_PROOF {created_at} result={payload.result} proof_id={proof_id}",
-    )
+    if DISPATCH_APPEND_PROJECT_LOGS:
+        _append_line(
+            FINAL_PROOF_PATH,
+            (
+                f"- {created_at} BOLT_PROOF: result={payload.result} "
+                f"scenario={payload.scenario} proof_id={proof_id}"
+            ),
+        )
+        _append_line(
+            MEMORY_VAULT_PATH,
+            (
+                f"- {created_at} BOLT_PROOF: result={payload.result} "
+                f"scenario={payload.scenario} proof_id={proof_id}"
+            ),
+        )
+        _append_line(
+            GODMODE_GOAL_PATH,
+            f"BOLT_PROOF {created_at} result={payload.result} proof_id={proof_id}",
+        )
 
     return {
         "status": "recorded",

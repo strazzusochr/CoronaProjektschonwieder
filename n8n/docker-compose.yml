@@ -24,7 +24,7 @@ services:
       - OPENHANDS_ADAPTER_URL=${OPENHANDS_ADAPTER_INTERNAL_URL:-http://openhands-godmode-adapter:3001}
       - BOLTDIY_FACADE_URL=${BOLTDIY_FACADE_INTERNAL_URL:-http://bolt-facade-godmode:3901}
       - LANGGRAPH_API_URL=${LANGGRAPH_API_INTERNAL_URL:-http://langgraph-godmode-local:8080}
-      - MEMORY_VAULT_PATH=${MEMORY_VAULT_PATH:-/workspace/memory_vault.md}
+      - MEMORY_VAULT_PATH=${MEMORY_VAULT_PATH:-/workspace/runtime/memory_vault_runtime.md}
       - NODE_FUNCTION_ALLOW_BUILTIN=fs,path
       - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
@@ -36,7 +36,7 @@ services:
     volumes:
       - n8n_data:/home/node/.n8n
       - ./backups:/backups
-      - ../memory_vault.md:/workspace/memory_vault.md
+      - ../.godmode_runtime:/workspace/runtime
 
 volumes:
   n8n_data:

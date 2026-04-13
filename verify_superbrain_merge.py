@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib import error, request
@@ -123,6 +124,22 @@ def env_int(name: str, default: int, minimum: int, maximum: int) -> int:
     return max(minimum, min(maximum, value))
 
 
+def git_status_lines() -> list[str]:
+    try:
+        completed = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=str(REPO_ROOT),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except Exception:
+        return []
+    if completed.returncode != 0:
+        return []
+    return [line.rstrip() for line in completed.stdout.splitlines() if line.strip()]
+
+
 def main() -> int:
     base_url = os.environ.get("BOLTDIY_FACADE_URL", "http://127.0.0.1:3901").rstrip("/")
     forward_timeout = env_int("BOLTDIY_FORWARD_TIMEOUT", 20, 3, 180)
@@ -144,6 +161,7 @@ def main() -> int:
     ollama_orchestrate_retries = env_int("SUPERBRAIN_OLLAMA_ORCHESTRATE_RETRIES", 2, 1, 3)
     evidence_dir = resolve_evidence_dir()
     timestamp = now_iso()
+    dirty_before = git_status_lines()
 
     health_code, health = get_json(f"{base_url}/health")
     agents_code, agents = get_json(f"{base_url}/agents")
@@ -324,6 +342,14 @@ def main() -> int:
         }
 
     doc_pct = round((synced_docs / 4.0) * 100.0, 2)
+
+    dirty_after = git_status_lines()
+    dirty_before_set = set(dirty_before)
+    dirty_after_set = set(dirty_after)
+    dirty_new_entries = sorted(dirty_after_set - dirty_before_set)
+    dirty_resolved_entries = sorted(dirty_before_set - dirty_after_set)
+    dirty_tree_gate_pass = len(dirty_new_entries) == 0
+
     beta_core_pct = weighted_beta_core(
         inventory_gate_pct,
         contract_pct,
@@ -379,6 +405,13 @@ def main() -> int:
             "total_docs": 4,
             "percent": doc_pct,
             "results": doc_results,
+        },
+        "repo_hygiene_gate": {
+            "status": "PASS" if dirty_tree_gate_pass else "FAIL",
+            "dirty_before_count": len(dirty_before),
+            "dirty_after_count": len(dirty_after),
+            "new_entries_after_verify": dirty_new_entries,
+            "resolved_entries_during_verify": dirty_resolved_entries,
         },
         "progress": {
             "inventory_verified_percent": inventory_verified_pct,

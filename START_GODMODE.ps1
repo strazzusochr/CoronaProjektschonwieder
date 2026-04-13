@@ -472,6 +472,14 @@ if (-not $env:BOLTDIY_FORWARD_TIMEOUT) {
     $env:BOLTDIY_FORWARD_TIMEOUT = "20"
 }
 
+if (-not $env:CONTROL_CENTER_STATUS_CACHE_TTL) {
+    $env:CONTROL_CENTER_STATUS_CACHE_TTL = "8"
+}
+
+if (-not $env:DISPATCH_APPEND_PROJECT_LOGS) {
+    $env:DISPATCH_APPEND_PROJECT_LOGS = "false"
+}
+
 if (-not $env:BOLTDIY_SPACE_ID) {
     $env:BOLTDIY_SPACE_ID = "Wrzzzrzr/bolt-diy-godmode"
 }
@@ -536,6 +544,18 @@ if (-not $env:OPENHANDS_ADAPTER_URL) {
     $env:OPENHANDS_ADAPTER_URL = $env:OPENHANDS_ADAPTER_INTERNAL_URL
 }
 
+if (-not $env:OPENHANDS_TRIGGER_MODE) {
+    $env:OPENHANDS_TRIGGER_MODE = "socketio"
+}
+
+if (-not $env:OPENHANDS_TRIGGER_WAIT_SECONDS) {
+    $env:OPENHANDS_TRIGGER_WAIT_SECONDS = "45"
+}
+
+if (-not $env:OPENHANDS_SOCKET_PATH) {
+    $env:OPENHANDS_SOCKET_PATH = "/socket.io"
+}
+
 if (-not $env:OPENHANDS_PUBLIC_URL) {
     $localOpenHandsPort = Resolve-GodmodeValue $env:OPENHANDS_PORT "3000"
     $env:OPENHANDS_PUBLIC_URL = "http://127.0.0.1:$localOpenHandsPort"
@@ -576,6 +596,18 @@ if (-not $env:N8N_WEBHOOK_INTERNAL_URL) {
     $env:N8N_WEBHOOK_INTERNAL_URL = "http://n8n-godmode:5678/webhook/godmodeMissionTrigger01/mission-webhook/godmode-mission"
 }
 
+if (-not $env:N8N_API_URL) {
+    $env:N8N_API_URL = "http://n8n-godmode:5678/api/v1"
+}
+
+if (-not $env:N8N_MEMORY_PROBE_URL) {
+    $env:N8N_MEMORY_PROBE_URL = "http://n8n-godmode:5678/webhook/godmodeMemoryProbe01/memory-probe-webhook/godmode-memory-probe"
+}
+
+if (-not $env:MEMORY_VAULT_PATH) {
+    $env:MEMORY_VAULT_PATH = Join-Path $RuntimeDir "memory_vault_runtime.md"
+}
+
 if (-not $env:DEVTOOLS_BRIDGE_ENABLED) {
     $env:DEVTOOLS_BRIDGE_ENABLED = "true"
 }
@@ -594,6 +626,10 @@ if (-not $env:DEVTOOLS_BRIDGE_TIMEOUT) {
 
 if (-not $env:DEVTOOLS_BRIDGE_COMMAND_TIMEOUT) {
     $env:DEVTOOLS_BRIDGE_COMMAND_TIMEOUT = "900"
+}
+
+if (-not $env:DEVTOOLS_BRIDGE_URL) {
+    $env:DEVTOOLS_BRIDGE_URL = "http://host.docker.internal:3911"
 }
 
 if (-not $env:ORACLE_ENABLED) {

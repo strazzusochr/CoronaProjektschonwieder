@@ -1,4 +1,4 @@
-FINAL BUILD TEST @ 2026-04-13T19:32:27.167228+00:00
+FINAL BUILD TEST @ 2026-04-13T21:08:33.019250+00:00
 
 DISPATCH RESULTS:
 [
@@ -8,7 +8,7 @@ DISPATCH RESULTS:
     "http_status": 200,
     "status": "forwarded",
     "runtime_target": "langgraph-local",
-    "dispatch_artifact": "/workspace/runtime/bolt_facade/dispatch/2026-04-13T19-32-27-252621+00-00_a27305dc-8feb-46ef-8caf-fca3c8fb1ac8.json",
+    "dispatch_artifact": "/workspace/runtime/bolt_facade/dispatch/2026-04-13T21-08-33-217080+00-00_5e384024-df28-4211-a34f-2a02b1b9edea.json",
     "reason": "",
     "error": "",
     "response_dry_run": false
@@ -19,7 +19,7 @@ DISPATCH RESULTS:
     "http_status": 200,
     "status": "forwarded",
     "runtime_target": "openhands-adapter",
-    "dispatch_artifact": "/workspace/runtime/bolt_facade/dispatch/2026-04-13T19-32-28-414064+00-00_91b6f9de-b1d5-45ec-842d-859d0c34fba6.json",
+    "dispatch_artifact": "/workspace/runtime/bolt_facade/dispatch/2026-04-13T21-08-34-493904+00-00_f83ea543-7afb-4960-99fa-e7c177474fdd.json",
     "reason": "",
     "error": "",
     "response_dry_run": false
@@ -30,7 +30,7 @@ DISPATCH RESULTS:
     "http_status": 200,
     "status": "forwarded",
     "runtime_target": "ollama-hf-orchestrator",
-    "dispatch_artifact": "/workspace/runtime/bolt_facade/dispatch/2026-04-13T19-32-28-459741+00-00_27f33b64-ed77-4186-a27c-9c28a95fba6e.json",
+    "dispatch_artifact": "/workspace/runtime/bolt_facade/dispatch/2026-04-13T21-08-34-766495+00-00_0e030c13-3910-4b10-bc31-e1695c800872.json",
     "reason": "",
     "error": "",
     "response_dry_run": false
@@ -45,7 +45,7 @@ UNIT TEST RESULT:
   ],
   "returncode": 0,
   "ok": true,
-  "stdout_tail": "\n> godmode-arena-lab@1.0.0 test\n> vitest run\n\n\n RUN  v4.1.3 d:/Web/docs/godmode_setup/CoronaProjektschonwieder\n\n\n Test Files  3 passed (3)\n      Tests  5 passed (5)\n   Start at  21:33:15\n   Duration  4.09s (transform 264ms, setup 0ms, import 1.03s, tests 1.48s, environment 5.41s)\n",
+  "stdout_tail": "\n> godmode-arena-lab@1.0.0 test\n> vitest run\n\n\n RUN  v4.1.3 d:/Web/docs/godmode_setup/CoronaProjektschonwieder\n\n\n Test Files  3 passed (3)\n      Tests  5 passed (5)\n   Start at  23:09:24\n   Duration  8.31s (transform 879ms, setup 0ms, import 2.22s, tests 4.04s, environment 8.30s)\n",
   "stderr_tail": "Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package"
 }
 
@@ -58,7 +58,7 @@ BUILD RESULT:
   ],
   "returncode": 0,
   "ok": true,
-  "stdout_tail": "\n> godmode-arena-lab@1.0.0 build\n> tsc && vite build\n\n\u001b[36mvite v8.0.7 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\n\u001b[2K\ntransforming...\u2713 586 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                             0.84 kB \u2502 gzip:   0.48 kB\ndist/assets/index-BuYnI4Zn.css              5.64 kB \u2502 gzip:   1.94 kB\ndist/assets/rolldown-runtime-Dw2cE7zH.js    0.68 kB \u2502 gzip:   0.41 kB\ndist/assets/SceneCanvas-C7MRVAFD.js         3.76 kB \u2502 gzip:   1.53 kB\ndist/assets/drei-vendor-BAsV7GBP.js        26.02 kB \u2502 gzip:   9.06 kB\ndist/assets/index-5zV0o7xW.js              46.22 kB \u2502 gzip:  13.46 kB\ndist/assets/three-helpers-BNYtBk0n.js      49.58 kB \u2502 gzip:  17.20 kB\ndist/assets/fiber-vendor-BjbA9N5C.js      126.53 kB \u2502 gzip:  40.87 kB\ndist/assets/react-vendor-CUFyD8B1.js      143.73 kB \u2502 gzip:  46.78 kB\ndist/assets/three-core-MhHvnM_3.js        659.16 kB \u2502 gzip: 167.85 kB\n\n\u001b[32m\u2713 built in 678ms\u001b[39m",
+  "stdout_tail": "\n> godmode-arena-lab@1.0.0 build\n> tsc && vite build\n\n\u001b[36mvite v8.0.7 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\n\u001b[2K\ntransforming...\u2713 586 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                             0.84 kB \u2502 gzip:   0.48 kB\ndist/assets/index-BuYnI4Zn.css              5.64 kB \u2502 gzip:   1.94 kB\ndist/assets/rolldown-runtime-Dw2cE7zH.js    0.68 kB \u2502 gzip:   0.41 kB\ndist/assets/SceneCanvas-C7MRVAFD.js         3.76 kB \u2502 gzip:   1.53 kB\ndist/assets/drei-vendor-BAsV7GBP.js        26.02 kB \u2502 gzip:   9.06 kB\ndist/assets/index-BkL4mQAb.js              46.58 kB \u2502 gzip:  13.62 kB\ndist/assets/three-helpers-BNYtBk0n.js      49.58 kB \u2502 gzip:  17.20 kB\ndist/assets/fiber-vendor-BjbA9N5C.js      126.53 kB \u2502 gzip:  40.87 kB\ndist/assets/react-vendor-CUFyD8B1.js      143.73 kB \u2502 gzip:  46.78 kB\ndist/assets/three-core-MhHvnM_3.js        659.16 kB \u2502 gzip: 167.85 kB\n\n\u001b[32m\u2713 built in 1.70s\u001b[39m",
   "stderr_tail": "\u001b[33m[plugin builtin:vite-reporter] \n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\u001b[39m"
 }
 
@@ -71,13 +71,13 @@ BROWSER RESULT:
   ],
   "returncode": 0,
   "ok": true,
-  "stdout_tail": "\n> godmode-arena-lab@1.0.0 test:browser\n> playwright test\n\n\nRunning 1 test using 1 worker\n\n  ok 1 tests\\app.spec.ts:3:1 \u203a runs complete 3D sandbox control flow and reaches terminal mission state (40.0s)\n\n  1 passed (48.8s)",
-  "stderr_tail": "\u001b[2m[WebServer] \u001b[22m\u001b[33m[plugin builtin:vite-reporter] \u001b[33m\u001b[1m\n\u001b[2m[WebServer] \u001b[22m(!) Some chunks are larger than 500 kB after minification. Consider:\n\u001b[2m[WebServer] \u001b[22m- Using dynamic import() to code-split the application\n\u001b[2m[WebServer] \u001b[22m- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting\n\u001b[2m[WebServer] \u001b[22m- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\u001b[0m\u001b[33m\u001b[39m"
+  "stdout_tail": "\n> godmode-arena-lab@1.0.0 test:browser\n> playwright test\n\n\nRunning 1 test using 1 worker\n\n  ok 1 tests\\app.spec.ts:3:1 \u203a runs complete 3D sandbox control flow and reaches terminal mission state (48.3s)\n\n  1 passed (53.7s)",
+  "stderr_tail": ""
 }
 
 DEEP SEARCH PROBE:
 {
-  "timestamp": "2026-04-13T19:33:14.987839+00:00",
+  "timestamp": "2026-04-13T21:09:22.130503+00:00",
   "question": "How can fixed-timestep deterministic simulation and conservative terrain updates improve reliability for browser-based lemmings-inspired 3D games?",
   "sources": [
     {
@@ -106,7 +106,7 @@ DEEP SEARCH PROBE:
 
 MATH VALIDATION PROBE:
 {
-  "timestamp": "2026-04-13T19:33:14.988928+00:00",
+  "timestamp": "2026-04-13T21:09:22.131596+00:00",
   "kinematics": {
     "expected_distance": 27.087862500000007,
     "simulated_distance": 26.511525000000006,
@@ -134,14 +134,14 @@ MATH VALIDATION PROBE:
 
 MANIFEST:
 {
-  "timestamp": "2026-04-13T19:34:15.671781+00:00",
+  "timestamp": "2026-04-13T21:10:45.011145+00:00",
   "dist_dir": "d:\\Web\\docs\\godmode_setup\\CoronaProjektschonwieder\\dist",
   "dist_file_count": 12,
   "dist_files_sample": [
     "CoronaProjektschonwieder\\dist\\assets\\SceneCanvas-C7MRVAFD.js",
     "CoronaProjektschonwieder\\dist\\assets\\drei-vendor-BAsV7GBP.js",
     "CoronaProjektschonwieder\\dist\\assets\\fiber-vendor-BjbA9N5C.js",
-    "CoronaProjektschonwieder\\dist\\assets\\index-5zV0o7xW.js",
+    "CoronaProjektschonwieder\\dist\\assets\\index-BkL4mQAb.js",
     "CoronaProjektschonwieder\\dist\\assets\\index-BuYnI4Zn.css",
     "CoronaProjektschonwieder\\dist\\assets\\react-vendor-CUFyD8B1.js",
     "CoronaProjektschonwieder\\dist\\assets\\rolldown-runtime-Dw2cE7zH.js",

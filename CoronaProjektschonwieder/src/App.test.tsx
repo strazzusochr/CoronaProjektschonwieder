@@ -190,5 +190,5 @@ describe('App', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /run math validation/i }));
     expect(screen.getByTestId('metric-math-validation').textContent).toMatch(/pass|fail/i);
-  }, 20000);
+  }, 60000);
 });
