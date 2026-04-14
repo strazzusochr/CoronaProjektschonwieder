@@ -83,6 +83,7 @@ GODMODE_GOAL_PATH = Path(
 
 BOLTDIY_MODE = os.environ.get("BOLTDIY_MODE", "hybrid").strip().lower()
 BOLTDIY_FORWARD_TIMEOUT = int(os.environ.get("BOLTDIY_FORWARD_TIMEOUT", "20"))
+OPENHANDS_FORWARD_TIMEOUT = int(os.environ.get("OPENHANDS_FORWARD_TIMEOUT", str(max(BOLTDIY_FORWARD_TIMEOUT, 75))))
 OLLAMAHF_FORWARD_TIMEOUT = int(
     os.environ.get("OLLAMAHF_FORWARD_TIMEOUT", str(max(BOLTDIY_FORWARD_TIMEOUT, 45)))
 )
@@ -508,6 +509,11 @@ def _with_masked_env(value: str) -> str:
     return f"{value[:4]}***{value[-2:]}"
 
 
+def _is_loopback_url(url: str) -> bool:
+    candidate = (url or "").strip().lower()
+    return candidate.startswith("http://127.0.0.1") or candidate.startswith("http://localhost")
+
+
 def _n8n_health_url() -> str:
     if N8N_API_URL:
         base = N8N_API_URL.split("/api/")[0].rstrip("/")
@@ -526,9 +532,15 @@ def _service_probe_catalog() -> list[dict[str, str]]:
     if langgraph_base:
         langgraph_health = f"{langgraph_base}/health"
 
-    openhands_base = OPENHANDS_PUBLIC_URL.rstrip("/") if OPENHANDS_PUBLIC_URL else OPENHANDS_INTERNAL_URL.rstrip("/")
+    openhands_base = OPENHANDS_INTERNAL_URL.rstrip("/") if OPENHANDS_INTERNAL_URL else OPENHANDS_PUBLIC_URL.rstrip("/")
+    if not openhands_base and OPENHANDS_PUBLIC_URL:
+        openhands_base = OPENHANDS_PUBLIC_URL.rstrip("/")
     adapter_base = OPENHANDS_ADAPTER_URL.rstrip("/") if OPENHANDS_ADAPTER_URL else ""
-    litellm_base = LITELLM_URL.rstrip("/") if LITELLM_URL else f"http://litellm-godmode:{LITELLM_PORT}"
+    internal_litellm_base = f"http://litellm-godmode:{LITELLM_PORT}"
+    if LITELLM_URL and not _is_loopback_url(LITELLM_URL):
+        litellm_base = LITELLM_URL.rstrip("/")
+    else:
+        litellm_base = internal_litellm_base
     hub_base = BOLTDIY_FACADE_INTERNAL_URL.rstrip("/") if BOLTDIY_FACADE_INTERNAL_URL else "http://127.0.0.1:3901"
     devtools_bridge_base = DEVTOOLS_BRIDGE_URL.rstrip("/") if DEVTOOLS_BRIDGE_URL else "http://host.docker.internal:3911"
     return [
@@ -1129,7 +1141,7 @@ def _dispatch_openhands(payload: MissionPayload) -> dict[str, Any]:
         }
 
     target = f"{OPENHANDS_ADAPTER_URL.rstrip('/')}/trigger"
-    response = _post_json(target, payload.model_dump(), BOLTDIY_FORWARD_TIMEOUT)
+    response = _post_json(target, payload.model_dump(), OPENHANDS_FORWARD_TIMEOUT)
     response["target"] = "openhands-adapter"
     return response
 

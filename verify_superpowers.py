@@ -345,56 +345,54 @@ def evaluate_parallel_swarms() -> dict[str, Any]:
 
 
 def evaluate_n8n_ai_memory() -> dict[str, Any]:
-    workflow_file = ROOT / "n8n_memory_probe_workflow.json"
-    memory_vault = ROOT / "memory_vault.md"
-    if not workflow_file.exists():
-        return {
-            "status": "NOT VERIFIED",
-            "details": {"reason": f"missing workflow file: {workflow_file}"},
-        }
+    runtime_memory_vault = ROOT / ".godmode_runtime" / "memory_vault_runtime.md"
+    webhook_url = os.environ.get(
+        "N8N_MEMORY_PROBE_URL",
+        "http://127.0.0.1:5678/webhook/godmodeMemoryProbe01/memory-probe-webhook/godmode-memory-probe",
+    ).strip()
+    publish_cmd = ["docker", "exec", "n8n-godmode", "n8n", "publish:workflow", "--id=godmodeMemoryProbe01"]
+    publish_rc, publish_out = run_cmd(publish_cmd, cwd=ROOT, timeout=40)
 
-    before = memory_vault.read_text(encoding="utf-8", errors="replace") if memory_vault.exists() else ""
-    import_cmd = [
-        "docker",
-        "exec",
-        "n8n-godmode",
-        "n8n",
-        "import:workflow",
-        "--input=/tmp/n8n_memory_probe_workflow.json",
-    ]
-    copy_cmd = ["docker", "cp", str(workflow_file), "n8n-godmode:/tmp/n8n_memory_probe_workflow.json"]
-    exec_cmd = [
-        "docker",
-        "compose",
-        "-f",
-        "n8n/docker-compose.yml",
-        "run",
-        "--rm",
-        "n8n",
-        "execute",
-        "--id=godmodeMemoryProbe01",
-        "--rawOutput",
-    ]
-
-    copy_rc, copy_out = run_cmd(copy_cmd, cwd=ROOT, timeout=30)
-    import_rc, import_out = run_cmd(import_cmd, cwd=ROOT, timeout=40)
-    exec_rc, exec_out = run_cmd(exec_cmd, cwd=ROOT, timeout=180)
-    after = memory_vault.read_text(encoding="utf-8", errors="replace") if memory_vault.exists() else ""
-
-    saved = '"status": "saved"' in exec_out or '"status":"saved"' in exec_out
-    appended = len(after) > len(before) and "MEMORY_PROBE" in after[max(0, len(after) - 1200) :]
-    status = "VERIFIED" if (copy_rc == 0 and import_rc == 0 and exec_rc == 0 and saved and appended) else "PARTIAL"
+    before_mtime = runtime_memory_vault.stat().st_mtime if runtime_memory_vault.exists() else 0.0
+    before_runtime = (
+        runtime_memory_vault.read_text(encoding="utf-8", errors="replace")
+        if runtime_memory_vault.exists()
+        else ""
+    )
+    webhook_headers = _build_n8n_headers()
+    n8n_api_key = os.environ.get("N8N_API_KEY", "").strip()
+    if n8n_api_key:
+        webhook_headers["X-N8N-API-KEY"] = n8n_api_key
+    webhook_code, webhook_data = http_json(
+        webhook_url,
+        method="POST",
+        payload={"source": "verify_superpowers", "timestamp": now_iso(), "event": "superpower-memory-probe"},
+        timeout=40,
+        headers=webhook_headers,
+    )
+    after_runtime = (
+        runtime_memory_vault.read_text(encoding="utf-8", errors="replace")
+        if runtime_memory_vault.exists()
+        else ""
+    )
+    after_mtime = runtime_memory_vault.stat().st_mtime if runtime_memory_vault.exists() else 0.0
+    webhook_saved = isinstance(webhook_data, dict) and webhook_data.get("status") == "saved"
+    webhook_appended = len(after_runtime) > len(before_runtime)
+    webhook_touched = after_mtime > before_mtime
+    status = "VERIFIED" if (publish_rc == 0 and webhook_code == 200 and webhook_saved and (webhook_appended or webhook_touched)) else "PARTIAL"
     return {
         "status": status,
         "details": {
-            "copy_rc": copy_rc,
-            "import_rc": import_rc,
-            "exec_rc": exec_rc,
-            "saved_marker": saved,
-            "memory_appended": appended,
-            "copy_out_tail": copy_out[-400:],
-            "import_out_tail": import_out[-400:],
-            "exec_out_tail": exec_out[-1200:],
+            "mode": "webhook",
+            "publish_rc": publish_rc,
+            "publish_out_tail": publish_out[-400:],
+            "webhook_url": webhook_url,
+            "webhook_code": webhook_code,
+            "webhook_response": webhook_data,
+            "runtime_memory_path": str(runtime_memory_vault),
+            "runtime_memory_appended": webhook_appended,
+            "runtime_memory_touched": webhook_touched,
+            "runtime_delta_bytes": len(after_runtime) - len(before_runtime),
         },
     }
 

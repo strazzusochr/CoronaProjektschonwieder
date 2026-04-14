@@ -274,7 +274,12 @@ def main() -> int:
         payload = dict(valid_payload)
         payload["agent"] = agent_id
         payload["task"] = f"Inventory verification probe for {agent_id}"
-        timeout_value = external_dispatch_timeout if agent_id.startswith("external.") else dispatch_timeout
+        if agent_id.startswith("external."):
+            timeout_value = external_dispatch_timeout
+        elif ".openhands." in agent_id or agent_id.startswith("local.pilot."):
+            timeout_value = max(dispatch_timeout, 120)
+        else:
+            timeout_value = dispatch_timeout
         code, body = post_json(f"{base_url}/dispatch", payload, timeout=timeout_value)
         status = str(body.get("status", "unknown"))
         inventory_checked += 1

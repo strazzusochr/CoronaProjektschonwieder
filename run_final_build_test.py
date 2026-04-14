@@ -76,7 +76,7 @@ def run_cmd(cmd: list[str], cwd: Path) -> dict:
 
 def latest_screenshot(test_results_dir: Path) -> Path | None:
     png_files = sorted(
-        [path for path in test_results_dir.glob("*.png") if path.is_file()],
+        [path for path in test_results_dir.rglob("*.png") if path.is_file()],
         key=lambda item: item.stat().st_mtime,
         reverse=True,
     )
