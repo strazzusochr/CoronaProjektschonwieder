@@ -14,6 +14,7 @@ START_GODMODE.sh
 generate_*
 .godmode_runtime/
 __pycache__/
+**/.venv/
 CoronaProjektschonwieder/dev.err
 n8n/backups/
 corona_test/
