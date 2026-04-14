@@ -86,6 +86,35 @@ type BootstrapRecord = {
   finished_at?: string;
   phases?: Record<string, unknown>[];
 };
+type AgentRunStep = {
+  step: number;
+  agent: string;
+  status: string;
+  call_id?: string;
+  runtime_target?: string;
+  dispatch_artifact?: string;
+  reason?: string;
+  http_status?: number | null;
+  response_excerpt?: string;
+  started_at?: string;
+  finished_at?: string;
+};
+type AgentRunRecord = {
+  run_id: string;
+  status: string;
+  goal: string;
+  profile_id: string;
+  profile_label: string;
+  current_step: number;
+  current_agent: string;
+  forwarded_steps: number;
+  total_steps: number;
+  started_at?: string;
+  finished_at?: string;
+  snapshot?: string;
+  run_file?: string;
+  steps: AgentRunStep[];
+};
 
 const ONE_CLICK_WINDOWS = '.\\START_GODMODE.ps1';
 const ONE_CLICK_LINUX = './START_GODMODE.sh';
@@ -305,6 +334,66 @@ function normalizeAutonomyProfiles(payload: Record<string, unknown>): AutonomyPr
   return mapped;
 }
 
+function normalizeRunPayload(value: unknown): AgentRunRecord | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  const candidate = value as Record<string, unknown>;
+  const steps = Array.isArray(candidate.steps)
+    ? candidate.steps
+        .filter((entry) => entry && typeof entry === 'object' && !Array.isArray(entry))
+        .map((entry) => {
+          const step = entry as Record<string, unknown>;
+          return {
+            step: Number(step.step ?? 0),
+            agent: String(step.agent ?? ''),
+            status: String(step.status ?? 'UNKNOWN'),
+            call_id: String(step.call_id ?? ''),
+            runtime_target: String(step.runtime_target ?? ''),
+            dispatch_artifact: String(step.dispatch_artifact ?? ''),
+            reason: String(step.reason ?? step.error ?? ''),
+            http_status: typeof step.http_status === 'number' ? step.http_status : null,
+            response_excerpt: String(step.response_excerpt ?? ''),
+            started_at: String(step.started_at ?? ''),
+            finished_at: String(step.finished_at ?? ''),
+          } satisfies AgentRunStep;
+        })
+    : [];
+
+  const runId = String(candidate.run_id ?? '');
+  if (!runId) {
+    return null;
+  }
+
+  return {
+    run_id: runId,
+    status: String(candidate.status ?? 'UNKNOWN'),
+    goal: String(candidate.goal ?? ''),
+    profile_id: String(candidate.profile_id ?? ''),
+    profile_label: String(candidate.profile_label ?? candidate.profile_id ?? ''),
+    current_step: Number(candidate.current_step ?? 0),
+    current_agent: String(candidate.current_agent ?? ''),
+    forwarded_steps: Number(candidate.forwarded_steps ?? 0),
+    total_steps: Number(candidate.total_steps ?? steps.length),
+    started_at: String(candidate.started_at ?? ''),
+    finished_at: String(candidate.finished_at ?? ''),
+    snapshot: String(candidate.snapshot ?? ''),
+    run_file: String(candidate.run_file ?? ''),
+    steps,
+  };
+}
+
+function runChipState(status: string): HealthState {
+  const normalized = status.trim().toUpperCase();
+  if (normalized === 'PASS' || normalized === 'FORWARDED' || normalized === 'READY' || normalized === 'VERIFIED') {
+    return 'up';
+  }
+  if (normalized === 'RUNNING' || normalized === 'BOOTING' || normalized === 'CHECKING') {
+    return 'checking';
+  }
+  return 'down';
+}
+
 function extractBootstrapErrors(bootstrap: BootstrapRecord): string[] {
   if (!Array.isArray(bootstrap.phases)) {
     return [];
@@ -364,6 +453,7 @@ export default function App() {
   const [agentCounts, setAgentCounts] = useState<AgentCounts>({ active: 0, legacy: 0 });
   const [routingStatus, setRoutingStatus] = useState<RoutingRecord>(null);
   const [capabilitiesStatus, setCapabilitiesStatus] = useState<CapabilitiesRecord>(null);
+  const [currentRun, setCurrentRun] = useState<AgentRunRecord | null>(null);
   const [serviceHealth, setServiceHealth] = useState<ServiceHealth[]>(
     SERVICE_CATALOG.map((service) => ({
       id: service.id,
@@ -604,7 +694,15 @@ export default function App() {
       );
       const payload = await parseResponseSafely(response);
       const summary = JSON.stringify(payload).slice(0, 420);
-      setPromptMessage(`Prompt response HTTP ${response.status}. ${summary}`);
+      const runPayload = normalizeRunPayload(payload.run);
+      if (runPayload) {
+        setCurrentRun(runPayload);
+        setPromptMessage(
+          `Prompt response HTTP ${response.status}. Run ${runPayload.run_id} is ${runPayload.status} with ${runPayload.forwarded_steps}/${runPayload.total_steps} forwarded steps.`
+        );
+      } else {
+        setPromptMessage(`Prompt response HTTP ${response.status}. ${summary}`);
+      }
       void refreshPlatformChecks();
     } catch (error) {
       setPromptMessage(`Prompt execution failed: ${parseErrorMessage(error)}`);
@@ -628,6 +726,11 @@ export default function App() {
       current.map((service) => ({ ...service, state: 'checking', detail: 'Checking...', checkedAt: nowIso() }))
     );
 
+    const shouldBypassStateCache =
+      promptBusy ||
+      autonomyBusy ||
+      (currentRun !== null && runChipState(currentRun.status) === 'checking');
+
     let hubState: HealthState = 'down';
     let hubDetail = 'No response from /health';
     let routingTargets: Record<string, Record<string, unknown>> = {};
@@ -636,7 +739,11 @@ export default function App() {
     let promptReadyLocal = false;
 
     try {
-      const stateResponse = await fetchWithTimeout(`${HUB_BASE_URL}/control-center/state`, { method: 'GET' }, 12000);
+      const stateResponse = await fetchWithTimeout(
+        `${HUB_BASE_URL}/control-center/state${shouldBypassStateCache ? '?fresh=1' : ''}`,
+        { method: 'GET' },
+        12000
+      );
       const statePayload = await parseResponseSafely(stateResponse);
       const bootstrap =
         statePayload.bootstrap && typeof statePayload.bootstrap === 'object' && !Array.isArray(statePayload.bootstrap)
@@ -658,6 +765,7 @@ export default function App() {
             : [],
         });
         applyPromptReadiness(promptReadyLocal);
+        setCurrentRun(normalizeRunPayload(statePayload.latest_run));
       }
       if (
         statePayload.service_probes &&
@@ -941,7 +1049,15 @@ export default function App() {
       );
       const payload = await parseResponseSafely(response);
       const summary = JSON.stringify(payload).slice(0, 400);
-      setAutonomyMessage(`Autonomy response HTTP ${response.status}. ${summary}`);
+      const runPayload = normalizeRunPayload(payload);
+      if (runPayload) {
+        setCurrentRun(runPayload);
+        setAutonomyMessage(
+          `Autonomy response HTTP ${response.status}. Run ${runPayload.run_id} is ${runPayload.status} with ${runPayload.forwarded_steps}/${runPayload.total_steps} forwarded steps.`
+        );
+      } else {
+        setAutonomyMessage(`Autonomy response HTTP ${response.status}. ${summary}`);
+      }
       setDispatchPayload((current) => ({ ...current, timestamp: nowIso() }));
       void refreshPlatformChecks();
     } catch (error) {
@@ -975,11 +1091,13 @@ export default function App() {
       return;
     }
     void refreshPlatformChecks();
+    const refreshIntervalMs =
+      promptBusy || autonomyBusy || (currentRun !== null && runChipState(currentRun.status) === 'checking') ? 4000 : 30000;
     const timer = window.setInterval(() => {
       void refreshPlatformChecks();
-    }, 30000);
+    }, refreshIntervalMs);
     return () => window.clearInterval(timer);
-  }, [activeView]);
+  }, [activeView, autonomyBusy, currentRun, promptBusy]);
 
   return (
     <main className={`app-shell ${highContrast ? 'app-shell--contrast' : ''}`}>

@@ -154,6 +154,25 @@ def _resolve_openhands_api_url() -> str:
     return public_url.rstrip("/")
 
 
+def _is_meaningful_openhands_event(event: dict[str, Any]) -> bool:
+    source = str(event.get("source", "")).strip().lower()
+    message = str(event.get("message", "")).strip()
+    content = str(event.get("content", "")).strip()
+    observation = str(event.get("observation", "")).strip().lower()
+    extras = event.get("extras")
+    agent_state = ""
+    if isinstance(extras, dict):
+        agent_state = str(extras.get("agent_state", "")).strip().lower()
+
+    if message or content:
+        return True
+    if source not in {"", "user"} and observation not in {"", "agent_state_changed"}:
+        return True
+    if agent_state in {"init", "running", "awaiting_user_input", "paused", "finished"}:
+        return True
+    return False
+
+
 def _trigger_http(payload: MissionPayload, trigger_url: str, api_key: str) -> dict[str, Any]:
     if not trigger_url:
         return {
@@ -301,8 +320,10 @@ def _trigger_socketio(payload: MissionPayload, api_url: str, wait_seconds: int, 
         sio.emit("oh_action", action_payload)
 
         deadline = time.time() + wait_seconds
+        meaningful_events: list[dict[str, Any]] = []
         while time.time() < deadline:
-            if received_events:
+            meaningful_events = [event for event in received_events if _is_meaningful_openhands_event(event)]
+            if meaningful_events:
                 break
             time.sleep(0.2)
 
@@ -321,14 +342,16 @@ def _trigger_socketio(payload: MissionPayload, api_url: str, wait_seconds: int, 
         except requests.RequestException as exc:
             search_preview = {"status": 0, "error": str(exc)}
 
-        if received_events:
+        if meaningful_events:
             return {
                 "status": "forwarded",
                 "forwarded": True,
                 "mode": "socketio",
                 "conversation_id": conversation_id,
                 "event_count": len(received_events),
-                "events_preview": received_events[:5],
+                "meaningful_event_count": len(meaningful_events),
+                "events_preview": meaningful_events[:5],
+                "raw_events_preview": received_events[:5],
                 "events_search": search_preview,
                 "api_url": api_url,
             }
@@ -336,10 +359,12 @@ def _trigger_socketio(payload: MissionPayload, api_url: str, wait_seconds: int, 
         return {
             "status": "blocked",
             "forwarded": False,
-            "reason": "no-oh_event-received-within-timeout",
+            "reason": "no-meaningful-oh_event-received-within-timeout",
             "mode": "socketio",
             "conversation_id": conversation_id,
             "wait_seconds": wait_seconds,
+            "event_count": len(received_events),
+            "raw_events_preview": received_events[:5],
             "events_search": search_preview,
             "api_url": api_url,
         }

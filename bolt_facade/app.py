@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 from urllib import error, request
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -1591,8 +1591,62 @@ def _run_agent_chain(
 ) -> dict[str, Any]:
     run_id = str(uuid.uuid4())
     started_at = _now_iso()
-    steps: list[dict[str, Any]] = []
+    snapshot = EVIDENCE_DIR / f"autonomy_run_{started_at.replace(':', '-').replace('.', '-')}_{run_id}.json"
+    latest = EVIDENCE_DIR / "autonomy_run_latest.json"
+    run_file = RUNS_DIR / f"{run_id}.json"
+
+    def _response_excerpt(value: Any) -> str:
+        if value in (None, "", []):
+            return ""
+        try:
+            text = json.dumps(value, ensure_ascii=True)
+        except TypeError:
+            text = str(value)
+        return text[:500]
+
+    record: dict[str, Any] = {
+        "run_id": run_id,
+        "started_at": started_at,
+        "finished_at": "",
+        "goal": goal,
+        "profile_id": profile_id,
+        "profile_label": profile_label,
+        "agent_chain": agents,
+        "current_step": 0,
+        "current_agent": "",
+        "forwarded_steps": 0,
+        "total_steps": len(agents),
+        "status": "RUNNING",
+        "steps": [],
+        "snapshot": str(snapshot),
+        "run_file": str(run_file),
+    }
+
+    def _persist_run_record() -> None:
+        _write_json(snapshot, record)
+        _write_json(latest, record)
+        _write_json(run_file, record)
+
+    _persist_run_record()
+    steps: list[dict[str, Any]] = record["steps"]
     for index, agent_id in enumerate(agents, start=1):
+        step_record: dict[str, Any] = {
+            "step": index,
+            "agent": agent_id,
+            "status": "running",
+            "call_id": "",
+            "runtime_target": "",
+            "dispatch_artifact": "",
+            "reason": "",
+            "http_status": None,
+            "response_excerpt": "",
+            "started_at": _now_iso(),
+            "finished_at": "",
+        }
+        record["current_step"] = index
+        record["current_agent"] = agent_id
+        steps.append(step_record)
+        _persist_run_record()
         mission = MissionPayload(
             agent=agent_id,
             task=f"[AUTONOMY:{profile_id}] step {index}/{len(agents)} :: {goal}",
@@ -1606,28 +1660,32 @@ def _run_agent_chain(
             dispatch_result = dispatch(mission)
             step_status = str(dispatch_result.get("status", "forward-failed"))
             step_result = dispatch_result.get("result", {}) if isinstance(dispatch_result.get("result", {}), dict) else {}
-            steps.append(
+            step_record.update(
                 {
-                    "step": index,
-                    "agent": agent_id,
                     "status": step_status,
                     "call_id": dispatch_result.get("call_id"),
                     "runtime_target": dispatch_result.get("runtime_target"),
                     "dispatch_artifact": dispatch_result.get("dispatch_artifact"),
-                    "reason": dispatch_result.get("reason", "") or step_result.get("reason", ""),
+                    "reason": dispatch_result.get("reason", "") or step_result.get("reason", "") or step_result.get("error", ""),
+                    "http_status": step_result.get("http_status"),
+                    "response_excerpt": _response_excerpt(step_result.get("response") or step_result.get("events_preview") or step_result.get("http")),
+                    "finished_at": _now_iso(),
                 }
             )
+            record["forwarded_steps"] = sum(1 for step in steps if step.get("status") == "forwarded")
+            _persist_run_record()
             if halt_on_fail and step_status != "forwarded":
                 break
         except HTTPException as exc:
-            steps.append(
+            step_record.update(
                 {
-                    "step": index,
-                    "agent": agent_id,
                     "status": "blocked",
-                    "error": str(exc.detail),
+                    "reason": str(exc.detail),
+                    "response_excerpt": str(exc.detail)[:500],
+                    "finished_at": _now_iso(),
                 }
             )
+            _persist_run_record()
             if halt_on_fail:
                 break
     forwarded = sum(1 for step in steps if step.get("status") == "forwarded")
@@ -1638,26 +1696,12 @@ def _run_agent_chain(
     else:
         overall_status = "BLOCKED"
 
-    record = {
-        "run_id": run_id,
-        "started_at": started_at,
-        "goal": goal,
-        "profile_id": profile_id,
-        "profile_label": profile_label,
-        "agent_chain": agents,
-        "forwarded_steps": forwarded,
-        "total_steps": len(agents),
-        "status": overall_status,
-        "steps": steps,
-    }
-    snapshot = EVIDENCE_DIR / f"autonomy_run_{started_at.replace(':', '-').replace('.', '-')}_{run_id}.json"
-    latest = EVIDENCE_DIR / "autonomy_run_latest.json"
-    run_file = RUNS_DIR / f"{run_id}.json"
-    _write_json(snapshot, record)
-    _write_json(latest, record)
-    _write_json(run_file, record)
-    record["snapshot"] = str(snapshot)
-    record["run_file"] = str(run_file)
+    record["finished_at"] = _now_iso()
+    record["current_step"] = len(steps)
+    record["current_agent"] = ""
+    record["forwarded_steps"] = forwarded
+    record["status"] = overall_status
+    _persist_run_record()
     return {
         "status": overall_status,
         "run_id": run_id,
@@ -1929,9 +1973,9 @@ def bootstrap_status() -> dict[str, Any]:
 
 
 @app.get("/control-center/state")
-def control_center_state() -> dict[str, Any]:
+def control_center_state(fresh: bool = Query(default=False)) -> dict[str, Any]:
     _ensure_dirs()
-    return _control_center_state_payload()
+    return _control_center_state_payload(force_refresh=fresh)
 
 
 @app.post("/runs")
