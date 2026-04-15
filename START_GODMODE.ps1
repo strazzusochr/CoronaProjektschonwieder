@@ -320,7 +320,7 @@ target = candidates[0]
 text = target.read_text(encoding="utf-8", errors="ignore")
 
 replacements = [
-    ('LLM_MODEL:"anthropic/claude-3-5-sonnet-20241022"', 'LLM_MODEL:"smart-router"'),
+    ('LLM_MODEL:"anthropic/claude-3-5-sonnet-20241022"', 'LLM_MODEL:"litellm_proxy/smart-router"'),
     ('LLM_BASE_URL:""', 'LLM_BASE_URL:"http://litellm-godmode:4000"'),
     ("xu=()=>za()===Pa", "xu=()=>!0"),
 ]
@@ -471,6 +471,9 @@ if (-not $env:BOLTDIY_FACADE_INTERNAL_URL) {
 if (-not $env:BOLTDIY_FORWARD_TIMEOUT) {
     $env:BOLTDIY_FORWARD_TIMEOUT = "20"
 }
+if (-not $env:OPENHANDS_FORWARD_TIMEOUT) {
+    $env:OPENHANDS_FORWARD_TIMEOUT = "420"
+}
 
 if (-not $env:CONTROL_CENTER_STATUS_CACHE_TTL) {
     $env:CONTROL_CENTER_STATUS_CACHE_TTL = "8"
@@ -511,6 +514,15 @@ if (-not $env:OLLAMAHF_MASTER_KEY) {
 if (-not $env:OLLAMAHF_BEARER_TOKEN) {
     $env:OLLAMAHF_BEARER_TOKEN = ""
 }
+if (-not $env:OLLAMAHF_FORWARD_TIMEOUT) {
+    $env:OLLAMAHF_FORWARD_TIMEOUT = "600"
+}
+if (-not $env:OLLAMAHF_DISPATCH_MAX_TOKENS) {
+    $env:OLLAMAHF_DISPATCH_MAX_TOKENS = "512"
+}
+if (-not $env:OLLAMAHF_CHAT_RECOVERY_MAX_TOKENS) {
+    $env:OLLAMAHF_CHAT_RECOVERY_MAX_TOKENS = "2048"
+}
 
 if (-not $env:AGENT_REGISTRY_PATH) {
     $env:AGENT_REGISTRY_PATH = Join-Path $RepoRoot "agent_registry.json"
@@ -549,11 +561,15 @@ if (-not $env:OPENHANDS_TRIGGER_MODE) {
 }
 
 if (-not $env:OPENHANDS_TRIGGER_WAIT_SECONDS) {
-    $env:OPENHANDS_TRIGGER_WAIT_SECONDS = "180"
+    $env:OPENHANDS_TRIGGER_WAIT_SECONDS = "420"
 }
 
 if (-not $env:OPENHANDS_SOCKET_PATH) {
     $env:OPENHANDS_SOCKET_PATH = "/socket.io"
+}
+
+if (-not $env:SANDBOX_REMOTE_RUNTIME_INIT_TIMEOUT) {
+    $env:SANDBOX_REMOTE_RUNTIME_INIT_TIMEOUT = "420"
 }
 
 if (-not $env:OPENHANDS_PUBLIC_URL) {
@@ -562,11 +578,15 @@ if (-not $env:OPENHANDS_PUBLIC_URL) {
 }
 
 if (-not $env:OPENHANDS_LLM_MODEL) {
-    $env:OPENHANDS_LLM_MODEL = "smart-router"
+    $env:OPENHANDS_LLM_MODEL = "litellm_proxy/smart-router"
 }
 
 if (-not $env:OPENHANDS_LLM_BASE_URL) {
     $env:OPENHANDS_LLM_BASE_URL = "http://litellm-godmode:4000"
+}
+
+if (-not $env:OPENHANDS_LLM_MAX_OUTPUT_TOKENS) {
+    $env:OPENHANDS_LLM_MAX_OUTPUT_TOKENS = "2048"
 }
 
 if (-not $env:OPENHANDS_LLM_API_KEY -and $env:LITELLM_API_KEY) {

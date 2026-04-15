@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import concurrent.futures
+import html
 import json
 import os
 import re
@@ -15,6 +16,7 @@ from urllib import error, request
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 app = FastAPI(title="GODMODE Superbrain Dispatch Hub")
@@ -83,10 +85,12 @@ GODMODE_GOAL_PATH = Path(
 
 BOLTDIY_MODE = os.environ.get("BOLTDIY_MODE", "hybrid").strip().lower()
 BOLTDIY_FORWARD_TIMEOUT = int(os.environ.get("BOLTDIY_FORWARD_TIMEOUT", "20"))
-OPENHANDS_FORWARD_TIMEOUT = int(os.environ.get("OPENHANDS_FORWARD_TIMEOUT", str(max(BOLTDIY_FORWARD_TIMEOUT, 75))))
+OPENHANDS_FORWARD_TIMEOUT = int(os.environ.get("OPENHANDS_FORWARD_TIMEOUT", str(max(BOLTDIY_FORWARD_TIMEOUT, 420))))
 OLLAMAHF_FORWARD_TIMEOUT = int(
-    os.environ.get("OLLAMAHF_FORWARD_TIMEOUT", str(max(BOLTDIY_FORWARD_TIMEOUT, 45)))
+    os.environ.get("OLLAMAHF_FORWARD_TIMEOUT", str(max(BOLTDIY_FORWARD_TIMEOUT, 600)))
 )
+OLLAMAHF_DISPATCH_MAX_TOKENS = int(os.environ.get("OLLAMAHF_DISPATCH_MAX_TOKENS", "512"))
+OLLAMAHF_CHAT_RECOVERY_MAX_TOKENS = int(os.environ.get("OLLAMAHF_CHAT_RECOVERY_MAX_TOKENS", "2048"))
 BOLTDIY_SPACE_URL = os.environ.get("BOLTDIY_SPACE_URL", "").strip()
 BOLTDIY_SPACE_ID = os.environ.get("BOLTDIY_SPACE_ID", "Wrzzzrzr/bolt-diy-godmode").strip()
 _HF_TOKEN = os.environ.get("HF_TOKEN", "").strip()
@@ -145,7 +149,10 @@ LITELLM_PORT = os.environ.get("LITELLM_PORT", "4000").strip() or "4000"
 LITELLM_API_KEY = os.environ.get("LITELLM_API_KEY", "").strip()
 OPENHANDS_PUBLIC_URL = os.environ.get("OPENHANDS_PUBLIC_URL", "").strip()
 OPENHANDS_INTERNAL_URL = os.environ.get("OPENHANDS_INTERNAL_URL", "http://openhands-godmode:3000").strip()
-OPENHANDS_LLM_MODEL = os.environ.get("OPENHANDS_LLM_MODEL", "smart-router").strip() or "smart-router"
+OPENHANDS_LLM_MODEL = (
+    os.environ.get("OPENHANDS_LLM_MODEL", "litellm_proxy/smart-router").strip()
+    or "litellm_proxy/smart-router"
+)
 OPENHANDS_LLM_BASE_URL = (
     os.environ.get("OPENHANDS_LLM_BASE_URL", f"http://litellm-godmode:{LITELLM_PORT}").strip()
     or f"http://litellm-godmode:{LITELLM_PORT}"
@@ -231,6 +238,13 @@ AUTONOMY_PROFILES: dict[str, dict[str, Any]] = {
             "external.ollamahf.release",
         ],
     },
+    "game_artifact_single": {
+        "label": "3D Artifact Builder (Fast Proof)",
+        "description": "Single external solo_builder run for one concrete cloud-generated HTML/3D artifact.",
+        "agents": [
+            "external.ollamahf.solo_builder",
+        ],
+    },
     "ops_hardening": {
         "label": "Ops Hardening",
         "description": "Reviewer -> OpenHands -> Aider Review -> Finalize",
@@ -303,6 +317,7 @@ class PromptExecuteRequest(BaseModel):
     agent: str | None = None
     profile_id: str | None = None
     halt_on_fail: bool = Field(default=False)
+    async_run: bool = Field(default=True)
 
 
 class RunCreateRequest(BaseModel):
@@ -314,6 +329,7 @@ class RunCreateRequest(BaseModel):
     profile_id: str = Field(default="app_builder", min_length=1)
     selected_agents: list[str] = Field(default_factory=list)
     halt_on_fail: bool = Field(default=False)
+    async_run: bool = Field(default=True)
 
 
 def _now_iso() -> str:
@@ -901,6 +917,75 @@ def _post_json(
         }
 
 
+def _save_ollamahf_final_code(final_code: str) -> dict[str, Any]:
+    artifact_id = f"ollamahf_final_code_{_now_iso().replace(':', '-').replace('.', '-')}_{uuid.uuid4()}"
+    artifact_dir = EVIDENCE_DIR / "ollamahf_artifacts"
+    artifact_path = artifact_dir / f"{artifact_id}.html"
+    artifact_path.parent.mkdir(parents=True, exist_ok=True)
+    artifact_path.write_text(final_code, encoding="utf-8", newline="\n")
+    return {
+        "final_code_artifact": str(artifact_path),
+        "final_code_url": f"/artifacts/ollamahf/{artifact_path.name}",
+        "final_code_bytes": len(final_code.encode("utf-8")),
+    }
+
+
+def _extract_chat_text(response_payload: Any) -> str:
+    if not isinstance(response_payload, dict):
+        return ""
+    choices = response_payload.get("choices")
+    if not isinstance(choices, list) or not choices:
+        return ""
+    first = choices[0]
+    if not isinstance(first, dict):
+        return ""
+    message = first.get("message")
+    if isinstance(message, dict):
+        content = message.get("content")
+        if isinstance(content, str):
+            return content.strip()
+    text = first.get("text")
+    return text.strip() if isinstance(text, str) else ""
+
+
+def _coerce_html_document(text: str) -> str:
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:html)?\s*", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\s*```$", "", cleaned).strip()
+    html_match = re.search(r"<!doctype html[\s\S]*", cleaned, flags=re.IGNORECASE)
+    if html_match:
+        return html_match.group(0).strip()
+    html_match = re.search(r"<html[\s\S]*</html>", cleaned, flags=re.IGNORECASE)
+    if html_match:
+        return "<!doctype html>\n" + html_match.group(0).strip()
+    safe_text = html.escape(cleaned)
+    return (
+        "<!doctype html>\n"
+        "<html lang=\"de\">\n"
+        "<head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+        "<title>Godmode Artifact Recovery</title>"
+        "<style>body{margin:0;font-family:system-ui;background:#10151f;color:#f5f7fb}"
+        "main{max-width:980px;margin:48px auto;padding:32px;border:1px solid #31415f;border-radius:24px;"
+        "background:linear-gradient(135deg,#182237,#111827)}pre{white-space:pre-wrap;line-height:1.5}</style></head>\n"
+        f"<body><main><h1>Recovered Cloud Artifact</h1><pre>{safe_text}</pre></main></body>\n"
+        "</html>\n"
+    )
+
+
+def _is_lightweight_probe_task(task: str) -> bool:
+    lowered = (task or "").lower()
+    return any(
+        marker in lowered
+        for marker in (
+            "inventory verification probe",
+            "routing gate probe",
+            "contract validation probe",
+            "bounded openhands smoke test only",
+        )
+    )
+
+
 def _probe_url(url: str, timeout: int, headers: dict[str, str] | None = None) -> dict[str, Any]:
     req = request.Request(url=url, method="GET", headers=headers or {})
     try:
@@ -1140,6 +1225,25 @@ def _dispatch_openhands(payload: MissionPayload) -> dict[str, Any]:
             "reason": "OPENHANDS_ADAPTER_URL is empty",
         }
 
+    if _is_lightweight_probe_task(payload.task):
+        health = _probe_url(f"{OPENHANDS_ADAPTER_URL.rstrip('/')}/health", 10)
+        if health.get("http_status") == 200:
+            return {
+                "target": "openhands-adapter",
+                "status": "forwarded",
+                "url": health.get("url"),
+                "http_status": health.get("http_status"),
+                "response": {"probe_mode": "adapter-health", "health": health},
+            }
+        return {
+            "target": "openhands-adapter",
+            "status": "blocked" if health.get("http_status") in {401, 403, 404} else "forward-failed",
+            "url": health.get("url"),
+            "http_status": health.get("http_status"),
+            "reason": "OpenHands adapter health probe failed.",
+            "error": health.get("error", ""),
+        }
+
     target = f"{OPENHANDS_ADAPTER_URL.rstrip('/')}/trigger"
     response = _post_json(target, payload.model_dump(), OPENHANDS_FORWARD_TIMEOUT)
     response["target"] = "openhands-adapter"
@@ -1315,6 +1419,59 @@ def _dispatch_hf_aider(payload: MissionPayload) -> dict[str, Any]:
 
 
 def _dispatch_ollamahf(payload: MissionPayload) -> dict[str, Any]:
+    def _chat_artifact_recovery(base_url: str, primary_result: dict[str, Any]) -> dict[str, Any]:
+        recovery_prompt = (
+            "Du bist ein cloud-basierter Artifact-Builder fuer eine All-in-One Entwicklerplattform. "
+            "Antworte ausschliesslich mit einem vollstaendigen, standalone HTML-Dokument. "
+            "Das HTML muss ohne externe Build-Schritte funktionieren, eine sichtbare 3D/WebGL- oder Canvas-Szene, "
+            "HUD, Bedienhinweise und klare visuelle Elemente enthalten. Kein Markdown, keine Erklaerung.\n\n"
+            f"Mission:\n{payload.task}"
+        )
+        chat_result = _post_json(
+            f"{base_url}/v1/chat/completions",
+            {
+                "model": "qwen2.5-coder-7b",
+                "messages": [{"role": "user", "content": recovery_prompt}],
+                "temperature": 0.0,
+                "max_tokens": OLLAMAHF_CHAT_RECOVERY_MAX_TOKENS,
+            },
+            min(240, max(60, OLLAMAHF_FORWARD_TIMEOUT)),
+            headers=_ollama_headers(),
+        )
+        text = _extract_chat_text(chat_result.get("response"))
+        if chat_result.get("status") == "forwarded" and text:
+            html_doc = _coerce_html_document(text)
+            artifact = _save_ollamahf_final_code(html_doc)
+            recovered: dict[str, Any] = {
+                "target": "ollama-hf-orchestrator",
+                "status": "forwarded",
+                "url": chat_result.get("url"),
+                "http_status": chat_result.get("http_status"),
+                "response": chat_result.get("response"),
+                "recovery_used": True,
+                "recovery_endpoint": f"{base_url}/v1/chat/completions",
+                "recovery_reason": (
+                    "Primary /orchestrate path did not return a complete artifact; "
+                    "cloud chat-completions recovery produced final_code."
+                ),
+                "primary_orchestrate_status": primary_result.get("status"),
+                "primary_orchestrate_http_status": primary_result.get("http_status"),
+                "primary_orchestrate_error": str(primary_result.get("error", ""))[:600],
+            }
+            recovered.update(artifact)
+            return recovered
+        return {
+            "target": "ollama-hf-orchestrator",
+            "status": "blocked",
+            "reason": "Primary orchestrate path failed and chat-completions recovery did not produce artifact text.",
+            "recovery_used": True,
+            "recovery_endpoint": f"{base_url}/v1/chat/completions",
+            "recovery_result": chat_result,
+            "primary_orchestrate_status": primary_result.get("status"),
+            "primary_orchestrate_http_status": primary_result.get("http_status"),
+            "primary_orchestrate_error": str(primary_result.get("error", ""))[:600],
+        }
+
     def _workspace_task_fallback(base_url: str, reason: str) -> dict[str, Any]:
         if not OLLAMAHF_DISPATCH_WORKSPACE_FALLBACK:
             return {
@@ -1352,6 +1509,27 @@ def _dispatch_ollamahf(payload: MissionPayload) -> dict[str, Any]:
             "status": "blocked",
             "reason": "OLLAMAHF_BASE_URL missing",
         }
+    base = OLLAMAHF_BASE_URL.rstrip("/")
+    if _is_lightweight_probe_task(payload.task):
+        chat_result = _post_json(
+            f"{base}/v1/chat/completions",
+            {
+                "model": "qwen2.5-coder-7b",
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": f"Reply with OK for lightweight live probe of {payload.agent}.",
+                    }
+                ],
+                "temperature": 0.0,
+                "max_tokens": 16,
+            },
+            60,
+            headers=_ollama_headers(),
+        )
+        chat_result["target"] = "ollama-hf-orchestrator"
+        chat_result["probe_mode"] = "chat-completions-lightweight"
+        return chat_result
     now = time.time()
     cache_age = now - float(OLLAMAHF_LAST_BLOCK.get("at", 0.0) or 0.0)
     if (
@@ -1366,7 +1544,6 @@ def _dispatch_ollamahf(payload: MissionPayload) -> dict[str, Any]:
                 "primary orchestration skipped."
             ),
         )
-    base = OLLAMAHF_BASE_URL.rstrip("/")
     body = {
         "prompt": payload.task,
         "master_key": OLLAMAHF_MASTER_KEY,
@@ -1379,6 +1556,8 @@ def _dispatch_ollamahf(payload: MissionPayload) -> dict[str, Any]:
         "framework": "react-three-fiber",
         "output_format": "code",
         "constraints": "zero-local-heavy-compute",
+        "max_tokens": OLLAMAHF_DISPATCH_MAX_TOKENS,
+        "temperature": 0.0,
     }
     response = _post_json(
         f"{base}/orchestrate",
@@ -1407,6 +1586,20 @@ def _dispatch_ollamahf(payload: MissionPayload) -> dict[str, Any]:
         response["reason"] = "External orchestrator returned dry_run=true for dispatch path."
     if response.get("status") in {"blocked", "forward-failed"}:
         fallback_reason = str(response.get("reason", "") or response.get("error", "")).strip()
+        recovery_result = _chat_artifact_recovery(
+            base,
+            {
+                "status": response.get("status"),
+                "http_status": response.get("http_status"),
+                "reason": fallback_reason,
+                "error": str(response.get("error", "")),
+            },
+        )
+        if recovery_result.get("status") == "forwarded":
+            OLLAMAHF_LAST_BLOCK["at"] = 0.0
+            OLLAMAHF_LAST_BLOCK["reason"] = ""
+            OLLAMAHF_LAST_BLOCK["error"] = ""
+            return recovery_result
         fallback_result = _workspace_task_fallback(base, fallback_reason or "Primary orchestrate path blocked.")
         if fallback_result.get("status") == "forwarded":
             OLLAMAHF_LAST_BLOCK["at"] = time.time()
@@ -1420,6 +1613,8 @@ def _dispatch_ollamahf(payload: MissionPayload) -> dict[str, Any]:
         OLLAMAHF_LAST_BLOCK["at"] = 0.0
         OLLAMAHF_LAST_BLOCK["reason"] = ""
         OLLAMAHF_LAST_BLOCK["error"] = ""
+        if isinstance(response_payload, dict) and isinstance(response_payload.get("final_code"), str):
+            response.update(_save_ollamahf_final_code(response_payload["final_code"]))
     response["target"] = "ollama-hf-orchestrator"
     return response
 
@@ -1578,6 +1773,234 @@ def _run_autonomy_pipeline(req: AutonomyRunRequest) -> dict[str, Any]:
     return result
 
 
+def _response_excerpt(value: Any) -> str:
+    if value in (None, "", []):
+        return ""
+    try:
+        text = json.dumps(value, ensure_ascii=True)
+    except TypeError:
+        text = str(value)
+    return text[:500]
+
+
+def _new_agent_chain_record(
+    goal: str,
+    profile_id: str,
+    profile_label: str,
+    agents: list[str],
+) -> dict[str, Any]:
+    run_id = str(uuid.uuid4())
+    started_at = _now_iso()
+    snapshot = EVIDENCE_DIR / f"autonomy_run_{started_at.replace(':', '-').replace('.', '-')}_{run_id}.json"
+    run_file = RUNS_DIR / f"{run_id}.json"
+    return {
+        "run_id": run_id,
+        "started_at": started_at,
+        "finished_at": "",
+        "goal": goal,
+        "profile_id": profile_id,
+        "profile_label": profile_label,
+        "agent_chain": agents,
+        "current_step": 0,
+        "current_agent": "",
+        "forwarded_steps": 0,
+        "partial_steps": 0,
+        "total_steps": len(agents),
+        "status": "RUNNING",
+        "steps": [],
+        "snapshot": str(snapshot),
+        "run_file": str(run_file),
+        "execution_mode": "background",
+    }
+
+
+def _persist_agent_chain_record(record: dict[str, Any]) -> None:
+    snapshot = Path(str(record.get("snapshot", "")))
+    run_file = Path(str(record.get("run_file", "")))
+    if not snapshot:
+        return
+    _write_json(snapshot, record)
+    _write_json(EVIDENCE_DIR / "autonomy_run_latest.json", record)
+    if run_file:
+        _write_json(run_file, record)
+    with CONTROL_CENTER_CACHE_LOCK:
+        CONTROL_CENTER_CACHE["expires_at"] = 0.0
+        CONTROL_CENTER_CACHE["payload"] = None
+
+
+def _agent_chain_response(record: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "status": record.get("status", "UNKNOWN"),
+        "run_id": record.get("run_id", ""),
+        "goal": record.get("goal", ""),
+        "profile_label": record.get("profile_label", ""),
+        "current_step": record.get("current_step", 0),
+        "current_agent": record.get("current_agent", ""),
+        "forwarded_steps": record.get("forwarded_steps", 0),
+        "partial_steps": record.get("partial_steps", 0),
+        "total_steps": record.get("total_steps", 0),
+        "profile_id": record.get("profile_id", ""),
+        "agent_chain": record.get("agent_chain", []),
+        "started_at": record.get("started_at", ""),
+        "finished_at": record.get("finished_at", ""),
+        "snapshot": record.get("snapshot", ""),
+        "run_file": record.get("run_file", ""),
+        "steps": record.get("steps", []),
+    }
+
+
+def _execute_agent_chain_record(
+    record: dict[str, Any],
+    source: str,
+    repo: str,
+    ref: str,
+    status: str,
+    halt_on_fail: bool,
+) -> dict[str, Any]:
+    agents = [str(agent).strip() for agent in record.get("agent_chain", []) if str(agent).strip()]
+    steps: list[dict[str, Any]] = record.setdefault("steps", [])
+    profile_id = str(record.get("profile_id", "unknown")).strip() or "unknown"
+    goal = str(record.get("goal", "")).strip()
+
+    try:
+        for index, agent_id in enumerate(agents, start=1):
+            step_record: dict[str, Any] = {
+                "step": index,
+                "agent": agent_id,
+                "status": "running",
+                "call_id": "",
+                "runtime_target": "",
+                "dispatch_artifact": "",
+                "reason": "",
+                "http_status": None,
+                "response_excerpt": "",
+                "started_at": _now_iso(),
+                "finished_at": "",
+            }
+            record["current_step"] = index
+            record["current_agent"] = agent_id
+            record["status"] = "RUNNING"
+            steps.append(step_record)
+            _persist_agent_chain_record(record)
+
+            mission = MissionPayload(
+                agent=agent_id,
+                task=f"[AUTONOMY:{profile_id}] step {index}/{len(agents)} :: {goal}",
+                source=source,
+                repo=repo,
+                ref=ref,
+                status=status,
+                timestamp=_now_iso(),
+            )
+            try:
+                dispatch_result = dispatch(mission)
+                raw_step_status = str(dispatch_result.get("status", "forward-failed"))
+                step_result = dispatch_result.get("result", {}) if isinstance(dispatch_result.get("result", {}), dict) else {}
+                fallback_used = bool(step_result.get("fallback_used"))
+                step_status = "partial" if raw_step_status == "forwarded" and fallback_used else raw_step_status
+                fallback_reason = str(step_result.get("fallback_reason", "")).strip()
+                reason = step_result.get("reason", "") or step_result.get("error", "")
+                if fallback_used and not reason:
+                    reason = (
+                        "Primary orchestrate path did not produce a full implementation proof; "
+                        "workspace fallback answered instead."
+                    )
+                step_record.update(
+                    {
+                        "status": step_status,
+                        "call_id": dispatch_result.get("call_id"),
+                        "runtime_target": dispatch_result.get("runtime_target"),
+                        "dispatch_artifact": dispatch_result.get("dispatch_artifact"),
+                        "reason": reason,
+                        "http_status": step_result.get("http_status"),
+                        "raw_status": raw_step_status,
+                        "fallback_used": fallback_used,
+                        "fallback_reason": fallback_reason,
+                        "fallback_endpoint": step_result.get("fallback_endpoint", ""),
+                        "fallback_task_id": step_result.get("fallback_task_id", ""),
+                        "recovery_used": bool(step_result.get("recovery_used")),
+                        "recovery_endpoint": step_result.get("recovery_endpoint", ""),
+                        "recovery_reason": step_result.get("recovery_reason", ""),
+                        "primary_orchestrate_status": step_result.get("primary_orchestrate_status", ""),
+                        "primary_orchestrate_http_status": step_result.get("primary_orchestrate_http_status"),
+                        "final_code_artifact": step_result.get("final_code_artifact", ""),
+                        "final_code_url": step_result.get("final_code_url", ""),
+                        "final_code_bytes": step_result.get("final_code_bytes", 0),
+                        "response_excerpt": _response_excerpt(
+                            step_result.get("response") or step_result.get("events_preview") or step_result.get("http")
+                        ),
+                        "finished_at": _now_iso(),
+                    }
+                )
+                record["forwarded_steps"] = sum(1 for step in steps if step.get("status") == "forwarded")
+                record["partial_steps"] = sum(1 for step in steps if step.get("status") == "partial")
+                _persist_agent_chain_record(record)
+                if halt_on_fail and step_status != "forwarded":
+                    break
+            except HTTPException as exc:
+                step_record.update(
+                    {
+                        "status": "blocked",
+                        "reason": str(exc.detail),
+                        "response_excerpt": str(exc.detail)[:500],
+                        "finished_at": _now_iso(),
+                    }
+                )
+                _persist_agent_chain_record(record)
+                if halt_on_fail:
+                    break
+    except Exception as exc:  # pragma: no cover - background safety net
+        record["status"] = "BLOCKED"
+        record["current_agent"] = ""
+        record["finished_at"] = _now_iso()
+        record["reason"] = f"agent-chain-worker-crashed: {exc}"
+        _persist_agent_chain_record(record)
+        return _agent_chain_response(record)
+
+    forwarded = sum(1 for step in steps if step.get("status") == "forwarded")
+    partial = sum(1 for step in steps if step.get("status") == "partial")
+    if forwarded == len(agents):
+        overall_status = "PASS"
+    elif forwarded > 0 or partial > 0:
+        overall_status = "PARTIAL"
+    else:
+        overall_status = "BLOCKED"
+
+    record["finished_at"] = _now_iso()
+    record["current_step"] = len(steps)
+    record["current_agent"] = ""
+    record["forwarded_steps"] = forwarded
+    record["partial_steps"] = partial
+    record["status"] = overall_status
+    _persist_agent_chain_record(record)
+    return _agent_chain_response(record)
+
+
+def _start_agent_chain_background(
+    goal: str,
+    profile_id: str,
+    profile_label: str,
+    agents: list[str],
+    source: str,
+    repo: str,
+    ref: str,
+    status: str,
+    halt_on_fail: bool,
+) -> dict[str, Any]:
+    record = _new_agent_chain_record(goal, profile_id, profile_label, agents)
+    record["execution_mode"] = "background"
+    record["reason"] = "Run accepted; agent chain is executing in the background."
+    _persist_agent_chain_record(record)
+    thread = threading.Thread(
+        target=_execute_agent_chain_record,
+        args=(record, source, repo, ref, status, halt_on_fail),
+        daemon=True,
+    )
+    thread.start()
+    METRICS["autonomy_runs_total"] += 1
+    return _agent_chain_response(record)
+
+
 def _run_agent_chain(
     goal: str,
     profile_id: str,
@@ -1589,130 +2012,12 @@ def _run_agent_chain(
     status: str,
     halt_on_fail: bool,
 ) -> dict[str, Any]:
-    run_id = str(uuid.uuid4())
-    started_at = _now_iso()
-    snapshot = EVIDENCE_DIR / f"autonomy_run_{started_at.replace(':', '-').replace('.', '-')}_{run_id}.json"
-    latest = EVIDENCE_DIR / "autonomy_run_latest.json"
-    run_file = RUNS_DIR / f"{run_id}.json"
-
-    def _response_excerpt(value: Any) -> str:
-        if value in (None, "", []):
-            return ""
-        try:
-            text = json.dumps(value, ensure_ascii=True)
-        except TypeError:
-            text = str(value)
-        return text[:500]
-
-    record: dict[str, Any] = {
-        "run_id": run_id,
-        "started_at": started_at,
-        "finished_at": "",
-        "goal": goal,
-        "profile_id": profile_id,
-        "profile_label": profile_label,
-        "agent_chain": agents,
-        "current_step": 0,
-        "current_agent": "",
-        "forwarded_steps": 0,
-        "total_steps": len(agents),
-        "status": "RUNNING",
-        "steps": [],
-        "snapshot": str(snapshot),
-        "run_file": str(run_file),
-    }
-
-    def _persist_run_record() -> None:
-        _write_json(snapshot, record)
-        _write_json(latest, record)
-        _write_json(run_file, record)
-
-    _persist_run_record()
-    steps: list[dict[str, Any]] = record["steps"]
-    for index, agent_id in enumerate(agents, start=1):
-        step_record: dict[str, Any] = {
-            "step": index,
-            "agent": agent_id,
-            "status": "running",
-            "call_id": "",
-            "runtime_target": "",
-            "dispatch_artifact": "",
-            "reason": "",
-            "http_status": None,
-            "response_excerpt": "",
-            "started_at": _now_iso(),
-            "finished_at": "",
-        }
-        record["current_step"] = index
-        record["current_agent"] = agent_id
-        steps.append(step_record)
-        _persist_run_record()
-        mission = MissionPayload(
-            agent=agent_id,
-            task=f"[AUTONOMY:{profile_id}] step {index}/{len(agents)} :: {goal}",
-            source=source,
-            repo=repo,
-            ref=ref,
-            status=status,
-            timestamp=_now_iso(),
-        )
-        try:
-            dispatch_result = dispatch(mission)
-            step_status = str(dispatch_result.get("status", "forward-failed"))
-            step_result = dispatch_result.get("result", {}) if isinstance(dispatch_result.get("result", {}), dict) else {}
-            step_record.update(
-                {
-                    "status": step_status,
-                    "call_id": dispatch_result.get("call_id"),
-                    "runtime_target": dispatch_result.get("runtime_target"),
-                    "dispatch_artifact": dispatch_result.get("dispatch_artifact"),
-                    "reason": dispatch_result.get("reason", "") or step_result.get("reason", "") or step_result.get("error", ""),
-                    "http_status": step_result.get("http_status"),
-                    "response_excerpt": _response_excerpt(step_result.get("response") or step_result.get("events_preview") or step_result.get("http")),
-                    "finished_at": _now_iso(),
-                }
-            )
-            record["forwarded_steps"] = sum(1 for step in steps if step.get("status") == "forwarded")
-            _persist_run_record()
-            if halt_on_fail and step_status != "forwarded":
-                break
-        except HTTPException as exc:
-            step_record.update(
-                {
-                    "status": "blocked",
-                    "reason": str(exc.detail),
-                    "response_excerpt": str(exc.detail)[:500],
-                    "finished_at": _now_iso(),
-                }
-            )
-            _persist_run_record()
-            if halt_on_fail:
-                break
-    forwarded = sum(1 for step in steps if step.get("status") == "forwarded")
-    if forwarded == len(agents):
-        overall_status = "PASS"
-    elif forwarded > 0:
-        overall_status = "PARTIAL"
-    else:
-        overall_status = "BLOCKED"
-
-    record["finished_at"] = _now_iso()
-    record["current_step"] = len(steps)
-    record["current_agent"] = ""
-    record["forwarded_steps"] = forwarded
-    record["status"] = overall_status
-    _persist_run_record()
-    return {
-        "status": overall_status,
-        "run_id": run_id,
-        "forwarded_steps": forwarded,
-        "total_steps": len(agents),
-        "profile_id": profile_id,
-        "agent_chain": agents,
-        "snapshot": str(snapshot),
-        "run_file": str(run_file),
-        "steps": steps,
-    }
+    record = _new_agent_chain_record(goal, profile_id, profile_label, agents)
+    record["execution_mode"] = "foreground"
+    _persist_agent_chain_record(record)
+    result = _execute_agent_chain_record(record, source, repo, ref, status, halt_on_fail)
+    METRICS["autonomy_runs_total"] += 1
+    return result
 
 
 def _run_ollama_probe(req: OllamaProbeRequest) -> dict[str, Any]:
@@ -1991,6 +2296,18 @@ def create_run(req: RunCreateRequest) -> dict[str, Any]:
         for candidate in selected_agents:
             entry = _resolve_agent_entry(candidate)
             canonical_agents.append(str(entry.get("agent_id", candidate)).strip())
+        if req.async_run:
+            return _start_agent_chain_background(
+                goal=req.goal.strip(),
+                profile_id="custom_selected",
+                profile_label="Custom Selected Agents",
+                agents=canonical_agents,
+                source=req.source.strip(),
+                repo=req.repo.strip(),
+                ref=req.ref.strip(),
+                status=req.status.strip(),
+                halt_on_fail=req.halt_on_fail,
+            )
         return _run_agent_chain(
             goal=req.goal.strip(),
             profile_id="custom_selected",
@@ -2012,6 +2329,30 @@ def create_run(req: RunCreateRequest) -> dict[str, Any]:
         status=req.status.strip(),
         halt_on_fail=req.halt_on_fail,
     )
+    if req.async_run:
+        profile = AUTONOMY_PROFILES.get(autonomy_req.profile_id.strip())
+        if not profile:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Unknown profile_id '{autonomy_req.profile_id}'. "
+                    f"Available: {', '.join(sorted(AUTONOMY_PROFILES.keys()))}"
+                ),
+            )
+        agents = [str(agent).strip() for agent in profile.get("agents", []) if str(agent).strip()]
+        if not agents:
+            raise HTTPException(status_code=422, detail=f"Autonomy profile '{autonomy_req.profile_id}' has no agents configured.")
+        return _start_agent_chain_background(
+            goal=autonomy_req.goal.strip(),
+            profile_id=autonomy_req.profile_id.strip(),
+            profile_label=str(profile.get("label", autonomy_req.profile_id.strip())),
+            agents=agents,
+            source=autonomy_req.source.strip(),
+            repo=autonomy_req.repo.strip(),
+            ref=autonomy_req.ref.strip(),
+            status=autonomy_req.status.strip(),
+            halt_on_fail=autonomy_req.halt_on_fail,
+        )
     return _run_autonomy_pipeline(autonomy_req)
 
 
@@ -2037,6 +2378,20 @@ def get_run_evidence(run_id: str) -> dict[str, Any]:
             "total_steps": run.get("total_steps", 0),
         },
     }
+
+
+@app.get("/artifacts/ollamahf/{filename}")
+def get_ollamahf_artifact(filename: str) -> FileResponse:
+    _ensure_dirs()
+    safe_name = Path(filename).name
+    candidate = (EVIDENCE_DIR / "ollamahf_artifacts" / safe_name).resolve()
+    allowed_root = (EVIDENCE_DIR / "ollamahf_artifacts").resolve()
+    if allowed_root not in candidate.parents or not candidate.exists() or candidate.suffix.lower() != ".html":
+        raise HTTPException(status_code=404, detail="Artifact not found.")
+    return FileResponse(
+        candidate,
+        media_type="text/html",
+    )
 
 
 @app.post("/prompt/execute")
@@ -2076,6 +2431,7 @@ def prompt_execute(req: PromptExecuteRequest) -> dict[str, Any]:
         profile_id=selected_profile,
         selected_agents=[],
         halt_on_fail=req.halt_on_fail,
+        async_run=req.async_run,
     )
     run_result = create_run(run_req)
     return {

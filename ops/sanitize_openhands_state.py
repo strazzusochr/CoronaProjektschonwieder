@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -42,6 +43,12 @@ def _sanitize_payload(
     if fallback_llm_api_key and not str(updated.get("llm_api_key") or "").strip():
         updated["llm_api_key"] = fallback_llm_api_key
         fixes.append("llm_api_key->fallback")
+
+    model = str(updated.get("llm_model") or "").strip()
+    base_url = str(updated.get("llm_base_url") or "").strip().lower()
+    if model == "smart-router" and ("litellm" in base_url or ":4000" in base_url):
+        updated["llm_model"] = "litellm_proxy/smart-router"
+        fixes.append("llm_model->litellm_proxy/smart-router")
 
     return updated, fixes
 
@@ -116,7 +123,11 @@ def main() -> int:
     report = sanitize_state(
         state_root=state_root,
         evidence_dir=evidence_dir,
-        fallback_llm_api_key=args.fallback_llm_api_key.strip(),
+        fallback_llm_api_key=(
+            args.fallback_llm_api_key.strip()
+            or os.environ.get("OPENHANDS_LLM_API_KEY", "").strip()
+            or os.environ.get("LITELLM_API_KEY", "").strip()
+        ),
     )
     print(
         f"OPENHANDS STATE SANITIZED: checked={report['files_checked']} "

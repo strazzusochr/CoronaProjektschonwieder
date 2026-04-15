@@ -18,6 +18,17 @@ describe('App', () => {
             status: 'ok',
             ready_for_prompt_execute: true,
             bootstrap: { status: 'READY', ready: true, summary: 'Platform ready for prompt execution.' },
+            latest_run: {
+              run_id: 'latest-test-run',
+              status: 'PASS',
+              profile_id: 'app_builder',
+              profile_label: 'App Builder',
+              forwarded_steps: 1,
+              total_steps: 1,
+              current_step: 1,
+              current_agent: '',
+              steps: [{ step: 1, agent: 'local.langgraph.planner', status: 'forwarded', runtime_target: 'langgraph-local' }],
+            },
           }),
           {
             status: 200,
@@ -106,7 +117,21 @@ describe('App', () => {
         });
       }
       if (url.includes('/prompt/execute')) {
-        return new Response(JSON.stringify({ status: 'ok', mode: 'multi-agent', run: { status: 'PASS' } }), {
+        return new Response(JSON.stringify({
+          status: 'ok',
+          mode: 'multi-agent',
+          run: {
+            run_id: 'prompt-test-run',
+            status: 'PASS',
+            profile_id: 'app_builder',
+            profile_label: 'App Builder',
+            forwarded_steps: 1,
+            total_steps: 1,
+            current_step: 1,
+            current_agent: '',
+            steps: [{ step: 1, agent: 'local.langgraph.planner', status: 'forwarded', runtime_target: 'langgraph-local' }],
+          },
+        }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         });
@@ -124,6 +149,7 @@ describe('App', () => {
 
     expect(screen.getByRole('heading', { name: /godmode superbrain control center/i })).toBeTruthy();
     expect(screen.getByRole('heading', { name: /prompt command layer/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /agent live activity monitor/i })).toBeTruthy();
 
     const refreshButton = await screen.findByRole('button', { name: /refresh checks|checking/i });
     if ((refreshButton.textContent ?? '').toLowerCase().includes('refresh')) {
@@ -147,6 +173,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /execute prompt with autonomous agents|executing/i }));
     await waitFor(() => {
       expect(screen.getByText(/prompt response http 200/i)).toBeTruthy();
+      expect(screen.getByText(/prompt-test-run/i)).toBeTruthy();
     });
 
     expect(screen.getByRole('heading', { name: /autonomous multi-agent run/i })).toBeTruthy();

@@ -67,7 +67,7 @@ def health() -> dict[str, Any]:
         "api_url": _resolve_openhands_api_url(),
         "trigger_url": os.environ.get("OPENHANDS_TRIGGER_URL") or "",
         "trigger_mode": os.environ.get("OPENHANDS_TRIGGER_MODE", "socketio").strip().lower() or "socketio",
-        "trigger_wait_seconds": int(os.environ.get("OPENHANDS_TRIGGER_WAIT_SECONDS", "45")),
+        "trigger_wait_seconds": int(os.environ.get("OPENHANDS_TRIGGER_WAIT_SECONDS", "420")),
         "devtools_bridge_url": os.environ.get("DEVTOOLS_BRIDGE_URL") or "",
     }
 
@@ -164,13 +164,39 @@ def _is_meaningful_openhands_event(event: dict[str, Any]) -> bool:
     if isinstance(extras, dict):
         agent_state = str(extras.get("agent_state", "")).strip().lower()
 
+    if source == "user":
+        return False
+    if event.get("status_update") is True:
+        return False
     if message or content:
         return True
     if source not in {"", "user"} and observation not in {"", "agent_state_changed"}:
         return True
-    if agent_state in {"init", "running", "awaiting_user_input", "paused", "finished"}:
+    if agent_state in {"awaiting_user_input", "finished", "stopped"}:
         return True
     return False
+
+
+def _openhands_agent_state(event: dict[str, Any]) -> str:
+    extras = event.get("extras")
+    if isinstance(extras, dict) and extras.get("agent_state"):
+        return str(extras.get("agent_state")).strip().lower()
+    args = event.get("args")
+    if isinstance(args, dict) and args.get("agent_state"):
+        return str(args.get("agent_state")).strip().lower()
+    return ""
+
+
+def _is_openhands_agent_ready_event(event: dict[str, Any]) -> bool:
+    return _openhands_agent_state(event) in {"init", "running", "awaiting_user_input"}
+
+
+def _is_openhands_terminal_state_event(event: dict[str, Any]) -> bool:
+    return _openhands_agent_state(event) in {"error", "stopped", "finished"}
+
+
+def _is_openhands_failure_state_event(event: dict[str, Any]) -> bool:
+    return _openhands_agent_state(event) in {"error", "stopped"}
 
 
 def _trigger_http(payload: MissionPayload, trigger_url: str, api_key: str) -> dict[str, Any]:
@@ -309,6 +335,42 @@ def _trigger_socketio(payload: MissionPayload, api_url: str, wait_seconds: int, 
                 "api_url": api_url,
             }
 
+        ready_deadline = time.time() + wait_seconds
+        ready_events: list[dict[str, Any]] = []
+        terminal_events: list[dict[str, Any]] = []
+        while time.time() < ready_deadline:
+            ready_events = [event for event in received_events if _is_openhands_agent_ready_event(event)]
+            if ready_events:
+                break
+            terminal_events = [event for event in received_events if _is_openhands_terminal_state_event(event)]
+            if terminal_events:
+                return {
+                    "status": "blocked",
+                    "forwarded": False,
+                    "reason": "openhands-agent-terminal-before-prompt",
+                    "mode": "socketio",
+                    "conversation_id": conversation_id,
+                    "wait_seconds": wait_seconds,
+                    "event_count": len(received_events),
+                    "terminal_events": terminal_events[:5],
+                    "raw_events_preview": received_events[:8],
+                    "api_url": api_url,
+                }
+            time.sleep(0.2)
+
+        if not ready_events:
+            return {
+                "status": "blocked",
+                "forwarded": False,
+                "reason": "openhands-agent-not-ready-before-timeout",
+                "mode": "socketio",
+                "conversation_id": conversation_id,
+                "wait_seconds": wait_seconds,
+                "event_count": len(received_events),
+                "raw_events_preview": received_events[:8],
+                "api_url": api_url,
+            }
+
         action_payload = {
             "action": "message",
             "args": {
@@ -325,6 +387,21 @@ def _trigger_socketio(payload: MissionPayload, api_url: str, wait_seconds: int, 
             meaningful_events = [event for event in received_events if _is_meaningful_openhands_event(event)]
             if meaningful_events:
                 break
+            failure_events = [event for event in received_events if _is_openhands_failure_state_event(event)]
+            if failure_events:
+                return {
+                    "status": "blocked",
+                    "forwarded": False,
+                    "reason": "openhands-agent-terminal-after-prompt",
+                    "mode": "socketio",
+                    "conversation_id": conversation_id,
+                    "wait_seconds": wait_seconds,
+                    "event_count": len(received_events),
+                    "ready_events": ready_events[:5],
+                    "failure_events": failure_events[:5],
+                    "raw_events_preview": received_events[:8],
+                    "api_url": api_url,
+                }
             time.sleep(0.2)
 
         search_preview: dict[str, Any] = {}
@@ -350,8 +427,9 @@ def _trigger_socketio(payload: MissionPayload, api_url: str, wait_seconds: int, 
                 "conversation_id": conversation_id,
                 "event_count": len(received_events),
                 "meaningful_event_count": len(meaningful_events),
+                "ready_events": ready_events[:5],
                 "events_preview": meaningful_events[:5],
-                "raw_events_preview": received_events[:5],
+                "raw_events_preview": received_events[:8],
                 "events_search": search_preview,
                 "api_url": api_url,
             }
@@ -364,7 +442,8 @@ def _trigger_socketio(payload: MissionPayload, api_url: str, wait_seconds: int, 
             "conversation_id": conversation_id,
             "wait_seconds": wait_seconds,
             "event_count": len(received_events),
-            "raw_events_preview": received_events[:5],
+            "ready_events": ready_events[:5],
+            "raw_events_preview": received_events[:8],
             "events_search": search_preview,
             "api_url": api_url,
         }
@@ -392,8 +471,10 @@ def trigger(payload: MissionPayload) -> dict[str, Any]:
     trigger_url = os.environ.get("OPENHANDS_TRIGGER_URL", "").strip()
     api_key = os.environ.get("OPENHANDS_API_KEY", "").strip()
     trigger_mode = os.environ.get("OPENHANDS_TRIGGER_MODE", "socketio").strip().lower() or "socketio"
-    wait_seconds = int(os.environ.get("OPENHANDS_TRIGGER_WAIT_SECONDS", "45"))
-    wait_seconds = max(5, min(wait_seconds, 180))
+    wait_seconds = int(os.environ.get("OPENHANDS_TRIGGER_WAIT_SECONDS", "420"))
+    # OpenHands can spend several minutes preparing a fresh runtime image on Windows/Docker Desktop.
+    # Keep a hard ceiling, but do not silently clamp the operator-configured wait back to 180s.
+    wait_seconds = max(5, min(wait_seconds, 600))
     socket_path = os.environ.get("OPENHANDS_SOCKET_PATH", "/socket.io").strip() or "/socket.io"
     api_url = _resolve_openhands_api_url()
 

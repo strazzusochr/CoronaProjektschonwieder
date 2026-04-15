@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:browser": "playwright test"
+    "test:browser": "node scripts/run-browser-test-with-lock.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^9.90.0",

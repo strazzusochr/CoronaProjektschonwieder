@@ -90,11 +90,24 @@ type AgentRunStep = {
   step: number;
   agent: string;
   status: string;
+  raw_status?: string;
   call_id?: string;
   runtime_target?: string;
   dispatch_artifact?: string;
   reason?: string;
   http_status?: number | null;
+  fallback_used?: boolean;
+  fallback_reason?: string;
+  fallback_endpoint?: string;
+  fallback_task_id?: string;
+  recovery_used?: boolean;
+  recovery_endpoint?: string;
+  recovery_reason?: string;
+  primary_orchestrate_status?: string;
+  primary_orchestrate_http_status?: number | null;
+  final_code_artifact?: string;
+  final_code_url?: string;
+  final_code_bytes?: number;
   response_excerpt?: string;
   started_at?: string;
   finished_at?: string;
@@ -108,6 +121,7 @@ type AgentRunRecord = {
   current_step: number;
   current_agent: string;
   forwarded_steps: number;
+  partial_steps: number;
   total_steps: number;
   started_at?: string;
   finished_at?: string;
@@ -171,6 +185,12 @@ const AUTONOMY_PROFILE_FALLBACK: AutonomyProfile[] = [
       'external.ollamahf.qa',
       'external.ollamahf.release',
     ],
+  },
+  {
+    id: 'game_artifact_single',
+    label: '3D Artifact Builder (Fast Proof)',
+    description: 'Single external solo_builder run for one concrete cloud-generated HTML/3D artifact.',
+    agents: ['external.ollamahf.solo_builder'],
   },
   {
     id: 'ops_hardening',
@@ -348,11 +368,27 @@ function normalizeRunPayload(value: unknown): AgentRunRecord | null {
             step: Number(step.step ?? 0),
             agent: String(step.agent ?? ''),
             status: String(step.status ?? 'UNKNOWN'),
+            raw_status: String(step.raw_status ?? ''),
             call_id: String(step.call_id ?? ''),
             runtime_target: String(step.runtime_target ?? ''),
             dispatch_artifact: String(step.dispatch_artifact ?? ''),
             reason: String(step.reason ?? step.error ?? ''),
             http_status: typeof step.http_status === 'number' ? step.http_status : null,
+            fallback_used: Boolean(step.fallback_used),
+            fallback_reason: String(step.fallback_reason ?? ''),
+            fallback_endpoint: String(step.fallback_endpoint ?? ''),
+            fallback_task_id: String(step.fallback_task_id ?? ''),
+            recovery_used: Boolean(step.recovery_used),
+            recovery_endpoint: String(step.recovery_endpoint ?? ''),
+            recovery_reason: String(step.recovery_reason ?? ''),
+            primary_orchestrate_status: String(step.primary_orchestrate_status ?? ''),
+            primary_orchestrate_http_status:
+              typeof step.primary_orchestrate_http_status === 'number'
+                ? step.primary_orchestrate_http_status
+                : null,
+            final_code_artifact: String(step.final_code_artifact ?? ''),
+            final_code_url: String(step.final_code_url ?? ''),
+            final_code_bytes: Number(step.final_code_bytes ?? 0),
             response_excerpt: String(step.response_excerpt ?? ''),
             started_at: String(step.started_at ?? ''),
             finished_at: String(step.finished_at ?? ''),
@@ -374,6 +410,7 @@ function normalizeRunPayload(value: unknown): AgentRunRecord | null {
     current_step: Number(candidate.current_step ?? 0),
     current_agent: String(candidate.current_agent ?? ''),
     forwarded_steps: Number(candidate.forwarded_steps ?? 0),
+    partial_steps: Number(candidate.partial_steps ?? 0),
     total_steps: Number(candidate.total_steps ?? steps.length),
     started_at: String(candidate.started_at ?? ''),
     finished_at: String(candidate.finished_at ?? ''),
@@ -472,6 +509,7 @@ export default function App() {
   const webglReady = useMemo(() => webglAvailable(), []);
   const refreshRequestIdRef = useRef(0);
   const lastPromptReadyAtRef = useRef(0);
+  const currentRunStatus = currentRun?.status ?? '';
 
   const applyPromptReadiness = (candidateReady: boolean) => {
     const stickyWindowMs = 60000;
@@ -675,6 +713,7 @@ export default function App() {
     }
     setPromptBusy(true);
     setPromptMessage('Executing prompt command...');
+    setCurrentRun(null);
     try {
       const response = await fetchWithTimeout(
         `${HUB_BASE_URL}/prompt/execute`,
@@ -687,6 +726,7 @@ export default function App() {
             repo: dispatchPayload.repo,
             ref: dispatchPayload.ref,
             status: 'queued',
+            profile_id: selectedAutonomyProfile.id,
             halt_on_fail: false,
           }),
         },
@@ -697,9 +737,9 @@ export default function App() {
       const runPayload = normalizeRunPayload(payload.run);
       if (runPayload) {
         setCurrentRun(runPayload);
-        setPromptMessage(
-          `Prompt response HTTP ${response.status}. Run ${runPayload.run_id} is ${runPayload.status} with ${runPayload.forwarded_steps}/${runPayload.total_steps} forwarded steps.`
-        );
+          setPromptMessage(
+            `Prompt response HTTP ${response.status}. Run ${runPayload.run_id} is ${runPayload.status} with ${runPayload.forwarded_steps}/${runPayload.total_steps} forwarded steps and ${runPayload.partial_steps} partial/fallback steps.`
+          );
       } else {
         setPromptMessage(`Prompt response HTTP ${response.status}. ${summary}`);
       }
@@ -729,7 +769,7 @@ export default function App() {
     const shouldBypassStateCache =
       promptBusy ||
       autonomyBusy ||
-      (currentRun !== null && runChipState(currentRun.status) === 'checking');
+      (currentRunStatus.length > 0 && runChipState(currentRunStatus) === 'checking');
 
     let hubState: HealthState = 'down';
     let hubDetail = 'No response from /health';
@@ -1052,9 +1092,9 @@ export default function App() {
       const runPayload = normalizeRunPayload(payload);
       if (runPayload) {
         setCurrentRun(runPayload);
-        setAutonomyMessage(
-          `Autonomy response HTTP ${response.status}. Run ${runPayload.run_id} is ${runPayload.status} with ${runPayload.forwarded_steps}/${runPayload.total_steps} forwarded steps.`
-        );
+          setAutonomyMessage(
+            `Autonomy response HTTP ${response.status}. Run ${runPayload.run_id} is ${runPayload.status} with ${runPayload.forwarded_steps}/${runPayload.total_steps} forwarded steps and ${runPayload.partial_steps} partial/fallback steps.`
+          );
       } else {
         setAutonomyMessage(`Autonomy response HTTP ${response.status}. ${summary}`);
       }
@@ -1092,12 +1132,12 @@ export default function App() {
     }
     void refreshPlatformChecks();
     const refreshIntervalMs =
-      promptBusy || autonomyBusy || (currentRun !== null && runChipState(currentRun.status) === 'checking') ? 4000 : 30000;
+      promptBusy || autonomyBusy || (currentRunStatus.length > 0 && runChipState(currentRunStatus) === 'checking') ? 4000 : 30000;
     const timer = window.setInterval(() => {
       void refreshPlatformChecks();
     }, refreshIntervalMs);
     return () => window.clearInterval(timer);
-  }, [activeView, autonomyBusy, currentRun, promptBusy]);
+  }, [activeView, autonomyBusy, currentRunStatus, promptBusy]);
 
   return (
     <main className={`app-shell ${highContrast ? 'app-shell--contrast' : ''}`}>
@@ -1219,6 +1259,23 @@ export default function App() {
               steht.
             </p>
             <label className="dispatch-label">
+              Agent profile for this prompt
+              <select
+                value={selectedAutonomyProfile.id}
+                onChange={(event) => setAutonomyProfileId(event.target.value)}
+                aria-label="Prompt agent profile selector"
+              >
+                {autonomyProfiles.map((profile) => (
+                  <option key={profile.id} value={profile.id}>
+                    {profile.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="hud-muted">
+              Chain: <code>{selectedAutonomyProfile.agents.join(' -> ')}</code>
+            </p>
+            <label className="dispatch-label">
               Prompt command
               <textarea
                 rows={6}
@@ -1244,6 +1301,93 @@ export default function App() {
               <p className="hud-muted">Prompt execution is locked until one-click bootstrap returns READY.</p>
             ) : null}
             <p className="status-banner">{promptMessage}</p>
+          </article>
+
+          <article className="platform-card platform-card--wide">
+            <h2>Agent Live Activity Monitor</h2>
+            {currentRun ? (
+              <>
+                <p className={`status-banner run-status run-status--${runChipState(currentRun.status)}`}>
+                  Run <strong>{currentRun.run_id}</strong> | Status <strong>{currentRun.status}</strong> | Progress{' '}
+                  <strong>
+                    {currentRun.forwarded_steps}/{currentRun.total_steps}
+                  </strong>
+                  {currentRun.partial_steps ? ` | Partial/Fallback: ${currentRun.partial_steps}` : ''}
+                  {currentRun.current_agent ? ` | Active: ${currentRun.current_agent}` : ''}
+                </p>
+                <p className="hud-muted">
+                  Profile: <code>{currentRun.profile_label || currentRun.profile_id || 'unknown'}</code> | Started:{' '}
+                  <code>{currentRun.started_at || '-'}</code> | Finished: <code>{currentRun.finished_at || '-'}</code>
+                </p>
+                <ul className="agent-list run-step-list" aria-label="Live agent run status">
+                  {currentRun.steps.length === 0 ? (
+                    <li className="health-chip health-chip--checking">
+                      <strong>Waiting for first agent step</strong>
+                      <span>The hub has created the run, but no agent has started yet.</span>
+                    </li>
+                  ) : (
+                    currentRun.steps.map((step) => (
+                      <li key={`${currentRun.run_id}-${step.step}-${step.agent}`} className={`health-chip health-chip--${runChipState(step.status)}`}>
+                        <strong>
+                          Step {step.step}: {step.agent}
+                        </strong>
+                        <span>
+                            Status: {step.status}
+                            {step.raw_status && step.raw_status !== step.status ? ` | Raw: ${step.raw_status}` : ''}
+                            {step.runtime_target ? ` | Target: ${step.runtime_target}` : ''}
+                            {step.http_status ? ` | HTTP ${step.http_status}` : ''}
+                          </span>
+                          {step.fallback_used ? (
+                            <span>
+                              Fallback used: {step.fallback_task_id || 'yes'}
+                              {step.fallback_endpoint ? ` | ${step.fallback_endpoint}` : ''}
+                            </span>
+                          ) : null}
+                          {step.fallback_reason ? <span>Fallback reason: {step.fallback_reason}</span> : null}
+                          {step.recovery_used ? (
+                            <span>
+                              Recovery: {step.recovery_reason || 'chat-completions artifact recovery'}
+                              {step.recovery_endpoint ? ` | ${step.recovery_endpoint}` : ''}
+                            </span>
+                          ) : null}
+                          {step.primary_orchestrate_status ? (
+                            <span>
+                              Primary orchestrate: {step.primary_orchestrate_status}
+                              {step.primary_orchestrate_http_status
+                                ? ` | HTTP ${step.primary_orchestrate_http_status}`
+                                : ''}
+                            </span>
+                          ) : null}
+                          {step.reason ? <span>Reason: {step.reason}</span> : null}
+                          {step.final_code_artifact ? (
+                            <span>
+                              Generated artifact: <code>{step.final_code_artifact}</code>
+                              {step.final_code_bytes ? ` (${step.final_code_bytes} bytes)` : ''}
+                            </span>
+                          ) : null}
+                          {step.final_code_url ? (
+                            <span>
+                              Preview:{' '}
+                              <a href={`${HUB_BASE_URL}${step.final_code_url}`} target="_blank" rel="noreferrer">
+                                open generated HTML artifact
+                              </a>
+                            </span>
+                          ) : null}
+                          {step.response_excerpt ? <span>Evidence preview: {step.response_excerpt}</span> : null}
+                        {step.dispatch_artifact ? <code>{step.dispatch_artifact}</code> : null}
+                      </li>
+                    ))
+                  )}
+                </ul>
+                <p className="hud-muted">
+                  Evidence: <code>{currentRun.run_file || currentRun.snapshot || 'runtime evidence not reported yet'}</code>
+                </p>
+              </>
+            ) : (
+              <p className="status-banner">
+                No run loaded yet. Execute a prompt or refresh checks to load the latest hub run.
+              </p>
+            )}
           </article>
 
           <article className="platform-card">

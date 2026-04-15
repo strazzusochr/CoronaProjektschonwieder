@@ -162,27 +162,25 @@ def main() -> int:
     bridge_health_code, bridge_health = get_json(f"{base_bridge}/health", timeout=20)
     adapter_health_code, adapter_health = get_json(f"{base_adapter}/health", timeout=20)
 
-    preview_process = None
     preview_error = ""
     run_playwright_direct: dict[str, Any] = {}
     run_playwright_adapter: dict[str, Any] = {}
-    try:
-        preview_process, preview_error = start_preview_server(port=4173)
-        direct_code, direct_body = post_json(
-            f"{base_bridge}/run_playwright",
-            {"command": [_npm_executable(), "run", "test:browser"]},
-            timeout=timeout,
-        )
-        run_playwright_direct = {"http_status": direct_code, "body": direct_body}
+    # Let Playwright's own webServer/reuseExistingServer handling own port 4173.
+    # Starting an extra preview process here races with direct `npm run test:browser`
+    # runs and can corrupt Playwright artifacts under parallel verification.
+    direct_code, direct_body = post_json(
+        f"{base_bridge}/run_playwright",
+        {"command": [_npm_executable(), "run", "test:browser"]},
+        timeout=timeout,
+    )
+    run_playwright_direct = {"http_status": direct_code, "body": direct_body}
 
-        adapter_code, adapter_body = post_json(
-            f"{base_adapter}/run_playwright",
-            {"args": {"command": [_npm_executable(), "run", "test:browser"]}},
-            timeout=timeout,
-        )
-        run_playwright_adapter = {"http_status": adapter_code, "body": adapter_body}
-    finally:
-        stop_process(preview_process)
+    adapter_code, adapter_body = post_json(
+        f"{base_adapter}/run_playwright",
+        {"args": {"command": [_npm_executable(), "run", "test:browser"]}},
+        timeout=timeout,
+    )
+    run_playwright_adapter = {"http_status": adapter_code, "body": adapter_body}
 
     run_devtools_direct_code, run_devtools_direct_body = post_json(
         f"{base_bridge}/run_devtools",
@@ -275,4 +273,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

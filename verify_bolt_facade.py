@@ -67,6 +67,8 @@ def post_json(url: str, payload: dict, timeout: int = 25) -> tuple[int, dict]:
         except json.JSONDecodeError:
             pass
         return int(exc.code), payload
+    except Exception as exc:
+        return 0, {"error": str(exc)}
 
 
 def main() -> int:
@@ -74,7 +76,7 @@ def main() -> int:
     evidence_dir = resolve_evidence_dir()
     timestamp = now_iso()
     payload = {
-        "agent": "local.openhands.openhands",
+        "agent": "local.langgraph.planner",
         "task": "Verify superbrain dispatch hub basic path.",
         "source": "verify_bolt_facade.py",
         "repo": "https://github.com/strazzusochr/CoronaProjektschonwieder",

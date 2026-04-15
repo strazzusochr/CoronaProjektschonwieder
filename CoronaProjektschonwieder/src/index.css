@@ -103,6 +103,10 @@ select {
   gap: 0.7rem;
 }
 
+.platform-card--wide {
+  grid-column: 1 / -1;
+}
+
 .platform-card h2 {
   margin: 0;
   font-size: 1.18rem;
@@ -337,6 +341,22 @@ h1 {
 
 .health-chip--checking {
   border-color: rgba(255, 223, 130, 0.6);
+}
+
+.run-status--up {
+  border-color: rgba(114, 255, 179, 0.55);
+}
+
+.run-status--down {
+  border-color: rgba(255, 146, 146, 0.6);
+}
+
+.run-status--checking {
+  border-color: rgba(255, 223, 130, 0.6);
+}
+
+.run-step-list {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
 .dispatch-form {

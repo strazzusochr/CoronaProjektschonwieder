@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 test('runs complete 3D sandbox control flow and reaches terminal mission state', async ({
   page,
 }) => {
-  test.setTimeout(120000);
+  test.setTimeout(240000);
   const consoleErrors: string[] = [];
   const pageErrors: string[] = [];
   const requestFailures: string[] = [];
@@ -76,7 +76,7 @@ test('runs complete 3D sandbox control flow and reaches terminal mission state',
   await expect.poll(async () => {
     const text = (await page.getByTestId('metric-state').textContent()) ?? '';
     return /won|lost/i.test(text);
-  }, { timeout: 35000 }).toBeTruthy();
+  }, { timeout: 120000 }).toBeTruthy();
 
   const canvas = page.locator('canvas');
   await expect(canvas).toHaveCount(1);

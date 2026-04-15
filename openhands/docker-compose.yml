@@ -9,12 +9,14 @@ services:
     environment:
       - SANDBOX_RUNTIME_CONTAINER_IMAGE=${OPENHANDS_RUNTIME_IMAGE:-ghcr.io/all-hands-ai/runtime:0.17-nikolaik}
       - SANDBOX_BASE_CONTAINER_IMAGE=${OPENHANDS_BASE_CONTAINER_IMAGE:-nikolaik/python-nodejs:python3.12-nodejs22}
+      - SANDBOX_REMOTE_RUNTIME_INIT_TIMEOUT=${SANDBOX_REMOTE_RUNTIME_INIT_TIMEOUT:-420}
       - LOG_ALL_EVENTS=true
       - WORKSPACE_BASE=/opt/workspace_base
       - WORKSPACE_MOUNT_PATH=${OPENHANDS_WORKSPACE_HOST_PATH:-./workspace}
-      - LLM_MODEL=${OPENHANDS_LLM_MODEL:-smart-router}
-      - LLM_API_KEY=${OPENHANDS_LLM_API_KEY:-${LITELLM_API_KEY:-}}
+      - LLM_MODEL=${OPENHANDS_LLM_MODEL:-litellm_proxy/smart-router}
+      - LLM_API_KEY=${OPENHANDS_LLM_API_KEY:-}
       - LLM_BASE_URL=${OPENHANDS_LLM_BASE_URL:-http://litellm-godmode:4000}
+      - LLM_MAX_OUTPUT_TOKENS=${OPENHANDS_LLM_MAX_OUTPUT_TOKENS:-2048}
       - FILE_STORE=${OPENHANDS_FILE_STORE:-local}
       - FILE_STORE_PATH=${OPENHANDS_FILE_STORE_PATH:-/.openhands-state}
       - GITHUB_TOKEN=${GITHUB_TOKEN:-}
@@ -23,6 +25,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ~/.openhands-state:/.openhands-state
       - ./healthcheck.py:/opt/godmode/healthcheck.py:ro
+      - ./patch_runtime_timeout.py:/opt/godmode/patch_runtime_timeout.py:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
@@ -33,6 +36,9 @@ services:
       timeout: 10s
       retries: 5
       start_period: 40s
+    command: >
+      sh -lc "python /opt/godmode/patch_runtime_timeout.py &&
+      exec /app/.venv/bin/uvicorn openhands.server.listen:app --host 0.0.0.0 --port 3000"
 
   openhands-adapter:
     image: python:3.11-slim
@@ -47,7 +53,7 @@ services:
       - OPENHANDS_TRIGGER_URL=${OPENHANDS_TRIGGER_URL:-}
       - OPENHANDS_API_KEY=${OPENHANDS_API_KEY:-}
       - OPENHANDS_TRIGGER_MODE=${OPENHANDS_TRIGGER_MODE:-socketio}
-      - OPENHANDS_TRIGGER_WAIT_SECONDS=${OPENHANDS_TRIGGER_WAIT_SECONDS:-180}
+      - OPENHANDS_TRIGGER_WAIT_SECONDS=${OPENHANDS_TRIGGER_WAIT_SECONDS:-420}
       - OPENHANDS_SOCKET_PATH=${OPENHANDS_SOCKET_PATH:-/socket.io}
       - OPENHANDS_ADAPTER_PORT=${OPENHANDS_ADAPTER_PORT:-3001}
       - DEVTOOLS_BRIDGE_URL=${DEVTOOLS_BRIDGE_URL:-http://host.docker.internal:3911}
