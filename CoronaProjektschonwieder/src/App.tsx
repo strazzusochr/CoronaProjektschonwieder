@@ -836,6 +836,17 @@ export default function App() {
       setPromptMessage('Prompt execution rejected: prompt is empty.');
       return;
     }
+
+    const promptPayload = {
+      prompt: promptCommand.trim(),
+      source: 'homepage-control-center',
+      repo: dispatchPayload.repo,
+      ref: dispatchPayload.ref,
+      status: 'queued',
+      profile_id: selectedAutonomyProfile.id,
+      halt_on_fail: false,
+    };
+
     setPromptBusy(true);
     setPromptMessage('Executing prompt command...');
     setCurrentRun(null);
@@ -845,28 +856,54 @@ export default function App() {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt: promptCommand.trim(),
-            source: 'homepage-control-center',
-            repo: dispatchPayload.repo,
-            ref: dispatchPayload.ref,
-            status: 'queued',
-            profile_id: selectedAutonomyProfile.id,
-            halt_on_fail: false,
-          }),
+          body: JSON.stringify(promptPayload),
         },
         PROMPT_EXECUTION_TIMEOUT_MS
       );
       const payload = await parseResponseSafely(response);
-      const summary = JSON.stringify(payload).slice(0, 420);
-      const runPayload = normalizeRunPayload(payload.run);
-      if (runPayload) {
-        setCurrentRun(runPayload);
+      if (response.status === 409) {
+        const fallbackResponse = await fetchWithTimeout(
+          `${hubBaseUrl}/autonomy/run`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              goal: promptPayload.prompt,
+              profile_id: promptPayload.profile_id,
+              source: promptPayload.source,
+              repo: promptPayload.repo,
+              ref: promptPayload.ref,
+              status: promptPayload.status,
+              halt_on_fail: promptPayload.halt_on_fail,
+            }),
+          },
+          PROMPT_EXECUTION_TIMEOUT_MS
+        );
+        const fallbackPayload = await parseResponseSafely(fallbackResponse);
+        const fallbackRunPayload = normalizeRunPayload(fallbackPayload);
+        const blockReason = String(payload.detail ?? payload.error ?? 'blocked by readiness gate');
+        if (fallbackRunPayload) {
+          setCurrentRun(fallbackRunPayload);
+          setPromptMessage(
+            `Prompt fallback active (from /prompt/execute 409). HTTP ${fallbackResponse.status}. Run ${fallbackRunPayload.run_id} is ${fallbackRunPayload.status} with ${fallbackRunPayload.forwarded_steps}/${fallbackRunPayload.total_steps} forwarded steps and ${fallbackRunPayload.partial_steps} partial/fallback steps.`
+          );
+        } else {
+          const fallbackSummary = JSON.stringify(fallbackPayload).slice(0, 420);
+          setPromptMessage(
+            `Prompt fallback response HTTP ${fallbackResponse.status}. ${fallbackSummary} | Primary block: ${blockReason}`
+          );
+        }
+      } else {
+        const summary = JSON.stringify(payload).slice(0, 420);
+        const runPayload = normalizeRunPayload(payload.run);
+        if (runPayload) {
+          setCurrentRun(runPayload);
           setPromptMessage(
             `Prompt response HTTP ${response.status}. Run ${runPayload.run_id} is ${runPayload.status} with ${runPayload.forwarded_steps}/${runPayload.total_steps} forwarded steps and ${runPayload.partial_steps} partial/fallback steps.`
           );
-      } else {
-        setPromptMessage(`Prompt response HTTP ${response.status}. ${summary}`);
+        } else {
+          setPromptMessage(`Prompt response HTTP ${response.status}. ${summary}`);
+        }
       }
       void refreshPlatformChecks();
     } catch (error) {
@@ -1185,13 +1222,22 @@ export default function App() {
       return;
     }
     if (!readyForPromptExecution) {
-      setAutonomyMessage('Autonomy run blocked: bootstrap is not READY.');
-      return;
+      setAutonomyMessage('Bootstrap is not READY; attempting fallback autonomy execution...');
     }
     if (!autonomyGoal.trim()) {
       setAutonomyMessage('Autonomy run rejected: goal prompt is empty.');
       return;
     }
+
+    const requestPayload = {
+      goal: autonomyGoal.trim(),
+      profile_id: selectedAutonomyProfile.id,
+      source: 'platform-autonomy',
+      repo: dispatchPayload.repo,
+      ref: dispatchPayload.ref,
+      status: 'queued',
+      halt_on_fail: false,
+    };
 
     setAutonomyBusy(true);
     setAutonomyMessage('Autonomous multi-agent run in progress...');
@@ -1201,28 +1247,46 @@ export default function App() {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            goal: autonomyGoal.trim(),
-            profile_id: selectedAutonomyProfile.id,
-            source: 'platform-autonomy',
-            repo: dispatchPayload.repo,
-            ref: dispatchPayload.ref,
-            status: 'queued',
-            halt_on_fail: false,
-          }),
+          body: JSON.stringify(requestPayload),
         },
         AUTONOMY_RUN_TIMEOUT_MS
       );
       const payload = await parseResponseSafely(response);
-      const summary = JSON.stringify(payload).slice(0, 400);
-      const runPayload = normalizeRunPayload(payload);
-      if (runPayload) {
-        setCurrentRun(runPayload);
+      const blockedDetail = String(payload.detail ?? '');
+      if (response.status === 409) {
+        const fallbackResponse = await fetchWithTimeout(
+          `${hubBaseUrl}/autonomy/run`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestPayload),
+          },
+          AUTONOMY_RUN_TIMEOUT_MS
+        );
+        const fallbackPayload = await parseResponseSafely(fallbackResponse);
+        const fallbackRunPayload = normalizeRunPayload(fallbackPayload);
+        const fallbackSummary = JSON.stringify(fallbackPayload).slice(0, 400);
+        if (fallbackRunPayload) {
+          setCurrentRun(fallbackRunPayload);
+          setAutonomyMessage(
+            `Autonomy fallback active (from /runs 409). HTTP ${fallbackResponse.status}. Run ${fallbackRunPayload.run_id} is ${fallbackRunPayload.status} with ${fallbackRunPayload.forwarded_steps}/${fallbackRunPayload.total_steps} forwarded steps and ${fallbackRunPayload.partial_steps} partial/fallback steps.`
+          );
+        } else {
+          setAutonomyMessage(
+            `Autonomy fallback response HTTP ${fallbackResponse.status}. ${fallbackSummary} | Primary block: ${blockedDetail}`
+          );
+        }
+      } else {
+        const summary = JSON.stringify(payload).slice(0, 400);
+        const runPayload = normalizeRunPayload(payload);
+        if (runPayload) {
+          setCurrentRun(runPayload);
           setAutonomyMessage(
             `Autonomy response HTTP ${response.status}. Run ${runPayload.run_id} is ${runPayload.status} with ${runPayload.forwarded_steps}/${runPayload.total_steps} forwarded steps and ${runPayload.partial_steps} partial/fallback steps.`
           );
-      } else {
-        setAutonomyMessage(`Autonomy response HTTP ${response.status}. ${summary}`);
+        } else {
+          setAutonomyMessage(`Autonomy response HTTP ${response.status}. ${summary}`);
+        }
       }
       setDispatchPayload((current) => ({ ...current, timestamp: nowIso() }));
       void refreshPlatformChecks();
@@ -1263,7 +1327,7 @@ export default function App() {
       void refreshPlatformChecks();
     }, refreshIntervalMs);
     return () => window.clearInterval(timer);
-  }, [activeView, autonomyBusy, currentRunStatus, hubBaseUrl, promptBusy]);
+  }, [activeView, hubBaseUrl]);
 
   return (
     <main className={`app-shell ${highContrast ? 'app-shell--contrast' : ''}`}>

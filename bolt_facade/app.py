@@ -851,10 +851,11 @@ def _runtime_health_ready_for_prompt() -> tuple[bool, str]:
 
     probe_timeout = max(2, min(BOLTDIY_FORWARD_TIMEOUT, 8))
     service_probes = _probe_catalog_parallel(_service_probe_catalog(), probe_timeout)
+    optional_service_ids = {"devtools-bridge"}
     service_failures = [
         f"{service_id}={probe.get('http_status') or probe.get('error') or 'unreachable'}"
         for service_id, probe in service_probes.items()
-        if not _probe_http_200(probe)
+        if service_id not in optional_service_ids and not _probe_http_200(probe)
     ]
     if service_failures:
         return False, "Core service health failed: " + ", ".join(service_failures)

@@ -241,6 +241,24 @@ Source: `d:\Web\docs\godmode_setup\.godmode_env.example`
 
 5. Continue implementation only after all checks pass.
 
+## Autonomous Control Plane (new)
+- Canonical controller: `autonomous_control_plane.py`
+- Runtime state path: `.godmode_runtime/autonomy/`
+- Team model: 11 roles (9 builders + 2 supervisors)
+- Active slot policy: 6 slots total, 2 permanently reserved for supervisors
+- Evidence log: `.godmode_runtime/autonomy/evidence_log.jsonl`
+- Seed queue: `.godmode_runtime/autonomy/task_queue.json`
+- Seed team state: `.godmode_runtime/autonomy/team_state.json`
+- Seed control state: `.godmode_runtime/autonomy/control_state.json`
+- Update payload template: `.godmode_runtime/autonomy/inbox/update_template.json`
+- Operating guide: `AUTONOMOUS_TAKEOVER.md`
+- Autonomy supervisor loop: `autonomy_supervisor_loop.py`
+- One-click runners: `ops/RUN_FULLY_AUTONOMOUS.ps1`, `ops/RUN_FULLY_AUTONOMOUS.sh`
+- Current deliverables folder: `.godmode_runtime/autonomy/deliverables/`
+- Current queue state: `.godmode_runtime/autonomy/task_queue.json`
+- Current team/control state: `.godmode_runtime/autonomy/team_state.json`, `.godmode_runtime/autonomy/control_state.json`
+- Current evidence ledger: `.godmode_runtime/autonomy/evidence_log.jsonl`
+
 ## Important Transfer Notes
 - Secrets are local/session assets and must never be committed.
 - If cloning to another machine, transfer `.godmode_env` securely out-of-band.
