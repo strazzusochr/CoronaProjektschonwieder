@@ -10,6 +10,7 @@ vi.mock('./SceneCanvas', () => ({
 
 describe('App', () => {
   beforeEach(() => {
+    window.localStorage.clear();
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const url = String(input);
       if (url.includes('/control-center/state')) {
@@ -148,8 +149,16 @@ describe('App', () => {
     render(<App />);
 
     expect(screen.getByRole('heading', { name: /godmode superbrain control center/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /platform connection/i })).toBeTruthy();
     expect(screen.getByRole('heading', { name: /prompt command layer/i })).toBeTruthy();
     expect(screen.getByRole('heading', { name: /agent live activity monitor/i })).toBeTruthy();
+
+    const hubInput = screen.getByLabelText(/dispatch hub api url/i);
+    fireEvent.change(hubInput, { target: { value: 'http://127.0.0.1:3901/' } });
+    fireEvent.click(screen.getByRole('button', { name: /save connection/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/saved connection targets/i)).toBeTruthy();
+    });
 
     const refreshButton = await screen.findByRole('button', { name: /refresh checks|checking/i });
     if ((refreshButton.textContent ?? '').toLowerCase().includes('refresh')) {

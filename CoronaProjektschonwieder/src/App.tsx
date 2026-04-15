@@ -26,7 +26,12 @@ const SceneCanvas = lazy(loadSceneCanvas);
 const SKILL_BUTTONS: SkillId[] = ['blocker', 'builder', 'digger', 'basher', 'miner', 'floater', 'sprinter'];
 const QUALITY_PRESETS: QualityPreset[] = ['low', 'medium', 'ultra'];
 const SPEED_PRESETS: GameSpeed[] = [1, 2, 4];
-const HUB_BASE_URL = 'http://127.0.0.1:3901';
+const LOCAL_HUB_BASE_URL = 'http://127.0.0.1:3901';
+const LOCAL_OPENHANDS_BASE_URL = 'http://127.0.0.1:3000';
+const HUB_STORAGE_KEY = 'godmode.hubBaseUrl';
+const OPENHANDS_STORAGE_KEY = 'godmode.openHandsBaseUrl';
+const PROMPT_EXECUTION_TIMEOUT_MS = 180000;
+const AUTONOMY_RUN_TIMEOUT_MS = 180000;
 const SERVICE_CATALOG = [
   { id: 'bolt', label: 'Dispatch Hub (bolt)', targetKey: null, source: '/health' },
   { id: 'openhands', label: 'OpenHands UI', targetKey: null, source: '/control-center/state' },
@@ -219,6 +224,75 @@ function webglAvailable() {
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function normalizeBaseUrl(value: string, fallback: string) {
+  const normalized = value.trim().replace(/\/+$/, '');
+  return normalized || fallback;
+}
+
+function getStoredValue(key: string) {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+  try {
+    return window.localStorage.getItem(key) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+function setStoredValue(key: string, value: string) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Storage can be disabled in private windows; the in-memory state still works.
+  }
+}
+
+function removeStoredValue(key: string) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Ignore storage failures and keep the UI usable.
+  }
+}
+
+function viteEnvValue(key: 'VITE_GODMODE_HUB_URL' | 'VITE_OPENHANDS_URL') {
+  const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {};
+  return env[key] ?? '';
+}
+
+function defaultHubBaseUrl() {
+  return normalizeBaseUrl(
+    getStoredValue(HUB_STORAGE_KEY) || viteEnvValue('VITE_GODMODE_HUB_URL'),
+    LOCAL_HUB_BASE_URL
+  );
+}
+
+function defaultOpenHandsBaseUrl() {
+  return normalizeBaseUrl(
+    getStoredValue(OPENHANDS_STORAGE_KEY) || viteEnvValue('VITE_OPENHANDS_URL'),
+    LOCAL_OPENHANDS_BASE_URL
+  );
+}
+
+function isLocalHostname(hostname: string) {
+  const normalized = hostname.toLowerCase();
+  return normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '0.0.0.0' || normalized.endsWith('.localhost');
+}
+
+function joinUrl(baseUrl: string, pathOrUrl: string) {
+  if (/^https?:\/\//i.test(pathOrUrl)) {
+    return pathOrUrl;
+  }
+  return `${normalizeBaseUrl(baseUrl, LOCAL_HUB_BASE_URL)}${pathOrUrl.startsWith('/') ? '' : '/'}${pathOrUrl}`;
 }
 
 function defaultDispatchPayload(): DispatchPayload {
@@ -465,6 +539,13 @@ export default function App() {
   const [mathValidationLabel, setMathValidationLabel] = useState('not-run');
   const [platformStatus, setPlatformStatus] = useState('Platform checks not run yet.');
   const [platformBusy, setPlatformBusy] = useState(false);
+  const [hubBaseUrl, setHubBaseUrl] = useState(defaultHubBaseUrl);
+  const [hubBaseInput, setHubBaseInput] = useState(defaultHubBaseUrl);
+  const [openHandsBaseUrl, setOpenHandsBaseUrl] = useState(defaultOpenHandsBaseUrl);
+  const [openHandsBaseInput, setOpenHandsBaseInput] = useState(defaultOpenHandsBaseUrl);
+  const [connectionMessage, setConnectionMessage] = useState(
+    'Connection not tested yet. Save or test the Hub API URL before running prompts.'
+  );
   const [bootstrapState, setBootstrapState] = useState<BootstrapRecord>({
     status: 'DOWN',
     ready: false,
@@ -510,6 +591,9 @@ export default function App() {
   const refreshRequestIdRef = useRef(0);
   const lastPromptReadyAtRef = useRef(0);
   const currentRunStatus = currentRun?.status ?? '';
+  const runningFromRemotePage =
+    typeof window !== 'undefined' && window.location.hostname.length > 0 && !isLocalHostname(window.location.hostname);
+  const remotePageUsingLocalHub = runningFromRemotePage && hubBaseUrl === LOCAL_HUB_BASE_URL;
 
   const applyPromptReadiness = (candidateReady: boolean) => {
     const stickyWindowMs = 60000;
@@ -624,9 +708,50 @@ export default function App() {
     );
   };
 
-  const refreshBootstrapStatus = async () => {
+  const saveConnectionSettings = () => {
+    const nextHubBaseUrl = normalizeBaseUrl(hubBaseInput, LOCAL_HUB_BASE_URL);
+    const nextOpenHandsBaseUrl = normalizeBaseUrl(openHandsBaseInput, LOCAL_OPENHANDS_BASE_URL);
+    setHubBaseUrl(nextHubBaseUrl);
+    setHubBaseInput(nextHubBaseUrl);
+    setOpenHandsBaseUrl(nextOpenHandsBaseUrl);
+    setOpenHandsBaseInput(nextOpenHandsBaseUrl);
+    setStoredValue(HUB_STORAGE_KEY, nextHubBaseUrl);
+    setStoredValue(OPENHANDS_STORAGE_KEY, nextOpenHandsBaseUrl);
+    setConnectionMessage(`Saved connection targets. Hub API: ${nextHubBaseUrl} | OpenHands: ${nextOpenHandsBaseUrl}`);
+    void refreshPlatformChecks(nextHubBaseUrl);
+  };
+
+  const resetConnectionSettings = () => {
+    removeStoredValue(HUB_STORAGE_KEY);
+    removeStoredValue(OPENHANDS_STORAGE_KEY);
+    setHubBaseUrl(LOCAL_HUB_BASE_URL);
+    setHubBaseInput(LOCAL_HUB_BASE_URL);
+    setOpenHandsBaseUrl(LOCAL_OPENHANDS_BASE_URL);
+    setOpenHandsBaseInput(LOCAL_OPENHANDS_BASE_URL);
+    setConnectionMessage('Reset to local defaults. Run the local stack or enter your Hetzner/remote Hub URL.');
+    void refreshPlatformChecks(LOCAL_HUB_BASE_URL);
+  };
+
+  const testConnectionSettings = async () => {
+    const testHubBaseUrl = normalizeBaseUrl(hubBaseInput, LOCAL_HUB_BASE_URL);
+    setConnectionMessage(`Testing Hub API at ${testHubBaseUrl}/health ...`);
     try {
-      const response = await fetchWithTimeout(`${HUB_BASE_URL}/bootstrap/status`, { method: 'GET' }, 12000);
+      const response = await fetchWithTimeout(`${testHubBaseUrl}/health`, { method: 'GET' }, 8000);
+      const payload = await parseResponseSafely(response);
+      setConnectionMessage(
+        `Hub connection test HTTP ${response.status}. ${JSON.stringify(payload).slice(0, 220)}`
+      );
+    } catch (error) {
+      setConnectionMessage(
+        `Hub connection BLOCKED: ${parseErrorMessage(error)}. Recovery: start the local stack, or set Hub API URL to the reachable Hetzner/remote hub.`
+      );
+    }
+  };
+
+  const refreshBootstrapStatus = async (hubOverride?: string) => {
+    const activeHubBaseUrl = normalizeBaseUrl(hubOverride ?? hubBaseUrl, LOCAL_HUB_BASE_URL);
+    try {
+      const response = await fetchWithTimeout(`${activeHubBaseUrl}/bootstrap/status`, { method: 'GET' }, 12000);
       const payload = await parseResponseSafely(response);
       const bootstrap = (payload.bootstrap && typeof payload.bootstrap === 'object'
         ? (payload.bootstrap as Record<string, unknown>)
@@ -649,7 +774,7 @@ export default function App() {
       setBootstrapState({
         status: 'DOWN',
         ready: false,
-        summary: `Bootstrap status unreachable: ${parseErrorMessage(error)}`,
+        summary: `Bootstrap status unreachable at ${activeHubBaseUrl}: ${parseErrorMessage(error)}`,
         phases: [],
       });
       applyPromptReadiness(false);
@@ -666,7 +791,7 @@ export default function App() {
     setPlatformStatus('Starting one-click bootstrap...');
     try {
       const response = await fetchWithTimeout(
-        `${HUB_BASE_URL}/bootstrap/start`,
+        `${hubBaseUrl}/bootstrap/start`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -716,7 +841,7 @@ export default function App() {
     setCurrentRun(null);
     try {
       const response = await fetchWithTimeout(
-        `${HUB_BASE_URL}/prompt/execute`,
+        `${hubBaseUrl}/prompt/execute`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -730,7 +855,7 @@ export default function App() {
             halt_on_fail: false,
           }),
         },
-        35000
+        PROMPT_EXECUTION_TIMEOUT_MS
       );
       const payload = await parseResponseSafely(response);
       const summary = JSON.stringify(payload).slice(0, 420);
@@ -751,11 +876,12 @@ export default function App() {
     }
   };
 
-  const refreshPlatformChecks = async () => {
+  const refreshPlatformChecks = async (hubOverride?: string) => {
     if (typeof window === 'undefined' || typeof fetch !== 'function') {
       setPlatformStatus('Fetch API unavailable in this runtime.');
       return;
     }
+    const activeHubBaseUrl = normalizeBaseUrl(hubOverride ?? hubBaseUrl, LOCAL_HUB_BASE_URL);
     const requestId = refreshRequestIdRef.current + 1;
     refreshRequestIdRef.current = requestId;
     const isCurrentRequest = () => requestId === refreshRequestIdRef.current;
@@ -780,7 +906,7 @@ export default function App() {
 
     try {
       const stateResponse = await fetchWithTimeout(
-        `${HUB_BASE_URL}/control-center/state${shouldBypassStateCache ? '?fresh=1' : ''}`,
+        `${activeHubBaseUrl}/control-center/state${shouldBypassStateCache ? '?fresh=1' : ''}`,
         { method: 'GET' },
         12000
       );
@@ -821,7 +947,7 @@ export default function App() {
     }
 
     try {
-      const healthResponse = await fetchWithTimeout(`${HUB_BASE_URL}/health`, { method: 'GET' }, 8000);
+      const healthResponse = await fetchWithTimeout(`${activeHubBaseUrl}/health`, { method: 'GET' }, 8000);
       const healthPayload = await parseResponseSafely(healthResponse);
       hubState = healthResponse.ok ? 'up' : 'down';
       hubDetail = `HTTP ${healthResponse.status}`;
@@ -838,7 +964,7 @@ export default function App() {
     }
 
     try {
-      const agentsResponse = await fetchWithTimeout(`${HUB_BASE_URL}/agents`, { method: 'GET' }, 8000);
+      const agentsResponse = await fetchWithTimeout(`${activeHubBaseUrl}/agents`, { method: 'GET' }, 8000);
       const agentsPayload = await parseResponseSafely(agentsResponse);
       if (isCurrentRequest()) {
         setAgents(normalizeAgentsPayload(agentsPayload));
@@ -855,7 +981,7 @@ export default function App() {
     }
 
     try {
-      const routingResponse = await fetchWithTimeout(`${HUB_BASE_URL}/routing/status`, { method: 'GET' }, 8000);
+      const routingResponse = await fetchWithTimeout(`${activeHubBaseUrl}/routing/status`, { method: 'GET' }, 8000);
       const routingPayload = await parseResponseSafely(routingResponse);
       if (isCurrentRequest()) {
         setRoutingStatus(routingPayload);
@@ -874,7 +1000,7 @@ export default function App() {
     }
 
     try {
-      const profilesResponse = await fetchWithTimeout(`${HUB_BASE_URL}/autonomy/profiles`, { method: 'GET' }, 8000);
+      const profilesResponse = await fetchWithTimeout(`${activeHubBaseUrl}/autonomy/profiles`, { method: 'GET' }, 8000);
       const profilesPayload = await parseResponseSafely(profilesResponse);
       const profiles = normalizeAutonomyProfiles(profilesPayload);
       if (isCurrentRequest()) {
@@ -893,7 +1019,7 @@ export default function App() {
     }
 
     try {
-      const capabilitiesResponse = await fetchWithTimeout(`${HUB_BASE_URL}/autonomy/capabilities`, { method: 'GET' }, 8000);
+      const capabilitiesResponse = await fetchWithTimeout(`${activeHubBaseUrl}/autonomy/capabilities`, { method: 'GET' }, 8000);
       const capabilitiesPayload = await parseResponseSafely(capabilitiesResponse);
       if (isCurrentRequest()) {
         setCapabilitiesStatus(capabilitiesPayload);
@@ -965,7 +1091,7 @@ export default function App() {
     }
     try {
       const response = await fetchWithTimeout(
-        'http://127.0.0.1:3000/api/conversations',
+        `${openHandsBaseUrl}/api/conversations`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -976,7 +1102,7 @@ export default function App() {
         7000
       );
       setPlatformStatus(`OpenHands conversation request: HTTP ${response.status}.`);
-      window.open('http://127.0.0.1:3000', '_blank', 'noopener,noreferrer');
+      window.open(openHandsBaseUrl, '_blank', 'noopener,noreferrer');
     } catch (error) {
       setPlatformStatus(`OpenHands conversation failed: ${parseErrorMessage(error)}.`);
     }
@@ -1034,7 +1160,7 @@ export default function App() {
     setDispatchMessage('Dispatch in progress...');
     try {
       const response = await fetchWithTimeout(
-        `${HUB_BASE_URL}/dispatch`,
+        `${hubBaseUrl}/dispatch`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1071,7 +1197,7 @@ export default function App() {
     setAutonomyMessage('Autonomous multi-agent run in progress...');
     try {
       const response = await fetchWithTimeout(
-        `${HUB_BASE_URL}/runs`,
+        `${hubBaseUrl}/runs`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1085,7 +1211,7 @@ export default function App() {
             halt_on_fail: false,
           }),
         },
-        30000
+        AUTONOMY_RUN_TIMEOUT_MS
       );
       const payload = await parseResponseSafely(response);
       const summary = JSON.stringify(payload).slice(0, 400);
@@ -1137,7 +1263,7 @@ export default function App() {
       void refreshPlatformChecks();
     }, refreshIntervalMs);
     return () => window.clearInterval(timer);
-  }, [activeView, autonomyBusy, currentRunStatus, promptBusy]);
+  }, [activeView, autonomyBusy, currentRunStatus, hubBaseUrl, promptBusy]);
 
   return (
     <main className={`app-shell ${highContrast ? 'app-shell--contrast' : ''}`}>
@@ -1171,6 +1297,49 @@ export default function App() {
 
       {activeView === 'platform' ? (
         <section className="platform-grid">
+          <article className="platform-card platform-card--wide">
+            <h2>Platform Connection</h2>
+            <p className="status-banner">{connectionMessage}</p>
+            {remotePageUsingLocalHub ? (
+              <p className="status-banner status-banner--danger">
+                BLOCKED risk: Diese Seite läuft nicht auf localhost, nutzt aber noch <code>{LOCAL_HUB_BASE_URL}</code>.
+                Wenn die Homepage auf Vercel/Cloud läuft, trage hier deine erreichbare Hetzner- oder Remote-Hub-URL ein.
+              </p>
+            ) : null}
+            <div className="connection-grid">
+              <label className="dispatch-label">
+                Dispatch Hub API URL
+                <input
+                  value={hubBaseInput}
+                  onChange={(event) => setHubBaseInput(event.target.value)}
+                  placeholder="http://127.0.0.1:3901 oder https://dein-hub.example"
+                />
+              </label>
+              <label className="dispatch-label">
+                OpenHands UI URL
+                <input
+                  value={openHandsBaseInput}
+                  onChange={(event) => setOpenHandsBaseInput(event.target.value)}
+                  placeholder="http://127.0.0.1:3000 oder https://dein-openhands.example"
+                />
+              </label>
+            </div>
+            <div className="button-row">
+              <button type="button" className="button button--primary" onClick={saveConnectionSettings}>
+                Save connection
+              </button>
+              <button type="button" className="button" onClick={() => void testConnectionSettings()}>
+                Test Hub connection
+              </button>
+              <button type="button" className="button" onClick={resetConnectionSettings}>
+                Reset local defaults
+              </button>
+            </div>
+            <p className="hud-muted">
+              Active Hub: <code>{hubBaseUrl}</code> | Active OpenHands: <code>{openHandsBaseUrl}</code>
+            </p>
+          </article>
+
           <article className="platform-card">
             <h2>Runtime Health</h2>
             <p className="status-banner">{platformStatus}</p>
@@ -1178,7 +1347,7 @@ export default function App() {
               <button type="button" className="button" onClick={() => void refreshPlatformChecks()} disabled={platformBusy}>
                 {platformBusy ? 'Checking...' : 'Refresh checks'}
               </button>
-              <button type="button" className="button" onClick={() => window.open('http://127.0.0.1:3000', '_blank', 'noopener,noreferrer')}>
+              <button type="button" className="button" onClick={() => window.open(openHandsBaseUrl, '_blank', 'noopener,noreferrer')}>
                 Open OpenHands UI
               </button>
               <button type="button" className="button" onClick={() => void openOpenHandsConversation()}>
@@ -1368,7 +1537,7 @@ export default function App() {
                           {step.final_code_url ? (
                             <span>
                               Preview:{' '}
-                              <a href={`${HUB_BASE_URL}${step.final_code_url}`} target="_blank" rel="noreferrer">
+                              <a href={joinUrl(hubBaseUrl, step.final_code_url)} target="_blank" rel="noreferrer">
                                 open generated HTML artifact
                               </a>
                             </span>
@@ -1511,13 +1680,13 @@ export default function App() {
               </ul>
             )}
             <p>
-              Source: <code>{HUB_BASE_URL}/autonomy/capabilities</code>
+              Source: <code>{hubBaseUrl}/autonomy/capabilities</code>
             </p>
           </article>
 
           <article className="platform-card">
             <h2>Agent Registry Snapshot</h2>
-            <p>Source: <code>{HUB_BASE_URL}/agents</code></p>
+            <p>Source: <code>{hubBaseUrl}/agents</code></p>
             <p className="status-banner">
               Active agents: {agentCounts.active} | Legacy: {agentCounts.legacy} | Target: 25 + 1
             </p>
@@ -1544,7 +1713,7 @@ export default function App() {
 
           <article className="platform-card">
             <h2>Routing Status</h2>
-            <p>Source: <code>{HUB_BASE_URL}/routing/status</code></p>
+            <p>Source: <code>{hubBaseUrl}/routing/status</code></p>
             <pre className="json-panel">{JSON.stringify(routingStatus ?? { status: 'not-loaded' }, null, 2)}</pre>
           </article>
 

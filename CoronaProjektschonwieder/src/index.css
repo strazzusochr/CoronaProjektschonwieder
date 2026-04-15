@@ -150,6 +150,12 @@ h1 {
   margin: 0;
 }
 
+.status-banner--danger {
+  border-color: rgba(255, 146, 146, 0.75);
+  background: rgba(83, 18, 18, 0.72);
+  color: #ffe0e0;
+}
+
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -374,6 +380,12 @@ h1 {
   display: grid;
   gap: 0.2rem;
   font-size: 0.88rem;
+}
+
+.connection-grid {
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
 .dispatch-form input,

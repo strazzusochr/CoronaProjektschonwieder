@@ -839,12 +839,55 @@ def _bootstrap_status_snapshot() -> dict[str, Any]:
         return dict(BOOTSTRAP_STATE)
 
 
+def _probe_http_200(probe: dict[str, Any]) -> bool:
+    return int(probe.get("http_status") or 0) == 200
+
+
+def _runtime_health_ready_for_prompt() -> tuple[bool, str]:
+    preflight = _run_preflight_checks()
+    if not preflight.get("ok", False):
+        errors = preflight.get("errors", [])
+        return False, f"Preflight failed: {errors}"
+
+    probe_timeout = max(2, min(BOLTDIY_FORWARD_TIMEOUT, 8))
+    service_probes = _probe_catalog_parallel(_service_probe_catalog(), probe_timeout)
+    service_failures = [
+        f"{service_id}={probe.get('http_status') or probe.get('error') or 'unreachable'}"
+        for service_id, probe in service_probes.items()
+        if not _probe_http_200(probe)
+    ]
+    if service_failures:
+        return False, "Core service health failed: " + ", ".join(service_failures)
+
+    target_probes = _target_health_status(probe_timeout=probe_timeout)
+    routing_failures = [
+        f"{target}={probe.get('http_status') or probe.get('error') or 'unreachable'}"
+        for target, probe in target_probes.items()
+        if not _probe_http_200(probe)
+    ]
+    if routing_failures:
+        return False, "Routing target health failed: " + ", ".join(routing_failures)
+
+    active_count = len(AGENT_REGISTRY.get("active_agents", []))
+    legacy_count = len(AGENT_REGISTRY.get("legacy_agents", []))
+    if active_count < 25 or legacy_count < 1:
+        return False, f"Agent registry incomplete: active={active_count}, legacy={legacy_count}"
+
+    return True, (
+        "Runtime health READY: services, routing targets, 25 active agents and 1 legacy agent verified. "
+        "One-click script start may still be disabled without blocking prompt execution."
+    )
+
+
 def _is_ready_for_prompt_execution() -> tuple[bool, str]:
     state = _bootstrap_status_snapshot()
     if state.get("status") == "READY" and bool(state.get("ready")):
-        return True, ""
+        return True, "Bootstrap state is READY."
+    runtime_ready, runtime_reason = _runtime_health_ready_for_prompt()
+    if runtime_ready:
+        return True, runtime_reason
     status = state.get("status", "DOWN")
-    return False, f"Bootstrap state is {status}. Run POST /bootstrap/start first."
+    return False, f"Bootstrap state is {status}; runtime fallback not ready: {runtime_reason}"
 
 
 def _profile_from_prompt(prompt: str) -> str:
@@ -1722,10 +1765,9 @@ def _capability_summary() -> dict[str, Any]:
         limitations.append("Zero-compute policy blocks heavy local runs; heavy tasks must route to remote targets.")
 
     bootstrap_state = _bootstrap_status_snapshot()
-    if bootstrap_state.get("status") != "READY":
-        limitations.append(
-            "Bootstrap is not READY: prompt execution is blocked until one-click bootstrap completes successfully."
-        )
+    prompt_ready, prompt_ready_reason = _is_ready_for_prompt_execution()
+    if not prompt_ready:
+        limitations.append(f"Prompt execution is blocked: {prompt_ready_reason}")
 
     no_limits_claim = len(limitations) == 0
 
@@ -1738,6 +1780,8 @@ def _capability_summary() -> dict[str, Any]:
         "routing_summary": routing_summary,
         "limitations": limitations,
         "bootstrap_status": bootstrap_state.get("status", "DOWN"),
+        "prompt_ready": prompt_ready,
+        "prompt_ready_reason": prompt_ready_reason,
         "notes": (
             "No-lie rule: if limitations are present, system remains bounded by provider/auth/credit/runtime constraints."
         ),
@@ -2270,10 +2314,12 @@ def bootstrap_start(req: BootstrapStartRequest) -> dict[str, Any]:
 def bootstrap_status() -> dict[str, Any]:
     _ensure_dirs()
     state = _bootstrap_status_snapshot()
+    ready, reason = _is_ready_for_prompt_execution()
     return {
         "status": "ok",
         "bootstrap": state,
-        "ready_for_prompt_execute": bool(state.get("ready", False) and state.get("status") == "READY"),
+        "ready_for_prompt_execute": ready,
+        "ready_reason": reason,
     }
 
 

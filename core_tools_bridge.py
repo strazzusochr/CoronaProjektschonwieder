@@ -28,6 +28,8 @@ METRICS: dict[str, Any] = {
     "timeout_total": 0,
 }
 
+BROWSER_TEST_COMMAND = ["npm", "run", "test:browser", "--", "--workers=1"]
+
 
 def _latest_snapshot() -> Path | None:
     if not TEST_RESULTS_DIR.exists():
@@ -145,7 +147,7 @@ class DevtoolsBridgeHandler(BaseHTTPRequestHandler):
         if self.path == "/run_playwright":
             METRICS["requests_total"] += 1
             METRICS["run_playwright_total"] += 1
-            command = payload.get("command") or ["npm", "run", "test:browser"]
+            command = payload.get("command") or BROWSER_TEST_COMMAND
             result = _run_command(command, FRONTEND_DIR)
             if result["status"] == "ok":
                 METRICS["ok_total"] += 1
@@ -173,7 +175,7 @@ class DevtoolsBridgeHandler(BaseHTTPRequestHandler):
             steps.append(_run_command(["npm", "run", "build"], FRONTEND_DIR))
             if include_unit_tests:
                 steps.append(_run_command(["npm", "test"], FRONTEND_DIR))
-            steps.append(_run_command(["npm", "run", "test:browser"], FRONTEND_DIR))
+            steps.append(_run_command(BROWSER_TEST_COMMAND, FRONTEND_DIR))
             failed = any(step["status"] != "ok" for step in steps)
             if failed:
                 if any(step["status"] == "timeout" for step in steps):
@@ -202,7 +204,7 @@ class DevtoolsBridgeHandler(BaseHTTPRequestHandler):
             run_result: dict[str, Any] | None = None
 
             if force_run or snapshot is None:
-                run_result = _run_command(["npm", "run", "test:browser"], FRONTEND_DIR)
+                run_result = _run_command(BROWSER_TEST_COMMAND, FRONTEND_DIR)
                 snapshot = _latest_snapshot()
                 if run_result["status"] == "ok":
                     METRICS["ok_total"] += 1
