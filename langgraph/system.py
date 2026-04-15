@@ -62,6 +62,20 @@ class Task(BaseModel):
 
 
 def _get_backend() -> tuple[str, Any | None]:
+    # 1. Prioritize LiteLLM Router for fallbacks and cost-based routing
+    openai_key = os.environ.get("OPENROUTER_API_KEY") or os.environ.get("LITELLM_API_KEY") or "sk-dummy"
+    openai_base = os.environ.get("OPENAI_BASE_URL") or os.environ.get("LITELLM_URL")
+    if openai_base:
+        return (
+            "openai-compatible",
+            ChatOpenAI(
+                model=os.environ.get("MODEL_ROUTER_NAME", "smart-router"),
+                api_key=openai_key,
+                base_url=openai_base,
+            ),
+        )
+
+    # 2. Fallback to direct Anthropic API if explicitly required
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
     if anthropic_key:
         return (
@@ -69,18 +83,6 @@ def _get_backend() -> tuple[str, Any | None]:
             ChatAnthropic(
                 model=os.environ.get("ANTHROPIC_MODEL", "claude-3-5-sonnet-20240620"),
                 api_key=anthropic_key,
-            ),
-        )
-
-    openai_key = os.environ.get("OPENROUTER_API_KEY") or os.environ.get("LITELLM_API_KEY")
-    openai_base = os.environ.get("OPENAI_BASE_URL") or os.environ.get("LITELLM_URL")
-    if openai_key and openai_base:
-        return (
-            "openai-compatible",
-            ChatOpenAI(
-                model=os.environ.get("MODEL_ROUTER_NAME", "smart-router"),
-                api_key=openai_key,
-                base_url=openai_base,
             ),
         )
 
