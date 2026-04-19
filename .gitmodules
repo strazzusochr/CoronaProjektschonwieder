@@ -10,12 +10,6 @@
 [submodule "hf_openhands"]
 	path = hf_openhands
 	url = https://huggingface.co/spaces/Wrzzzrzr/openhands-godmode
-[submodule "hf_openhands_clone"]
-	path = hf_openhands_clone
-	url = https://huggingface.co/spaces/Wrzzzrzr/openhands-godmode
 [submodule "hf_pilot_actual"]
 	path = hf_pilot_actual
-	url = https://huggingface.co/spaces/Wrzzzrzr/godmode-pilot
-[submodule "hf_pilot_clone"]
-	path = hf_pilot_clone
 	url = https://huggingface.co/spaces/Wrzzzrzr/godmode-pilot
