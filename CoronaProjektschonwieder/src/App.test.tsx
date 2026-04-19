@@ -2,13 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import App from './App';
 
-vi.mock('./SceneCanvas', () => ({
-  default: function SceneCanvasMock() {
-    return <div data-testid="scene-canvas-mock">SceneCanvasMock</div>;
-  },
-}));
-
-describe('App', () => {
+describe('App - three window platform', () => {
   beforeEach(() => {
     window.localStorage.clear();
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
@@ -18,58 +12,79 @@ describe('App', () => {
           JSON.stringify({
             status: 'ok',
             ready_for_prompt_execute: true,
-            bootstrap: { status: 'READY', ready: true, summary: 'Platform ready for prompt execution.' },
+            bootstrap: { status: 'READY', ready: true, summary: 'Platform ready.' },
             latest_run: {
-              run_id: 'latest-test-run',
-              status: 'PASS',
-              profile_id: 'app_builder',
-              profile_label: 'App Builder',
+              run_id: 'run-1',
+              status: 'RUNNING',
+              profile_id: 'three_d_web_game_swarm',
+              profile_label: '3D Web Game Swarm',
               forwarded_steps: 1,
-              total_steps: 1,
+              total_steps: 2,
               current_step: 1,
-              current_agent: '',
-              steps: [{ step: 1, agent: 'local.langgraph.planner', status: 'forwarded', runtime_target: 'langgraph-local' }],
+              current_agent: 'product_scope',
+              steps: [
+                {
+                  step: 1,
+                  agent: 'product_scope',
+                  status: 'forwarded',
+                  runtime_target: 'langgraph-local',
+                  trace_id: 'trace-1',
+                  task_id: 'task-1',
+                  reason: 'planning step',
+                },
+              ],
+            },
+            latest_control_event: {
+              event_id: 'evt-1',
+              timestamp: '2026-04-17T12:00:00.000Z',
+              action: 'retry-last-step',
+              state: 'RUNNING',
+              reason: 'Last step moved back to queued.',
+              next_action: 'Monitor the rerun in Glasshouse.',
+              session_id: 'session-1',
+              run_id: 'run-1',
+              trace_id: 'trace-1',
+              span_id: 'span-1',
+              task_id: 'task-1',
+              step_id: 'step-1',
+              agent_id: 'product_scope',
+              role: 'ProductScopeAgent',
+              runtime_target: 'langgraph-local',
+              source: 'window:glasshouse',
+              event_file: '/runtime/control_events/evt-1.json',
+              extra: { changed: true },
+            },
+            service_probes: {
+              openhands: { http_status: 200 },
+              n8n: { http_status: 200 },
+              litellm: { http_status: 200 },
+              'devtools-bridge': { http_status: 200 },
             },
           }),
-          {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          }
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
         );
       }
-      if (url.includes('/bootstrap/start')) {
-        return new Response(
-          JSON.stringify({
-            status: 'BOOTING',
-            bootstrap: { status: 'BOOTING', ready: false, summary: 'Bootstrap in progress.' },
-          }),
-          {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          }
-        );
-      }
-      if (url.includes('/bootstrap/status')) {
-        return new Response(
-          JSON.stringify({
-            status: 'ok',
-            ready_for_prompt_execute: true,
-            bootstrap: { status: 'READY', ready: true, summary: 'Platform ready for prompt execution.' },
-          }),
-          {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          }
-        );
-      }
-      if (url.includes('/agents')) {
-        return new Response(JSON.stringify({ agents: [{ agent_id: 'local.langgraph.planner', status_class: 'VERIFIED' }] }), {
+      if (url.includes('/health')) {
+        return new Response(JSON.stringify({ routing_status: { 'langgraph-local': { http_status: 200 } } }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         });
       }
+      if (url.includes('/agents')) {
+        return new Response(
+          JSON.stringify({
+            active_count: 11,
+            legacy_count: 2,
+            agents: [
+              { agent_id: 'product_scope', status_class: 'RUNNING' },
+              { agent_id: 'sentinel_truth', status_class: 'VERIFIED' },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
       if (url.includes('/routing/status')) {
-        return new Response(JSON.stringify({ status: 'ok', targets: 5 }), {
+        return new Response(JSON.stringify({ status: 'ok', targets: { 'langgraph-local': { http_status: 200 } } }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         });
@@ -79,65 +94,106 @@ describe('App', () => {
           JSON.stringify({
             profiles: [
               {
-                id: 'app_builder',
-                label: 'App Builder',
-                description: 'Planner to finalize',
-                agents: ['local.langgraph.planner', 'local.langgraph.finalize'],
+                id: 'three_d_web_game_swarm',
+                label: '3D Web Game Swarm',
+                description: '11-agent execution',
+                agents: ['product_scope', 'sentinel_truth', 'sentinel_runtime'],
               },
             ],
           }),
-          {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          }
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
         );
       }
-      if (url.includes('/autonomy/capabilities')) {
+      if (url.includes('/platform7/contract')) {
         return new Response(
           JSON.stringify({
             status: 'ok',
-            no_limits_claim: false,
-            limitations: ['Provider credits required for top-tier models'],
+            contract: {
+              version: 'test-contract',
+              status_model: ['Idle', 'Queued', 'Running', 'Waiting', 'Blocked', 'Partial', 'Failed', 'Done', 'Stale'],
+              maturity_model: ['Verified', 'Implemented', 'Partial', 'Blocked', 'Legacy', 'Plan', 'Unknown'],
+              required_supervisor_namespaces: ['sentinel_truth', 'sentinel_runtime'],
+              roles: [
+                { id: 'ProductScopeAgent', name: 'ProductScopeAgent', lane: 'Scope', kind: 'worker', namespace: 'product_scope', note: 'planning' },
+                { id: 'SentinelTruthAgent', name: 'SentinelTruthAgent', lane: 'Supervisor', kind: 'supervisor', namespace: 'sentinel_truth', note: 'truth gate' },
+                { id: 'SentinelRuntimeAgent', name: 'SentinelRuntimeAgent', lane: 'Supervisor', kind: 'supervisor', namespace: 'sentinel_runtime', note: 'runtime gate' },
+              ],
+              autonomy_profiles: [
+                {
+                  id: 'three_d_web_game_swarm',
+                  label: '3D Web Game Swarm',
+                  description: '11-agent execution',
+                  agents: ['product_scope', 'sentinel_truth', 'sentinel_runtime'],
+                },
+              ],
+            },
+            validation: { ok: true },
           }),
-          {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          }
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
         );
       }
-      if (url.includes('/autonomy/run')) {
-        return new Response(JSON.stringify({ status: 'PARTIAL', run_id: 'autonomy-test-run' }), {
+      if (url.includes('/autonomy/capabilities')) {
+        return new Response(JSON.stringify({ status: 'ok', limitations: [] }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         });
       }
-      if (url.includes('/runs')) {
-        return new Response(JSON.stringify({ status: 'PARTIAL', run_id: 'autonomy-test-run' }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        });
+      if (url.includes('/dispatch')) {
+        return new Response(JSON.stringify({ status: 'ok' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }
       if (url.includes('/prompt/execute')) {
-        return new Response(JSON.stringify({
-          status: 'ok',
-          mode: 'multi-agent',
-          run: {
-            run_id: 'prompt-test-run',
-            status: 'PASS',
-            profile_id: 'app_builder',
-            profile_label: 'App Builder',
+        return new Response(
+          JSON.stringify({
+            run: {
+              run_id: 'run-2',
+              status: 'PASS',
+              profile_id: 'three_d_web_game_swarm',
+              profile_label: '3D Web Game Swarm',
+              forwarded_steps: 2,
+              total_steps: 2,
+              current_step: 2,
+              current_agent: 'sentinel_truth',
+              steps: [
+                { step: 1, agent: 'product_scope', status: 'forwarded', trace_id: 'trace-2', task_id: 'task-2' },
+                { step: 2, agent: 'sentinel_truth', status: 'pass', trace_id: 'trace-2', task_id: 'task-2' },
+              ],
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      if (url.includes('/runs')) {
+        return new Response(
+          JSON.stringify({
+            run_id: 'run-3',
+            status: 'RUNNING',
+            profile_id: 'three_d_web_game_swarm',
+            profile_label: '3D Web Game Swarm',
             forwarded_steps: 1,
-            total_steps: 1,
+            total_steps: 3,
             current_step: 1,
-            current_agent: '',
-            steps: [{ step: 1, agent: 'local.langgraph.planner', status: 'forwarded', runtime_target: 'langgraph-local' }],
-          },
-        }), {
+            current_agent: 'product_scope',
+            steps: [{ step: 1, agent: 'product_scope', status: 'running', trace_id: 'trace-3', task_id: 'task-3' }],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      if (url.includes('/bootstrap/start')) {
+        return new Response(JSON.stringify({ status: 'BOOTING' }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         });
       }
-      return new Response('ok', { status: 200, headers: { 'Content-Type': 'text/plain' } });
+      if (url.includes('/bootstrap/status')) {
+        return new Response(
+          JSON.stringify({ bootstrap: { status: 'READY', ready: true, summary: 'Ready' }, ready_for_prompt_execute: true }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response(JSON.stringify({ status: 'ok' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
     });
   });
 
@@ -145,86 +201,33 @@ describe('App', () => {
     vi.restoreAllMocks();
   });
 
-  it('wires platform dashboard and game controls end-to-end', async () => {
+  it('renders commander mode with key controls and supervisor roles', async () => {
     render(<App />);
 
-    expect(screen.getByRole('heading', { name: /godmode superbrain control center/i })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: /platform connection/i })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: /prompt command layer/i })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: /agent live activity monitor/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /transparent multi-agent developer platform/i })).toBeTruthy();
+    expect(screen.getAllByRole('heading', { name: /commander/i }).length).toBeGreaterThan(0);
 
-    const hubInput = screen.getByLabelText(/dispatch hub api url/i);
-    fireEvent.change(hubInput, { target: { value: 'http://127.0.0.1:3901/' } });
+    expect(screen.getAllByText(/sentineltruthagent/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/sentinelruntimeagent/i).length).toBeGreaterThan(0);
+
     fireEvent.click(screen.getByRole('button', { name: /save connection/i }));
     await waitFor(() => {
       expect(screen.getByText(/saved connection targets/i)).toBeTruthy();
     });
 
-    const refreshButton = await screen.findByRole('button', { name: /refresh checks|checking/i });
-    if ((refreshButton.textContent ?? '').toLowerCase().includes('refresh')) {
-      fireEvent.click(refreshButton);
-    }
-    await waitFor(() => {
-      expect(screen.getByText(/checks complete/i)).toBeTruthy();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /show advanced panels/i }));
-    fireEvent.click(screen.getByRole('button', { name: /send mission dispatch/i }));
+    fireEvent.click(screen.getAllByRole('button', { name: /dispatch starten/i })[0]);
     await waitFor(() => {
       expect(screen.getByText(/dispatch response http 200/i)).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /start system \(one-click\)|bootstrapping/i }));
+    fireEvent.click(screen.getByRole('button', { name: /prompt ausfuehren/i }));
     await waitFor(() => {
-      expect(screen.getByText(/bootstrap (ready|request http|still running)/i)).toBeTruthy();
+      expect(screen.getByText(/run run-2 is pass/i)).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /execute prompt with autonomous agents|executing/i }));
     await waitFor(() => {
-      expect(screen.getByText(/prompt response http 200/i)).toBeTruthy();
-      expect(screen.getByText(/prompt-test-run/i)).toBeTruthy();
+      expect(screen.getByText(/run_id: run-1 \| trace_id: trace-1 \| task_id: task-1/i)).toBeTruthy();
+      expect(screen.getByText(/runtime_target: langgraph-local \| session_id: session-1 \| span_id: span-1/i)).toBeTruthy();
     });
-
-    expect(screen.getByRole('heading', { name: /autonomous multi-agent run/i })).toBeTruthy();
-
-    fireEvent.click(screen.getByRole('button', { name: /run fully autonomous pipeline/i }));
-    await waitFor(() => {
-      expect(screen.getByText(/autonomy response http 200/i)).toBeTruthy();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /open creator sandbox/i }));
-    expect(screen.getByRole('heading', { name: /godmode 3d sandbox/i })).toBeTruthy();
-    expect(screen.getByTestId('metric-state').textContent).toMatch(/ready/i);
-
-    fireEvent.click(screen.getByRole('button', { name: /start mission/i }));
-    expect(screen.getByTestId('metric-state').textContent).toMatch(/running|won|lost/i);
-
-    fireEvent.click(screen.getByRole('button', { name: /pause mission/i }));
-    expect(screen.getByTestId('metric-state').textContent).toMatch(/paused/i);
-
-    fireEvent.click(screen.getByRole('button', { name: /resume mission/i }));
-    expect(screen.getByTestId('metric-state').textContent).toMatch(/running|won|lost/i);
-
-    fireEvent.click(screen.getByRole('button', { name: /speed 2x/i }));
-    expect(screen.getByTestId('metric-speed').textContent).toMatch(/2x/i);
-
-    fireEvent.click(screen.getByRole('button', { name: /quality ultra/i }));
-    expect(screen.getByTestId('metric-quality').textContent).toMatch(/ultra/i);
-
-    fireEvent.click(screen.getByRole('button', { name: /select next lemming/i }));
-    fireEvent.click(screen.getByRole('button', { name: /skill: builder/i }));
-    expect(screen.getByTestId('metric-skill').textContent).toMatch(/builder/i);
-
-    fireEvent.click(screen.getByRole('button', { name: /assign selected skill/i }));
-    expect(screen.getByTestId('status-banner').textContent).toMatch(/builder|selected|only floater|no lemming/i);
-
-    fireEvent.click(screen.getByRole('button', { name: /toggle grid/i }));
-    fireEvent.click(screen.getByRole('button', { name: /toggle atmosphere/i }));
-    fireEvent.click(screen.getByRole('button', { name: /toggle agents/i }));
-    fireEvent.click(screen.getByRole('button', { name: /toggle audio/i }));
-    fireEvent.click(screen.getByRole('button', { name: /toggle high contrast/i }));
-
-    fireEvent.click(screen.getByRole('button', { name: /run math validation/i }));
-    expect(screen.getByTestId('metric-math-validation').textContent).toMatch(/pass|fail/i);
-  }, 60000);
+  });
 });

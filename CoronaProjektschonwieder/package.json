@@ -9,7 +9,11 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:browser": "node scripts/run-browser-test-with-lock.mjs"
+    "test:browser:mock": "node scripts/run-browser-test-with-lock.mjs --grep @mock",
+    "test:browser:live": "node scripts/run-browser-test-with-lock.mjs --grep @live",
+    "test:browser": "npm run test:browser:mock && npm run test:browser:live",
+    "probe:state": "node scripts/platform7-state-probe.mjs",
+    "verify:release": "npm test -- --run && npm run build && npm run test:browser && npm run probe:state"
   },
   "dependencies": {
     "@react-three/drei": "^9.90.0",

@@ -1,127 +1,74 @@
 import { expect, test } from '@playwright/test';
+import {
+  attachRuntimeIssueCollector,
+  attachScreenshotEvidence,
+  expectNoHorizontalOverflow,
+  expectNoRuntimeIssues,
+  gotoApp,
+  mockDispatchHubApi,
+} from './browser-gates';
 
-test('runs complete 3D sandbox control flow and reaches terminal mission state', async ({
-  page,
-}) => {
-  test.setTimeout(240000);
-  const consoleErrors: string[] = [];
-  const pageErrors: string[] = [];
-  const requestFailures: string[] = [];
-  const httpErrorResponses: string[] = [];
+const roles = [
+  { window: 'commander', heading: 'Commander', requireRawJson: false },
+  { window: 'glasshouse', heading: 'Glasshouse', requireRawJson: false },
+  { window: 'operations', heading: 'Operations', requireRawJson: true },
+] as const;
 
-  page.on('console', (message) => {
-    if (message.type() === 'error') {
-      consoleErrors.push(message.text());
+const viewports = [
+  { name: 'desktop', width: 1440, height: 1000 },
+  { name: 'tablet', width: 820, height: 1180 },
+  { name: 'mobile', width: 390, height: 844 },
+] as const;
+
+for (const viewport of viewports) {
+  test(`@mock renders synchronized windows with browser regression gates (${viewport.name})`, async ({ page }, testInfo) => {
+    test.setTimeout(180000);
+
+    await mockDispatchHubApi(page);
+    const runtimeCollector = attachRuntimeIssueCollector(page);
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+
+    for (const role of roles) {
+      const scope = `${viewport.name}:${role.window}`;
+      runtimeCollector.setScope(scope);
+
+      await gotoApp(page, `/?window=${role.window}&session=e2e-sync-${viewport.name}`);
+      const runtimeCheckpoint = runtimeCollector.mark();
+
+      await expect(page.getByRole('heading', { name: /transparent multi-agent developer platform/i })).toBeVisible();
+      await expect(page.getByRole('heading', { name: role.heading, exact: true })).toBeVisible();
+
+      if (role.window === 'commander') {
+        await expect(page.getByRole('button', { name: /dispatch starten/i }).first()).toBeVisible();
+        await expect(page.getByRole('button', { name: /autonomous run starten/i })).toBeVisible();
+        await expect(page.getByText(/sentineltruthagent/i).first()).toBeVisible();
+        await expect(page.getByText(/sentinelruntimeagent/i).first()).toBeVisible();
+      }
+
+      if (role.window === 'glasshouse') {
+        await expect(page.getByRole('heading', { name: 'Interventions', exact: true })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Control Event Stream', exact: true })).toBeVisible();
+        await expect(page.getByRole('button', { name: /retry same target/i })).toBeVisible();
+        await expect(page.getByRole('button', { name: /rollback/i })).toBeVisible();
+      }
+
+      if (role.window === 'operations') {
+        await expect(page.getByRole('heading', { name: 'Service Health Grid', exact: true })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Live State Probe', exact: true })).toBeVisible();
+        await expect(page.getByRole('button', { name: /run 10-sample probe/i })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Routing + Bootstrap + Config Presence', exact: true })).toBeVisible();
+      }
+
+      const rawJsonHeading = page.getByRole('heading', { name: 'Raw JSON Diagnostics', exact: true });
+      if (role.requireRawJson) {
+        await expect(rawJsonHeading).toBeVisible();
+      } else {
+        await expect(rawJsonHeading).toHaveCount(0);
+      }
+
+      await expectNoHorizontalOverflow(page, scope);
+      await attachScreenshotEvidence(page, testInfo, scope);
+      expectNoRuntimeIssues(runtimeCollector.since(runtimeCheckpoint), scope);
     }
   });
-
-  page.on('pageerror', (error) => {
-    pageErrors.push(error.message);
-  });
-
-  page.on('requestfailed', (request) => {
-    requestFailures.push(`${request.method()} ${request.url()} :: ${request.failure()?.errorText ?? 'unknown error'}`);
-  });
-
-  page.on('response', (response) => {
-    if (response.status() >= 400) {
-      httpErrorResponses.push(`${response.status()} ${response.url()}`);
-    }
-  });
-
-  await page.goto('/');
-
-  await expect(page.getByRole('heading', { name: /godmode superbrain control center/i })).toBeVisible();
-  await page.getByRole('button', { name: /open creator sandbox/i }).click();
-  await expect(page.getByRole('heading', { name: /godmode 3d sandbox/i })).toBeVisible();
-  await expect(page.getByTestId('metric-state')).toContainText(/ready/i);
-
-  await page.getByRole('button', { name: /start mission/i }).click();
-  await expect(page.getByTestId('metric-state')).toContainText(/running/i);
-
-  await page.getByRole('button', { name: /speed 2x/i }).click();
-  await expect(page.getByTestId('metric-speed')).toContainText(/2x/i);
-
-  await page.getByRole('button', { name: /quality ultra/i }).click();
-  await expect(page.getByTestId('metric-quality')).toContainText(/ultra/i);
-
-  await page.getByRole('button', { name: /select next lemming/i }).click();
-  await expect(page.getByTestId('metric-selected')).toContainText(/#/i);
-
-  await page.getByRole('button', { name: /skill: builder/i }).click();
-  await expect(page.getByTestId('metric-skill')).toContainText(/builder/i);
-
-  await page.getByRole('button', { name: /assign selected skill/i }).click();
-  await expect(page.getByTestId('status-banner')).toContainText(/builder|selected|remaining|falling/i);
-
-  await page.getByRole('button', { name: /run math validation/i }).click();
-  await expect(page.getByTestId('metric-math-validation')).toContainText(/pass|fail/i);
-
-  await page.getByRole('button', { name: /toggle grid/i }).click();
-  await page.getByRole('button', { name: /toggle atmosphere/i }).click();
-  await page.getByRole('button', { name: /toggle agents/i }).click();
-  await page.getByRole('button', { name: /toggle audio/i }).click();
-  await page.getByRole('button', { name: /toggle hud/i }).click();
-  await page.getByRole('button', { name: /toggle high contrast/i }).click();
-
-  await page.getByRole('button', { name: /toggle hud/i }).click();
-  await page.getByRole('button', { name: /next level/i }).click();
-  await expect(page.getByTestId('metric-level')).toContainText(/canyon relay/i);
-
-  await page.getByRole('button', { name: /restart level/i }).click();
-  await expect(page.getByTestId('metric-state')).toContainText(/ready|running/i);
-  await page.getByRole('button', { name: /start mission/i }).click();
-  await page.getByRole('button', { name: /speed 4x/i }).click();
-
-  await expect.poll(async () => {
-    const text = (await page.getByTestId('metric-state').textContent()) ?? '';
-    return /won|lost/i.test(text);
-  }, { timeout: 120000 }).toBeTruthy();
-
-  const canvas = page.locator('canvas');
-  await expect(canvas).toHaveCount(1);
-  await expect(canvas).toBeVisible();
-
-  await page.screenshot({
-    path: 'test-results/lemmings-3d-final-smoke.png',
-    fullPage: true,
-  });
-
-  const ignoredPlatformProbeFailures = [
-    'http://127.0.0.1:3001/health',
-    'http://127.0.0.1:5678/healthz',
-    'http://127.0.0.1:8080/health',
-    'http://127.0.0.1:3901/health',
-    'http://127.0.0.1:3901/bootstrap/status',
-    'http://127.0.0.1:3901/control-center/state',
-    'http://127.0.0.1:3901/agents',
-    'http://127.0.0.1:3901/routing/status',
-    'http://127.0.0.1:3901/autonomy/profiles',
-    'http://127.0.0.1:3901/autonomy/capabilities',
-  ];
-  const unexpectedRequestFailures = requestFailures.filter(
-    (failure) => ignoredPlatformProbeFailures.every((knownFailure) => !failure.includes(knownFailure))
-  );
-  const ignoredHttpErrors = [
-    '/favicon.ico',
-    '/apple-touch-icon.png',
-    'http://127.0.0.1:3901/bootstrap/status',
-    'http://127.0.0.1:3901/control-center/state',
-    'http://127.0.0.1:3901/autonomy/profiles',
-    'http://127.0.0.1:3901/autonomy/capabilities',
-  ];
-  const unexpectedHttpErrors = httpErrorResponses.filter(
-    (entry) => ignoredHttpErrors.every((knownError) => !entry.includes(knownError))
-  );
-  const unexpectedConsoleErrors = consoleErrors.filter((entry) => {
-    if (!entry.includes('Failed to load resource: the server responded with a status of 404')) {
-      return true;
-    }
-    return unexpectedHttpErrors.length > 0;
-  });
-
-  expect(pageErrors).toEqual([]);
-  expect(unexpectedRequestFailures).toEqual([]);
-  expect(unexpectedHttpErrors).toEqual([]);
-  expect(unexpectedConsoleErrors).toEqual([]);
-});
+}

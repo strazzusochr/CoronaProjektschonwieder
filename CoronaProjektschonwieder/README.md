@@ -18,6 +18,8 @@ npm run build
 npm run preview
 npm run test
 npm run test:browser
+npm run probe:state
+npm run verify:release
 ```
 
 ## Was enthalten ist
