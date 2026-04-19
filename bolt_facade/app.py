@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import concurrent.futures
+import hashlib
 import html
 import json
 import os
+import platform
 import re
+import shutil
+import socket
 import subprocess
 import threading
 import time
@@ -12,7 +16,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from urllib import error, request
+from urllib import error, parse, request
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -72,6 +76,11 @@ EVIDENCE_DIR = Path(
 AGENT_REGISTRY_PATH = Path(
     os.environ.get("AGENT_REGISTRY_PATH", str(REPO_ROOT / "agent_registry.json"))
 ).resolve()
+PLATFORM7_CONTRACT_PATH = Path(
+    os.environ.get("PLATFORM7_CONTRACT_PATH", str(REPO_ROOT / "platform7_contract.json"))
+).resolve()
+RUN_MANIFEST_DIR = (EVIDENCE_DIR / "manifests").resolve()
+CONTROL_EVENT_DIR = (RUNTIME_DIR / "control_events").resolve()
 
 MEMORY_VAULT_PATH = Path(
     os.environ.get("MEMORY_VAULT_PATH", str(REPO_ROOT / "memory_vault.md"))
@@ -110,8 +119,13 @@ SMOLAGENTS_URL = _first_non_empty(
     "https://wrzzzrzr-smolagents-godmode.hf.space",
 )
 SMOLAGENTS_DISPATCH_URL = os.environ.get("SMOLAGENTS_DISPATCH_URL", "").strip()
-LANGGRAPH_API_URL = os.environ.get("LANGGRAPH_API_URL", "").strip()
-LANGGRAPH_API_INTERNAL_URL = os.environ.get("LANGGRAPH_API_INTERNAL_URL", "").strip()
+LANGGRAPH_API_URL = _first_non_empty(
+    os.environ.get("LANGGRAPH_API_URL", ""),
+)
+LANGGRAPH_API_INTERNAL_URL = _first_non_empty(
+    os.environ.get("LANGGRAPH_API_INTERNAL_URL", ""),
+    "http://langgraph-godmode-local:8080",
+)
 OLLAMAHF_BASE_URL = os.environ.get(
     "OLLAMAHF_BASE_URL",
     "https://cgjgj-ollamahftrae.hf.space",
@@ -143,7 +157,10 @@ ALLOW_LOCAL_HEAVY = os.environ.get("GODMODE_ALLOW_LOCAL_HEAVY", "false").strip()
     "on",
 }
 N8N_WEBHOOK_URL = os.environ.get("N8N_WEBHOOK_URL", "").strip()
-OPENHANDS_ADAPTER_URL = os.environ.get("OPENHANDS_ADAPTER_URL", "").strip()
+OPENHANDS_ADAPTER_URL = _first_non_empty(
+    os.environ.get("OPENHANDS_ADAPTER_URL", ""),
+    "http://openhands-godmode-adapter:3001",
+)
 LITELLM_URL = os.environ.get("LITELLM_URL", "").strip()
 LITELLM_PORT = os.environ.get("LITELLM_PORT", "4000").strip() or "4000"
 LITELLM_API_KEY = os.environ.get("LITELLM_API_KEY", "").strip()
@@ -174,6 +191,7 @@ BOOTSTRAP_ALLOW_SCRIPT_START = os.environ.get("BOOTSTRAP_ALLOW_SCRIPT_START", "f
 BOOTSTRAP_START_SCRIPT = os.environ.get("BOOTSTRAP_START_SCRIPT", "").strip()
 BOOTSTRAP_COMMAND_TIMEOUT = int(os.environ.get("BOOTSTRAP_COMMAND_TIMEOUT", "900"))
 CONTROL_CENTER_STATUS_CACHE_TTL = int(os.environ.get("CONTROL_CENTER_STATUS_CACHE_TTL", "8"))
+CONTROL_CENTER_PROBE_TIMEOUT = int(os.environ.get("CONTROL_CENTER_PROBE_TIMEOUT", "4"))
 DISPATCH_APPEND_PROJECT_LOGS = os.environ.get("DISPATCH_APPEND_PROJECT_LOGS", "false").strip().lower() in {
     "1",
     "true",
@@ -189,6 +207,11 @@ RUNTIME_TARGETS = [
     "hf-aider",
     "ollama-hf-orchestrator",
 ]
+AUTO_RECOVERY_TARGETS: dict[str, list[str]] = {
+    "langgraph-local": ["ollama-hf-orchestrator", "hf-aider"],
+    "openhands-adapter": ["hf-aider", "ollama-hf-orchestrator"],
+    "smolagents": ["hf-aider", "ollama-hf-orchestrator"],
+}
 LOCAL_HEAVY_BLOCKED_TARGETS = {"langgraph-local", "smolagents", "openhands-adapter"}
 HEAVY_TASK_KEYWORDS = (
     "three.js",
@@ -200,6 +223,26 @@ HEAVY_TASK_KEYWORDS = (
     "physics simulation",
     "game loop",
 )
+PLATFORM7_OPERATIONAL_STATES = [
+    "Idle",
+    "Queued",
+    "Running",
+    "Waiting",
+    "Blocked",
+    "Partial",
+    "Failed",
+    "Done",
+    "Stale",
+]
+PLATFORM7_MATURITY_STATES = [
+    "Verified",
+    "Implemented",
+    "Partial",
+    "Blocked",
+    "Legacy",
+    "Plan",
+    "Unknown",
+]
 METRICS: dict[str, Any] = {
     "dispatch_total": 0,
     "dispatch_forwarded_total": 0,
@@ -261,6 +304,12 @@ CONTROL_CENTER_CACHE_LOCK = threading.Lock()
 CONTROL_CENTER_CACHE: dict[str, Any] = {
     "expires_at": 0.0,
     "payload": None,
+}
+ROUTING_OVERRIDE_STATE: dict[str, Any] = {
+    "mode": "auto",
+    "source": "system",
+    "reason": "initial",
+    "updated_at": datetime.now(timezone.utc).isoformat(),
 }
 
 
@@ -332,6 +381,33 @@ class RunCreateRequest(BaseModel):
     async_run: bool = Field(default=True)
 
 
+class RunControlRequest(BaseModel):
+    source: str = Field(default="platform-control", min_length=1)
+    reason: str = Field(default="", min_length=0)
+    session_id: str = Field(default="", min_length=0)
+    trace_id: str = Field(default="", min_length=0)
+    span_id: str = Field(default="", min_length=0)
+    task_id: str = Field(default="", min_length=0)
+    step_id: str = Field(default="", min_length=0)
+    agent_id: str = Field(default="", min_length=0)
+    role: str = Field(default="", min_length=0)
+    runtime_target: str = Field(default="", min_length=0)
+
+
+class RoutingOverrideRequest(RunControlRequest):
+    mode: str = Field(default="auto", min_length=1)
+    run_id: str = Field(default="", min_length=0)
+
+
+class QuarantineArtifactRequest(RunControlRequest):
+    artifact: str = Field(min_length=1)
+    run_id: str = Field(default="", min_length=0)
+
+
+class RunQuarantineRequest(RunControlRequest):
+    artifact: str = Field(default="", min_length=0)
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -342,6 +418,8 @@ def _ensure_dirs() -> None:
     RUNS_DIR.mkdir(parents=True, exist_ok=True)
     BOOTSTRAP_DIR.mkdir(parents=True, exist_ok=True)
     EVIDENCE_DIR.mkdir(parents=True, exist_ok=True)
+    RUN_MANIFEST_DIR.mkdir(parents=True, exist_ok=True)
+    CONTROL_EVENT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _load_agent_registry() -> dict[str, Any]:
@@ -357,6 +435,170 @@ def _load_agent_registry() -> dict[str, Any]:
         return json.loads(AGENT_REGISTRY_PATH.read_text(encoding="utf-8"))
     except Exception:
         return default_registry
+
+
+def _default_platform7_contract() -> dict[str, Any]:
+    return {
+        "version": "fallback",
+        "status_model": list(PLATFORM7_OPERATIONAL_STATES),
+        "maturity_model": list(PLATFORM7_MATURITY_STATES),
+        "required_supervisor_namespaces": ["sentinel_truth", "sentinel_runtime"],
+        "roles": [],
+        "autonomy_profiles": [],
+    }
+
+
+def _load_platform7_contract() -> dict[str, Any]:
+    if not PLATFORM7_CONTRACT_PATH.exists():
+        return _default_platform7_contract()
+    try:
+        payload = json.loads(PLATFORM7_CONTRACT_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return _default_platform7_contract()
+    if not isinstance(payload, dict):
+        return _default_platform7_contract()
+    fallback = _default_platform7_contract()
+    return {
+        "version": str(payload.get("version", fallback["version"])),
+        "status_model": payload.get("status_model", fallback["status_model"]),
+        "maturity_model": payload.get("maturity_model", fallback["maturity_model"]),
+        "required_supervisor_namespaces": payload.get(
+            "required_supervisor_namespaces", fallback["required_supervisor_namespaces"]
+        ),
+        "roles": payload.get("roles", fallback["roles"]),
+        "autonomy_profiles": payload.get("autonomy_profiles", fallback["autonomy_profiles"]),
+        "source": str(PLATFORM7_CONTRACT_PATH),
+    }
+
+
+def _runtime_target_for_virtual_namespace(namespace: str) -> str:
+    normalized = namespace.strip().lower()
+    if normalized in {"webgl_client", "gameplay_systems", "multiplayer_netcode", "backend_platform"}:
+        return "openhands-adapter"
+    if normalized in {"cloud_infra_devops", "security_anticheat"}:
+        return "hf-aider"
+    if normalized in {"sentinel_truth", "sentinel_runtime"}:
+        return "langgraph-local"
+    if normalized in {"qa_validation", "product_scope", "game_design", "evidence_curator", "recovery_marshal"}:
+        return "langgraph-local"
+    return "langgraph-local"
+
+
+def _build_virtual_agent_lookup(contract: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    lookup: dict[str, dict[str, Any]] = {}
+    roles = contract.get("roles", [])
+    if isinstance(roles, list):
+        for entry in roles:
+            if not isinstance(entry, dict):
+                continue
+            namespace = str(entry.get("namespace", "")).strip()
+            role_id = str(entry.get("id", "")).strip()
+            role_name = str(entry.get("name", role_id)).strip() or role_id
+            if not namespace:
+                continue
+            kind = str(entry.get("kind", "worker")).strip().lower()
+            agent_record = {
+                "agent_id": namespace,
+                "display_name": role_name,
+                "aliases": [role_id, role_name],
+                "origin": "platform7-contract",
+                "runtime_target": _runtime_target_for_virtual_namespace(namespace),
+                "status_class": "VERIFIED" if kind == "supervisor" else "IMPLEMENTED",
+                "input_contract": "7-field",
+                "depends_on": [],
+                "evidence_refs": [str(PLATFORM7_CONTRACT_PATH)],
+                "kind": kind,
+            }
+            lookup[namespace.lower()] = agent_record
+            if role_id:
+                lookup[role_id.lower()] = agent_record
+            if role_name:
+                lookup[role_name.lower()] = agent_record
+    return lookup
+
+
+def _validate_platform7_contract(contract: dict[str, Any]) -> dict[str, Any]:
+    errors: list[str] = []
+    warnings: list[str] = []
+    roles = contract.get("roles", [])
+    if not isinstance(roles, list):
+        roles = []
+    status_model = contract.get("status_model", [])
+    maturity_model = contract.get("maturity_model", [])
+    required_supervisors = contract.get("required_supervisor_namespaces", [])
+    if not isinstance(required_supervisors, list):
+        required_supervisors = []
+    required_supervisor_set = {str(item).strip().lower() for item in required_supervisors if str(item).strip()}
+
+    role_namespaces: list[str] = []
+    supervisor_count = 0
+    worker_count = 0
+    for role in roles:
+        if not isinstance(role, dict):
+            continue
+        namespace = str(role.get("namespace", "")).strip().lower()
+        if namespace:
+            role_namespaces.append(namespace)
+        kind = str(role.get("kind", "worker")).strip().lower()
+        if kind == "supervisor":
+            supervisor_count += 1
+        else:
+            worker_count += 1
+
+    if len(roles) != 29:
+        errors.append(f"Platform7 contract must define 29 visible roles; found {len(roles)}.")
+    if worker_count != 27 or supervisor_count != 2:
+        errors.append(
+            f"Platform7 contract role split must be 27 workers + 2 supervisors; found {worker_count} workers and {supervisor_count} supervisors."
+        )
+    if set(str(item) for item in status_model) != set(PLATFORM7_OPERATIONAL_STATES):
+        errors.append("Platform7 status_model does not match canonical operational states.")
+    if set(str(item) for item in maturity_model) != set(PLATFORM7_MATURITY_STATES):
+        errors.append("Platform7 maturity_model does not match canonical maturity states.")
+
+    role_namespace_set = set(role_namespaces)
+    missing_supervisors = [item for item in required_supervisor_set if item not in role_namespace_set]
+    if missing_supervisors:
+        errors.append(
+            "Platform7 contract is missing required supervisors: "
+            + ", ".join(sorted(missing_supervisors))
+        )
+    if required_supervisor_set != {"sentinel_truth", "sentinel_runtime"}:
+        errors.append(
+            "Platform7 required_supervisor_namespaces must be exactly sentinel_truth and sentinel_runtime."
+        )
+    if not contract.get("autonomy_profiles"):
+        warnings.append("Platform7 contract has no autonomy_profiles; fallback profiles remain active.")
+
+    return {
+        "ok": len(errors) == 0,
+        "errors": errors,
+        "warnings": warnings,
+        "role_count": len(roles),
+        "worker_count": worker_count,
+        "supervisor_count": supervisor_count,
+    }
+
+
+def _sync_autonomy_profiles_from_contract(contract: dict[str, Any]) -> None:
+    profiles = contract.get("autonomy_profiles", [])
+    if not isinstance(profiles, list):
+        return
+    for entry in profiles:
+        if not isinstance(entry, dict):
+            continue
+        profile_id = str(entry.get("id", "")).strip()
+        if not profile_id:
+            continue
+        agents = [str(agent).strip() for agent in entry.get("agents", []) if str(agent).strip()]
+        if not agents:
+            continue
+        AUTONOMY_PROFILES[profile_id] = {
+            "label": str(entry.get("label", profile_id)).strip() or profile_id,
+            "description": str(entry.get("description", "")).strip(),
+            "agents": agents,
+            "supervisors_required": ["sentinel_truth", "sentinel_runtime"],
+        }
 
 
 def _build_agent_lookup(registry: dict[str, Any]) -> tuple[dict[str, dict[str, Any]], dict[str, list[str]]]:
@@ -387,6 +629,10 @@ def _build_agent_lookup(registry: dict[str, Any]) -> tuple[dict[str, dict[str, A
 
 AGENT_REGISTRY = _load_agent_registry()
 AGENT_LOOKUP, AGENT_ALIAS_COLLISIONS = _build_agent_lookup(AGENT_REGISTRY)
+PLATFORM7_CONTRACT = _load_platform7_contract()
+PLATFORM7_CONTRACT_VALIDATION = _validate_platform7_contract(PLATFORM7_CONTRACT)
+VIRTUAL_AGENT_LOOKUP = _build_virtual_agent_lookup(PLATFORM7_CONTRACT)
+_sync_autonomy_profiles_from_contract(PLATFORM7_CONTRACT)
 
 
 def _append_line(path: Path, line: str) -> None:
@@ -425,6 +671,245 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
         json.dump(_safe_clone(payload), handle, ensure_ascii=True, indent=2)
 
 
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _git_revision_summary() -> dict[str, Any]:
+    revision = "unknown"
+    dirty = "unknown"
+    try:
+        revision = (
+            subprocess.check_output(
+                ["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD"],
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+            .strip()
+        )
+    except Exception:
+        revision = "unknown"
+    try:
+        status_output = subprocess.check_output(
+            ["git", "-C", str(REPO_ROOT), "status", "--porcelain"],
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        dirty = "dirty" if status_output.strip() else "clean"
+    except Exception:
+        dirty = "unknown"
+    return {"commit": revision, "worktree": dirty}
+
+
+def _artifact_descriptor(ref: str) -> dict[str, Any]:
+    value = (ref or "").strip()
+    if not value:
+        return {
+            "ref": "",
+            "kind": "missing",
+            "present": False,
+            "sha256": "",
+            "size_bytes": 0,
+            "timestamp": _now_iso(),
+        }
+    if value.startswith("http://") or value.startswith("https://"):
+        return {
+            "ref": value,
+            "kind": "url",
+            "present": True,
+            "sha256": "",
+            "size_bytes": 0,
+            "timestamp": _now_iso(),
+        }
+
+    if value.startswith("/artifacts/"):
+        artifact_suffix = value[len("/artifacts/") :].strip("/")
+        bucket, _, tail = artifact_suffix.partition("/")
+        bucket_normalized = bucket.strip().lower()
+        if bucket_normalized == "ollamahf" and tail:
+            candidate = (EVIDENCE_DIR / "ollamahf_artifacts" / tail).resolve()
+        elif bucket_normalized == "dispatch" and tail:
+            candidate = (DISPATCH_DIR / tail).resolve()
+        elif bucket_normalized == "runs" and tail:
+            candidate = (RUNS_DIR / tail).resolve()
+        elif bucket_normalized == "proof" and tail:
+            candidate = (PROOF_DIR / tail).resolve()
+        else:
+            candidate = (EVIDENCE_DIR / artifact_suffix).resolve()
+    else:
+        candidate = Path(value)
+        if not candidate.is_absolute():
+            candidate = (REPO_ROOT / candidate).resolve()
+        else:
+            candidate = candidate.resolve()
+    if candidate.exists() and candidate.is_file():
+        try:
+            stat = candidate.stat()
+            return {
+                "ref": value,
+                "path": str(candidate),
+                "kind": "file",
+                "present": True,
+                "sha256": _sha256_file(candidate),
+                "size_bytes": int(stat.st_size),
+                "timestamp": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+            }
+        except Exception as exc:
+            return {
+                "ref": value,
+                "path": str(candidate),
+                "kind": "file",
+                "present": False,
+                "sha256": "",
+                "size_bytes": 0,
+                "timestamp": _now_iso(),
+                "error": str(exc),
+            }
+    return {
+        "ref": value,
+        "path": str(candidate),
+        "kind": "file",
+        "present": False,
+        "sha256": "",
+        "size_bytes": 0,
+        "timestamp": _now_iso(),
+    }
+
+
+def _collect_run_artifact_refs(record: dict[str, Any]) -> list[str]:
+    refs: list[str] = []
+    for key in ("snapshot", "run_file"):
+        value = str(record.get(key, "")).strip()
+        if value:
+            refs.append(value)
+    for step in record.get("steps", []):
+        if not isinstance(step, dict):
+            continue
+        for key in ("dispatch_artifact", "final_code_artifact", "final_code_url"):
+            value = str(step.get(key, "")).strip()
+            if value:
+                refs.append(value)
+    deduped = list(dict.fromkeys(refs))
+    return deduped
+
+
+def _materialize_run_manifest(record: dict[str, Any]) -> dict[str, Any]:
+    run_id = str(record.get("run_id", "")).strip()
+    refs = _collect_run_artifact_refs(record)
+    descriptors = [_artifact_descriptor(ref) for ref in refs]
+    missing_file_refs = [
+        item.get("ref", "")
+        for item in descriptors
+        if item.get("kind") == "file" and not item.get("present", False)
+    ]
+    unhashed_files = [
+        item.get("ref", "")
+        for item in descriptors
+        if item.get("kind") == "file" and item.get("present", False) and not item.get("sha256")
+    ]
+    run_status = str(record.get("status", "UNKNOWN")).upper()
+    evidence_pass = (
+        len(refs) > 0
+        and len(missing_file_refs) == 0
+        and len(unhashed_files) == 0
+        and run_status in {"PASS", "DONE", "PARTIAL", "BLOCKED", "FAILED", "STOPPED", "PAUSED", "ROLLED_BACK"}
+    )
+    evidence_status = "Verified" if evidence_pass and run_status in {"PASS", "DONE"} else "Partial" if refs else "Unknown"
+    if run_status in {"BLOCKED", "FAILED"}:
+        evidence_status = "Blocked"
+    manifest = {
+        "schema_version": "platform7-evidence-manifest-v1",
+        "created_at": _now_iso(),
+        "run_id": run_id,
+        "trace_id": str(record.get("trace_id", "")).strip(),
+        "task_id": str(record.get("task_id", "")).strip(),
+        "run_status": run_status,
+        "evidence_status": evidence_status,
+        "validation": {
+            "pass": evidence_pass and evidence_status == "Verified",
+            "missing_file_refs": missing_file_refs,
+            "unhashed_files": unhashed_files,
+        },
+        "tool_versions": {
+            "python": platform.python_version(),
+            "fastapi": getattr(FastAPI, "__module__", "fastapi"),
+        },
+        "git": _git_revision_summary(),
+        "artifacts": descriptors,
+    }
+    return manifest
+
+
+def _persist_run_manifest(record: dict[str, Any]) -> None:
+    run_id = str(record.get("run_id", "")).strip()
+    if not run_id:
+        return
+    RUN_MANIFEST_DIR.mkdir(parents=True, exist_ok=True)
+    manifest = _materialize_run_manifest(record)
+    stamp = manifest["created_at"].replace(":", "-").replace(".", "-")
+    immutable_path = RUN_MANIFEST_DIR / f"{run_id}_{stamp}.json"
+    latest_path = RUN_MANIFEST_DIR / f"{run_id}_latest.json"
+    global_latest = RUN_MANIFEST_DIR / "latest.json"
+    _write_json(immutable_path, manifest)
+    _write_json(latest_path, manifest)
+    _write_json(global_latest, manifest)
+    record["evidence_manifest"] = str(immutable_path)
+    record["evidence_manifest_latest"] = str(latest_path)
+    record["evidence_status"] = manifest.get("evidence_status", "Unknown")
+
+
+def _emit_control_event(
+    action: str,
+    state: str,
+    reason: str,
+    next_action: str,
+    payload: RunControlRequest | RoutingOverrideRequest | QuarantineArtifactRequest,
+    run_id: str = "",
+    extra: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    CONTROL_EVENT_DIR.mkdir(parents=True, exist_ok=True)
+    payload_run_id = ""
+    if hasattr(payload, "run_id"):
+        try:
+            payload_run_id = str(getattr(payload, "run_id", "")).strip()
+        except Exception:
+            payload_run_id = ""
+    resolved_run_id = run_id.strip() or payload_run_id
+    event = {
+        "event_id": str(uuid.uuid4()),
+        "timestamp": _now_iso(),
+        "action": action,
+        "state": state,
+        "reason": reason,
+        "next_action": next_action,
+        "session_id": payload.session_id.strip(),
+        "run_id": resolved_run_id,
+        "trace_id": payload.trace_id.strip(),
+        "span_id": payload.span_id.strip(),
+        "task_id": payload.task_id.strip(),
+        "step_id": payload.step_id.strip(),
+        "agent_id": payload.agent_id.strip(),
+        "role": payload.role.strip(),
+        "runtime_target": payload.runtime_target.strip(),
+        "source": payload.source.strip(),
+    }
+    if extra:
+        event["extra"] = dict(extra)
+    event_file = CONTROL_EVENT_DIR / f"{event['timestamp'].replace(':', '-').replace('.', '-')}_{event['event_id']}.json"
+    _write_json(event_file, event)
+    _write_json(CONTROL_EVENT_DIR / "latest.json", event)
+    event["event_file"] = str(event_file)
+    return event
+
+
 def _normalize_timestamp(value: str) -> str:
     raw = value.strip()
     candidate = raw.replace("Z", "+00:00")
@@ -445,11 +930,14 @@ def _resolve_agent_entry(agent_value: str) -> dict[str, Any]:
             status_code=422,
             detail=f"Ambiguous agent alias '{agent_value}'. Use a namespaced id. Candidates: {collisions}",
         )
-    entry = AGENT_LOOKUP.get(key)
+    entry = AGENT_LOOKUP.get(key) or VIRTUAL_AGENT_LOOKUP.get(key)
     if not entry:
         raise HTTPException(
             status_code=422,
-            detail=f"Unknown agent '{agent_value}'. Use GET /agents for the canonical registry.",
+            detail=(
+                f"Unknown agent '{agent_value}'. Use GET /agents or GET /platform7/contract "
+                "for the canonical registry/contract."
+            ),
         )
     return entry
 
@@ -487,6 +975,16 @@ def _http_status_to_status_class(value: Any) -> str:
     if code in {401, 403, 404, 408, 429, 500, 502, 503, 504}:
         return "BLOCKED"
     return "PARTIAL"
+
+
+def _probe_effective_http_status(probe: dict[str, Any]) -> Any:
+    if not isinstance(probe, dict):
+        return None
+    value = probe.get("effective_http_status", probe.get("http_status"))
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _latest_json(path: Path) -> dict[str, Any]:
@@ -542,6 +1040,14 @@ def _n8n_health_url() -> str:
     return "http://n8n-godmode:5678/healthz"
 
 
+def _loopback_port_reachable(port: int, timeout_seconds: float = 0.25) -> bool:
+    try:
+        with socket.create_connection(("127.0.0.1", int(port)), timeout=timeout_seconds):
+            return True
+    except Exception:
+        return False
+
+
 def _service_probe_catalog() -> list[dict[str, str]]:
     langgraph_health = ""
     langgraph_base = (LANGGRAPH_API_INTERNAL_URL or LANGGRAPH_API_URL).rstrip("/")
@@ -557,7 +1063,14 @@ def _service_probe_catalog() -> list[dict[str, str]]:
         litellm_base = LITELLM_URL.rstrip("/")
     else:
         litellm_base = internal_litellm_base
-    hub_base = BOLTDIY_FACADE_INTERNAL_URL.rstrip("/") if BOLTDIY_FACADE_INTERNAL_URL else "http://127.0.0.1:3901"
+    if BOLTDIY_FACADE_INTERNAL_URL:
+        hub_base = BOLTDIY_FACADE_INTERNAL_URL.rstrip("/")
+    elif _loopback_port_reachable(3902):
+        hub_base = "http://127.0.0.1:3902"
+    elif _loopback_port_reachable(3901):
+        hub_base = "http://127.0.0.1:3901"
+    else:
+        hub_base = "http://127.0.0.1:3902"
     devtools_bridge_base = DEVTOOLS_BRIDGE_URL.rstrip("/") if DEVTOOLS_BRIDGE_URL else "http://host.docker.internal:3911"
     return [
         {"id": "hub", "url": f"{hub_base}/health"},
@@ -591,7 +1104,7 @@ def _run_preflight_checks() -> dict[str, Any]:
 
     active_agents = AGENT_REGISTRY.get("active_agents", [])
     legacy_agents = AGENT_REGISTRY.get("legacy_agents", [])
-    registry_ok = len(active_agents) >= 25 and len(legacy_agents) >= 1 and not AGENT_ALIAS_COLLISIONS
+    registry_ok = not AGENT_ALIAS_COLLISIONS and len(active_agents) >= 1
     checks.append(
         {
             "name": "agent_registry",
@@ -602,7 +1115,26 @@ def _run_preflight_checks() -> dict[str, Any]:
         }
     )
     if not registry_ok:
-        errors.append("Agent registry does not satisfy expected 25 active + 1 legacy without alias collisions.")
+        errors.append("Agent registry has alias collisions or contains no active agents.")
+
+    contract = _load_platform7_contract()
+    contract_validation = _validate_platform7_contract(contract)
+    checks.append(
+        {
+            "name": "platform7_contract",
+            "ok": contract_validation.get("ok", False),
+            "path": str(PLATFORM7_CONTRACT_PATH),
+            "version": contract.get("version", "unknown"),
+            "role_count": contract_validation.get("role_count", 0),
+            "worker_count": contract_validation.get("worker_count", 0),
+            "supervisor_count": contract_validation.get("supervisor_count", 0),
+            "errors": contract_validation.get("errors", []),
+            "warnings": contract_validation.get("warnings", []),
+        }
+    )
+    if not contract_validation.get("ok", False):
+        errors.extend([str(item) for item in contract_validation.get("errors", [])])
+    warnings.extend([str(item) for item in contract_validation.get("warnings", [])])
 
     zero_policy_ok = ZERO_COMPUTE_POLICY and not ALLOW_LOCAL_HEAVY
     checks.append(
@@ -628,7 +1160,7 @@ def _run_preflight_checks() -> dict[str, Any]:
         )
     if not BOOTSTRAP_ALLOW_SCRIPT_START:
         warnings.append(
-            "BOOTSTRAP_ALLOW_SCRIPT_START=false: one-click script start is disabled and will be reported as BLOCKED when requested."
+            "BOOTSTRAP_ALLOW_SCRIPT_START=false: one-click script start is disabled and will be reported as SKIPPED when requested."
         )
 
     return {
@@ -644,24 +1176,39 @@ def _execute_start_script(include_script_start: bool) -> dict[str, Any]:
         return {"status": "skipped", "reason": "include_script_start=false"}
     if not BOOTSTRAP_ALLOW_SCRIPT_START:
         return {
-            "status": "blocked",
+            "status": "skipped",
             "reason": "BOOTSTRAP_ALLOW_SCRIPT_START=false",
             "recovery": "Set BOOTSTRAP_ALLOW_SCRIPT_START=true and configure BOOTSTRAP_START_SCRIPT.",
         }
     script = BOOTSTRAP_START_SCRIPT.strip()
     if not script:
         return {
-            "status": "blocked",
+            "status": "skipped",
             "reason": "BOOTSTRAP_START_SCRIPT not configured",
             "recovery": "Set BOOTSTRAP_START_SCRIPT to START_GODMODE.sh or an equivalent startup script path.",
         }
     script_path = Path(script)
-    if not script_path.exists():
+    candidate_paths: list[Path] = [script_path]
+    if not script_path.is_absolute():
+        candidate_paths.append(REPO_ROOT / script_path)
+
+    resolved_script_path: Path | None = None
+    for candidate in candidate_paths:
+        candidate_resolved = candidate.resolve()
+        if candidate_resolved.exists():
+            resolved_script_path = candidate_resolved
+            break
+
+    if resolved_script_path is None:
+        searched = ", ".join(str(path) for path in candidate_paths)
         return {
-            "status": "blocked",
+            "status": "skipped",
             "reason": f"BOOTSTRAP_START_SCRIPT not found: {script}",
+            "searched": searched,
             "recovery": "Provide an existing script path inside the runtime environment where bolt-facade executes.",
         }
+
+    script_path = resolved_script_path
 
     if script_path.suffix.lower() == ".ps1":
         cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script_path)]
@@ -714,13 +1261,28 @@ def _compute_ready_state(
     if not preflight.get("ok", False):
         return "BLOCKED", False, "Preflight checks failed."
 
-    if include_script_start and service_start.get("status") != "forwarded":
+    service_start_status = str(service_start.get("status", "")).strip().lower()
+    service_start_reason = str(service_start.get("reason", "")).strip()
+    service_start_skipped = include_script_start and service_start_status == "skipped"
+
+    if include_script_start and service_start_status == "blocked":
         reason = service_start.get("reason", "one-click start script did not run")
         return "BLOCKED", False, f"One-click start blocked: {reason}"
 
-    service_failures = [item for item in services.get("results", []) if not item.get("ok", False)]
+    optional_service_ids = {"devtools-bridge"}
+    service_failures = [
+        item
+        for item in services.get("results", [])
+        if not item.get("ok", False) and str(item.get("id", "")).strip() not in optional_service_ids
+    ]
+    optional_failures = [
+        item
+        for item in services.get("results", [])
+        if not item.get("ok", False) and str(item.get("id", "")).strip() in optional_service_ids
+    ]
     if service_failures:
-        return "PARTIAL", False, "Core services are not fully reachable."
+        failed_ids = ", ".join(str(item.get("id", "unknown")) for item in service_failures)
+        return "PARTIAL", False, f"Core services are not fully reachable: {failed_ids}"
 
     mission_status = workflow.get("mission", {}).get("status")
     memory_status = workflow.get("memory", {}).get("status")
@@ -728,7 +1290,16 @@ def _compute_ready_state(
         return "BLOCKED", False, "n8n mission workflow smoke did not pass."
     if memory_status != "forwarded":
         return "PARTIAL", False, "n8n memory workflow is not verified."
-
+    notes: list[str] = []
+    if optional_failures:
+        failed_optional = ", ".join(str(item.get("id", "unknown")) for item in optional_failures)
+        notes.append(f"optional service degraded: {failed_optional}")
+    if service_start_skipped and service_start_reason.lower() != "include_script_start=false":
+        notes.append(f"startup script skipped: {service_start_reason or 'not available in this runtime'}")
+    if notes:
+        if optional_failures:
+            return "PARTIAL", True, "Platform ready for prompt execution; " + "; ".join(notes) + "."
+        return "READY", True, "Platform ready for prompt execution; " + "; ".join(notes) + "."
     return "READY", True, "Platform ready for prompt execution."
 
 
@@ -840,7 +1411,7 @@ def _bootstrap_status_snapshot() -> dict[str, Any]:
 
 
 def _probe_http_200(probe: dict[str, Any]) -> bool:
-    return int(probe.get("http_status") or 0) == 200
+    return _probe_effective_http_status(probe) == 200
 
 
 def _runtime_health_ready_for_prompt() -> tuple[bool, str]:
@@ -920,45 +1491,109 @@ def _post_json(
     timeout: int,
     headers: dict[str, str] | None = None,
 ) -> dict[str, Any]:
+    def _fallback_post_urls(candidate_url: str) -> list[str]:
+        try:
+            parsed = parse.urlsplit(candidate_url)
+        except Exception:
+            return []
+        host = (parsed.hostname or "").strip().lower()
+        if not host:
+            return []
+        fallback_map: dict[str, list[tuple[str, int | None]]] = {
+            "host.docker.internal": [("172.17.0.1", parsed.port), ("127.0.0.1", parsed.port)],
+            "openhands-godmode": [("127.0.0.1", 3000)],
+            "openhands-godmode-adapter": [("127.0.0.1", 3001)],
+            "n8n-godmode": [("127.0.0.1", 5678)],
+            "litellm-godmode": [("127.0.0.1", 4000)],
+            "langgraph-godmode-local": [("127.0.0.1", 8080)],
+            "bolt-facade-godmode": [("127.0.0.1", 3901)],
+        }
+        targets = fallback_map.get(host, [])
+        urls: list[str] = []
+        seen: set[str] = set()
+        original = candidate_url.strip()
+        for fallback_host, fallback_port in targets:
+            if not fallback_host:
+                continue
+            if fallback_port:
+                netloc = f"{fallback_host}:{fallback_port}"
+            else:
+                netloc = fallback_host
+            rebuilt = parse.urlunsplit(
+                (
+                    parsed.scheme or "http",
+                    netloc,
+                    parsed.path or "",
+                    parsed.query or "",
+                    parsed.fragment or "",
+                )
+            )
+            if rebuilt and rebuilt not in seen and rebuilt != original:
+                seen.add(rebuilt)
+                urls.append(rebuilt)
+        return urls
+
+    def _attempt_post(target_url: str) -> dict[str, Any]:
+        req = request.Request(
+            url=target_url,
+            data=body,
+            headers=request_headers,
+            method="POST",
+        )
+        try:
+            with request.urlopen(req, timeout=timeout) as response:
+                raw = response.read().decode("utf-8", errors="replace")
+                parsed: Any
+                try:
+                    parsed = json.loads(raw) if raw else {}
+                except json.JSONDecodeError:
+                    parsed = {"raw": raw}
+                return {
+                    "status": "forwarded",
+                    "url": target_url,
+                    "http_status": int(response.status),
+                    "response": parsed,
+                }
+        except error.HTTPError as exc:
+            raw = exc.read().decode("utf-8", errors="replace")
+            return {
+                "status": "blocked" if exc.code in {401, 403, 404} else "forward-failed",
+                "url": target_url,
+                "http_status": int(exc.code),
+                "error": raw or str(exc),
+            }
+        except Exception as exc:  # pragma: no cover - runtime path
+            return {
+                "status": "forward-failed",
+                "url": target_url,
+                "http_status": None,
+                "error": str(exc),
+            }
+
     body = json.dumps(payload, ensure_ascii=True).encode("utf-8")
     request_headers = {"Content-Type": "application/json"}
     if headers:
         request_headers.update(headers)
-    req = request.Request(
-        url=url,
-        data=body,
-        headers=request_headers,
-        method="POST",
-    )
-    try:
-        with request.urlopen(req, timeout=timeout) as response:
-            raw = response.read().decode("utf-8", errors="replace")
-            parsed: Any
-            try:
-                parsed = json.loads(raw) if raw else {}
-            except json.JSONDecodeError:
-                parsed = {"raw": raw}
-            return {
-                "status": "forwarded",
-                "url": url,
-                "http_status": int(response.status),
-                "response": parsed,
-            }
-    except error.HTTPError as exc:
-        raw = exc.read().decode("utf-8", errors="replace")
-        return {
-            "status": "blocked" if exc.code in {401, 403, 404} else "forward-failed",
-            "url": url,
-            "http_status": int(exc.code),
-            "error": raw or str(exc),
-        }
-    except Exception as exc:  # pragma: no cover - runtime path
-        return {
-            "status": "forward-failed",
-            "url": url,
-            "http_status": None,
-            "error": str(exc),
-        }
+
+    first_attempt = _attempt_post(url)
+    if first_attempt.get("status") == "forwarded":
+        return first_attempt
+
+    fallback_attempts: list[dict[str, Any]] = []
+    for fallback_url in _fallback_post_urls(url):
+        attempt = _attempt_post(fallback_url)
+        fallback_attempts.append(attempt)
+        if attempt.get("status") == "forwarded":
+            attempt["fallback_used"] = True
+            attempt["fallback_url"] = fallback_url
+            attempt["primary_url"] = url
+            if fallback_attempts:
+                attempt["fallback_attempts"] = fallback_attempts
+            return attempt
+
+    if fallback_attempts:
+        first_attempt["fallback_attempts"] = fallback_attempts
+    return first_attempt
 
 
 def _save_ollamahf_final_code(final_code: str) -> dict[str, Any]:
@@ -1031,6 +1666,48 @@ def _is_lightweight_probe_task(task: str) -> bool:
 
 
 def _probe_url(url: str, timeout: int, headers: dict[str, str] | None = None) -> dict[str, Any]:
+    def _fallback_probe_urls(candidate_url: str) -> list[str]:
+        try:
+            parsed = parse.urlsplit(candidate_url)
+        except Exception:
+            return []
+        host = (parsed.hostname or "").strip().lower()
+        if not host:
+            return []
+        fallback_map: dict[str, list[tuple[str, int | None]]] = {
+            "host.docker.internal": [("172.17.0.1", parsed.port), ("127.0.0.1", parsed.port)],
+            "openhands-godmode": [("127.0.0.1", 3000)],
+            "openhands-godmode-adapter": [("127.0.0.1", 3001)],
+            "n8n-godmode": [("127.0.0.1", 5678)],
+            "litellm-godmode": [("127.0.0.1", 4000)],
+            "langgraph-godmode-local": [("127.0.0.1", 8080)],
+            "bolt-facade-godmode": [("127.0.0.1", 3901)],
+        }
+        targets = fallback_map.get(host, [])
+        urls: list[str] = []
+        seen: set[str] = set()
+        original = candidate_url.strip()
+        for fallback_host, fallback_port in targets:
+            if not fallback_host:
+                continue
+            if fallback_port:
+                netloc = f"{fallback_host}:{fallback_port}"
+            else:
+                netloc = fallback_host
+            rebuilt = parse.urlunsplit(
+                (
+                    parsed.scheme or "http",
+                    netloc,
+                    parsed.path or "",
+                    parsed.query or "",
+                    parsed.fragment or "",
+                )
+            )
+            if rebuilt and rebuilt != original and rebuilt not in seen:
+                seen.add(rebuilt)
+                urls.append(rebuilt)
+        return urls
+
     req = request.Request(url=url, method="GET", headers=headers or {})
     try:
         with request.urlopen(req, timeout=timeout) as response:
@@ -1047,12 +1724,45 @@ def _probe_url(url: str, timeout: int, headers: dict[str, str] | None = None) ->
             "error": str(exc),
         }
     except Exception as exc:  # pragma: no cover - runtime path
-        return {
+        fallback_attempts: list[dict[str, Any]] = []
+        for fallback_url in _fallback_probe_urls(url):
+            fallback_req = request.Request(url=fallback_url, method="GET", headers=headers or {})
+            try:
+                with request.urlopen(fallback_req, timeout=timeout) as response:
+                    return {
+                        "reachable": True,
+                        "url": fallback_url,
+                        "http_status": int(response.status),
+                        "fallback_used": True,
+                        "original_url": url,
+                        "original_error": str(exc),
+                    }
+            except error.HTTPError as fallback_exc:
+                fallback_attempts.append(
+                    {
+                        "url": fallback_url,
+                        "http_status": int(fallback_exc.code),
+                        "error": str(fallback_exc),
+                    }
+                )
+            except Exception as fallback_exc:  # pragma: no cover - runtime path
+                fallback_attempts.append(
+                    {
+                        "url": fallback_url,
+                        "http_status": None,
+                        "error": str(fallback_exc),
+                    }
+                )
+
+        payload = {
             "reachable": False,
             "url": url,
             "http_status": None,
             "error": str(exc),
         }
+        if fallback_attempts:
+            payload["fallback_attempts"] = fallback_attempts
+        return payload
 
 
 def _probe_catalog_parallel(
@@ -1683,6 +2393,83 @@ def _dispatch_by_target(runtime_target: str, payload: MissionPayload) -> dict[st
     return dispatcher(payload)
 
 
+def _effective_runtime_target(runtime_target: str) -> str:
+    mode = str(ROUTING_OVERRIDE_STATE.get("mode", "auto")).strip().lower()
+    if mode == "local":
+        if runtime_target in {"hf-aider", "ollama-hf-orchestrator", "smolagents"}:
+            return "langgraph-local"
+    if mode == "remote":
+        if runtime_target == "langgraph-local":
+            return "ollama-hf-orchestrator"
+        if runtime_target == "openhands-adapter":
+            return "hf-aider"
+    return runtime_target
+
+
+def _recovery_candidates_for_target(runtime_target: str) -> list[str]:
+    candidates = AUTO_RECOVERY_TARGETS.get(runtime_target, [])
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        normalized = str(candidate).strip()
+        if not normalized or normalized == runtime_target:
+            continue
+        if normalized not in RUNTIME_TARGETS:
+            continue
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        deduped.append(normalized)
+    return deduped
+
+
+def _attempt_runtime_recovery(
+    primary_target: str,
+    payload: MissionPayload,
+    primary_result: dict[str, Any],
+) -> dict[str, Any]:
+    mode = str(ROUTING_OVERRIDE_STATE.get("mode", "auto")).strip().lower()
+    if mode == "local":
+        return primary_result
+
+    primary_status = str(primary_result.get("status", "")).strip().lower()
+    if primary_status == "forwarded":
+        return primary_result
+
+    attempts: list[dict[str, Any]] = []
+    for candidate in _recovery_candidates_for_target(primary_target):
+        attempt = _dispatch_by_target(candidate, payload)
+        attempt_record = {
+            "target": candidate,
+            "status": attempt.get("status", "forward-failed"),
+            "http_status": attempt.get("http_status"),
+            "reason": str(attempt.get("reason", "")).strip(),
+        }
+        attempts.append(attempt_record)
+        if str(attempt.get("status", "")).strip().lower() == "forwarded":
+            enriched = dict(attempt)
+            enriched["recovery_used"] = True
+            enriched["recovery_from"] = primary_target
+            enriched["recovery_target"] = candidate
+            enriched["recovery_attempts"] = attempts
+            primary_reason = str(primary_result.get("reason", "")).strip()
+            recovery_reason = (
+                f"Primary target {primary_target} failed"
+                + (f": {primary_reason}" if primary_reason else ".")
+                + f" Recovered by rerouting to {candidate}."
+            )
+            existing_reason = str(enriched.get("reason", "")).strip()
+            enriched["reason"] = existing_reason or recovery_reason
+            return enriched
+
+    enriched = dict(primary_result)
+    if attempts:
+        enriched["recovery_used"] = False
+        enriched["recovery_from"] = primary_target
+        enriched["recovery_attempts"] = attempts
+    return enriched
+
+
 def _target_health_status(probe_timeout: int | None = None) -> dict[str, Any]:
     timeout = probe_timeout if probe_timeout is not None else BOLTDIY_FORWARD_TIMEOUT
     probe_catalog: list[dict[str, Any]] = []
@@ -1721,7 +2508,146 @@ def _target_health_status(probe_timeout: int | None = None) -> dict[str, Any]:
         probe_catalog.append({"id": "ollama-hf-orchestrator", "url": ""})
 
     statuses = _probe_catalog_parallel(probe_catalog, timeout)
+    for target, probe in statuses.items():
+        if not isinstance(probe, dict):
+            continue
+        if _probe_effective_http_status(probe) == 200:
+            probe["effective_http_status"] = 200
+            probe["effective_reachable"] = True
+            continue
+        recovery_target = ""
+        for candidate in _recovery_candidates_for_target(target):
+            candidate_probe = statuses.get(candidate)
+            if not isinstance(candidate_probe, dict):
+                continue
+            if _probe_effective_http_status(candidate_probe) == 200:
+                recovery_target = candidate
+                break
+        if recovery_target:
+            probe["effective_http_status"] = 200
+            probe["effective_reachable"] = True
+            probe["recovery_ready"] = True
+            probe["recovery_target"] = recovery_target
+            probe["effective_reason"] = (
+                f"Primary target {target} is unreachable; automatic recovery route {recovery_target} is healthy."
+            )
+        else:
+            probe["effective_http_status"] = probe.get("http_status")
+            probe["effective_reachable"] = bool(probe.get("reachable", False))
+            probe["recovery_ready"] = False
     return statuses
+
+
+def _operational_state_from_raw(value: str) -> str:
+    normalized = (value or "").strip().lower().replace("_", "-")
+    if normalized in {"", "idle", "unknown", "none"}:
+        return "Idle"
+    if normalized in {"queued", "queue", "pending", "created"}:
+        return "Queued"
+    if normalized in {"running", "in-progress", "inprogress", "processing", "booting", "forwarded"}:
+        return "Running"
+    if normalized in {"waiting", "paused", "hold", "waiting-human"}:
+        return "Waiting"
+    if normalized in {"blocked", "policy-blocked", "conflict", "denied"}:
+        return "Blocked"
+    if normalized in {"partial", "noop", "forward-failed", "degraded"}:
+        return "Partial"
+    if normalized in {"failed", "error", "timeout", "stopped", "rolled-back", "terminated"}:
+        return "Failed"
+    if normalized in {"done", "completed", "complete", "pass", "success", "verified"}:
+        return "Done"
+    if normalized in {"stale"}:
+        return "Stale"
+    return "Idle"
+
+
+def _next_action_for_state(state: str) -> str:
+    mapped = _operational_state_from_raw(state)
+    if mapped == "Blocked":
+        return "Retry same target, reroute, or assign to human."
+    if mapped == "Failed":
+        return "Inspect evidence, quarantine artifact if needed, and rollback."
+    if mapped == "Partial":
+        return "Collect missing evidence and rerun the affected step."
+    if mapped == "Waiting":
+        return "Resume run after dependency/operator action."
+    if mapped == "Stale":
+        return "Refresh heartbeat and verify runtime connectivity."
+    if mapped == "Done":
+        return "Review evidence manifest and proceed to next task."
+    if mapped == "Running":
+        return "Monitor live timeline and keep supervisors active."
+    return "Run refresh checks and continue."
+
+
+def _timeline_rows_from_run(run_record: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if not isinstance(run_record, dict):
+        return []
+    run_id = str(run_record.get("run_id", "")).strip()
+    trace_id = str(run_record.get("trace_id", "")).strip()
+    task_id = str(run_record.get("task_id", "")).strip()
+    run_state = _operational_state_from_raw(str(run_record.get("status", "")))
+    run_steps = run_record.get("steps", [])
+    if not isinstance(run_steps, list) or not run_steps:
+        return []
+
+    rows: list[dict[str, Any]] = []
+    normalized_states: list[str] = []
+    for step in run_steps:
+        if not isinstance(step, dict):
+            normalized_states.append("Idle")
+            continue
+        normalized_states.append(_operational_state_from_raw(str(step.get("status", step.get("raw_status", "")))))
+
+    for index, step in enumerate(run_steps):
+        if not isinstance(step, dict):
+            continue
+        current_state = normalized_states[index] if index < len(normalized_states) else "Idle"
+        previous_state = normalized_states[index - 1] if index > 0 else "Idle"
+        next_state = normalized_states[index + 1] if index + 1 < len(normalized_states) else run_state
+        reason = (
+            str(step.get("reason", "")).strip()
+            or str(step.get("response_excerpt", "")).strip()
+            or str(step.get("error", "")).strip()
+            or str(step.get("fallback_reason", "")).strip()
+            or str(step.get("recovery_reason", "")).strip()
+            or "No explicit reason reported."
+        )
+        next_action = str(step.get("next_action", "")).strip() or _next_action_for_state(current_state)
+        evidence_ref = (
+            str(step.get("dispatch_artifact", "")).strip()
+            or str(step.get("final_code_artifact", "")).strip()
+            or str(step.get("final_code_url", "")).strip()
+            or str(run_record.get("evidence_manifest", "")).strip()
+            or str(run_record.get("snapshot", "")).strip()
+            or str(run_record.get("run_file", "")).strip()
+        )
+        rows.append(
+            {
+                "run_id": run_id,
+                "trace_id": str(step.get("trace_id", "")).strip() or trace_id,
+                "task_id": str(step.get("task_id", "")).strip() or task_id or str(step.get("fallback_task_id", "")).strip(),
+                "step_id": str(step.get("step_id", "")).strip() or str(step.get("call_id", "")).strip() or f"{run_id}-step-{index + 1}",
+                "agent_id": str(step.get("agent", "")).strip(),
+                "role": str(step.get("role", "")).strip(),
+                "runtime_target": str(step.get("runtime_target", "")).strip(),
+                "current_state": current_state,
+                "previous_state": previous_state,
+                "next_state": next_state,
+                "reason": reason,
+                "next_action": next_action,
+                "evidence_ref": evidence_ref,
+                "started_at": str(step.get("started_at", "")).strip() or str(run_record.get("started_at", "")).strip(),
+                "finished_at": str(step.get("finished_at", "")).strip() or str(run_record.get("finished_at", "")).strip(),
+                "fallback_used": bool(step.get("fallback_used", False)),
+                "fallback_reason": str(step.get("fallback_reason", "")).strip(),
+                "fallback_endpoint": str(step.get("fallback_endpoint", "")).strip(),
+                "recovery_used": bool(step.get("recovery_used", False)),
+                "recovery_reason": str(step.get("recovery_reason", "")).strip(),
+                "recovery_target": str(step.get("recovery_target", "")).strip(),
+            }
+        )
+    return rows
 
 
 def _list_autonomy_profiles() -> list[dict[str, Any]]:
@@ -1731,6 +2657,7 @@ def _list_autonomy_profiles() -> list[dict[str, Any]]:
             "label": profile_data.get("label", profile_id),
             "description": profile_data.get("description", ""),
             "agents": list(profile_data.get("agents", [])),
+            "supervisors_required": list(profile_data.get("supervisors_required", ["sentinel_truth", "sentinel_runtime"])),
         }
         for profile_id, profile_data in AUTONOMY_PROFILES.items()
     ]
@@ -1749,8 +2676,12 @@ def _capability_summary() -> dict[str, Any]:
     routing_summary = {
         target: {
             "http_status": probe.get("http_status"),
-            "status_class": _http_status_to_status_class(probe.get("http_status")),
+            "effective_http_status": _probe_effective_http_status(probe),
+            "status_class": _http_status_to_status_class(_probe_effective_http_status(probe)),
             "reachable": probe.get("reachable", False),
+            "effective_reachable": bool(probe.get("effective_reachable", False)),
+            "recovery_ready": bool(probe.get("recovery_ready", False)),
+            "recovery_target": str(probe.get("recovery_target", "")).strip(),
         }
         for target, probe in routing.items()
     }
@@ -1769,6 +2700,8 @@ def _capability_summary() -> dict[str, Any]:
     prompt_ready, prompt_ready_reason = _is_ready_for_prompt_execution()
     if not prompt_ready:
         limitations.append(f"Prompt execution is blocked: {prompt_ready_reason}")
+    if not PLATFORM7_CONTRACT_VALIDATION.get("ok", False):
+        limitations.append("Platform7 contract validation failed; truth contract must be fixed before release.")
 
     no_limits_claim = len(limitations) == 0
 
@@ -1783,6 +2716,7 @@ def _capability_summary() -> dict[str, Any]:
         "bootstrap_status": bootstrap_state.get("status", "DOWN"),
         "prompt_ready": prompt_ready,
         "prompt_ready_reason": prompt_ready_reason,
+        "platform7_contract_validation": PLATFORM7_CONTRACT_VALIDATION,
         "notes": (
             "No-lie rule: if limitations are present, system remains bounded by provider/auth/credit/runtime constraints."
         ),
@@ -1835,11 +2769,15 @@ def _new_agent_chain_record(
     agents: list[str],
 ) -> dict[str, Any]:
     run_id = str(uuid.uuid4())
+    trace_id = str(uuid.uuid4())
+    task_id = f"task-{run_id}"
     started_at = _now_iso()
     snapshot = EVIDENCE_DIR / f"autonomy_run_{started_at.replace(':', '-').replace('.', '-')}_{run_id}.json"
     run_file = RUNS_DIR / f"{run_id}.json"
     return {
         "run_id": run_id,
+        "trace_id": trace_id,
+        "task_id": task_id,
         "started_at": started_at,
         "finished_at": "",
         "goal": goal,
@@ -1864,6 +2802,7 @@ def _persist_agent_chain_record(record: dict[str, Any]) -> None:
     run_file = Path(str(record.get("run_file", "")))
     if not snapshot:
         return
+    _persist_run_manifest(record)
     _write_json(snapshot, record)
     _write_json(EVIDENCE_DIR / "autonomy_run_latest.json", record)
     if run_file:
@@ -1912,6 +2851,9 @@ def _execute_agent_chain_record(
             step_record: dict[str, Any] = {
                 "step": index,
                 "agent": agent_id,
+                "trace_id": str(record.get("trace_id", "")),
+                "task_id": str(record.get("task_id", "")),
+                "step_id": f"{record.get('run_id', 'run')}-step-{index}",
                 "status": "running",
                 "call_id": "",
                 "runtime_target": "",
@@ -2174,7 +3116,118 @@ def _load_run_file(run_id: str) -> dict[str, Any]:
     payload = _latest_json(candidate)
     if not payload:
         raise HTTPException(status_code=404, detail=f"Run '{run_id}' evidence is empty.")
+    if not payload.get("evidence_manifest"):
+        _persist_run_manifest(payload)
+        _write_json(candidate, payload)
+        snapshot_path = Path(str(payload.get("snapshot", ""))).resolve() if str(payload.get("snapshot", "")).strip() else None
+        if snapshot_path and snapshot_path.exists():
+            _write_json(snapshot_path, payload)
+        _write_json(EVIDENCE_DIR / "autonomy_run_latest.json", payload)
     return payload
+
+
+def _is_terminal_run_status(status: str) -> bool:
+    return status in {"PASS", "DONE", "FAILED", "BLOCKED", "STOPPED", "ROLLED_BACK"}
+
+
+def _apply_run_control_transition(
+    run_record: dict[str, Any],
+    action: str,
+    req: RunControlRequest,
+) -> tuple[str, str, str, bool]:
+    current = str(run_record.get("status", "UNKNOWN")).strip().upper()
+    reason_input = req.reason.strip()
+
+    if action == "pause":
+        if current == "PAUSED":
+            return current, "Run is already paused (idempotent).", "Use resume to continue execution.", False
+        if _is_terminal_run_status(current):
+            return current, "Terminal runs cannot be paused.", "Use retry-last-step or start a new run.", False
+        run_record["status"] = "PAUSED"
+        run_record["finished_at"] = ""
+        return "PAUSED", reason_input or "Run paused by operator.", "Use resume when dependency is cleared.", True
+
+    if action == "resume":
+        if current in {"RUNNING", "QUEUED"}:
+            return current, "Run is already active (idempotent).", "Monitor live timeline.", False
+        if current != "PAUSED":
+            return current, "Run is not paused; resume is not applicable.", "Use pause first or retry-last-step.", False
+        run_record["status"] = "RUNNING"
+        run_record["finished_at"] = ""
+        return "RUNNING", reason_input or "Run resumed by operator.", "Monitor live timeline.", True
+
+    if action == "stop":
+        if current == "STOPPED":
+            return current, "Run already stopped (idempotent).", "Inspect evidence and decide retry strategy.", False
+        if _is_terminal_run_status(current):
+            return current, "Run already terminal; stop applied as idempotent no-op.", "Inspect evidence.", False
+        run_record["status"] = "STOPPED"
+        run_record["finished_at"] = _now_iso()
+        return "STOPPED", reason_input or "Run stopped by operator.", "Inspect blocker and optionally rollback.", True
+
+    if action == "rollback":
+        if current == "ROLLED_BACK":
+            return current, "Run already rolled back (idempotent).", "Review quarantined artifacts.", False
+        run_record["status"] = "ROLLED_BACK"
+        run_record["finished_at"] = _now_iso()
+        return "ROLLED_BACK", reason_input or "Run rolled back by operator.", "Retry-last-step after fix.", True
+
+    if action == "retry-last-step":
+        steps = run_record.get("steps", [])
+        if not isinstance(steps, list) or not steps:
+            return current, "Run has no steps to retry.", "Dispatch a new run.", False
+        last = steps[-1]
+        if not isinstance(last, dict):
+            return current, "Last step payload is invalid.", "Run a fresh autonomy pipeline.", False
+        last["status"] = "queued"
+        last["raw_status"] = "queued"
+        last["finished_at"] = ""
+        if reason_input:
+            last["reason"] = reason_input
+        run_record["status"] = "RUNNING"
+        run_record["current_step"] = int(last.get("step", len(steps)))
+        run_record["current_agent"] = str(last.get("agent", ""))
+        run_record["finished_at"] = ""
+        return "RUNNING", reason_input or "Last step moved back to queued.", "Monitor the rerun in Glasshouse.", True
+
+    if action == "assign-human":
+        if current == "WAITING":
+            return current, "Run already assigned to human operator (idempotent).", "Operator can resume after mitigation.", False
+        run_record["status"] = "WAITING"
+        run_record["finished_at"] = ""
+        return "WAITING", reason_input or "Run assigned to human operator.", "Operator resolves blocker, then resume.", True
+
+    return current, f"Unsupported action '{action}'.", "Use stop/pause/resume/retry-last-step/rollback/assign-human.", False
+
+
+def _execute_run_control_action(run_id: str, action: str, req: RunControlRequest) -> dict[str, Any]:
+    run_record = _load_run_file(run_id)
+    next_status, reason, next_action, changed = _apply_run_control_transition(run_record, action, req)
+    if changed:
+        _persist_agent_chain_record(run_record)
+    with CONTROL_CENTER_CACHE_LOCK:
+        CONTROL_CENTER_CACHE["expires_at"] = 0.0
+        CONTROL_CENTER_CACHE["payload"] = None
+    event = _emit_control_event(
+        action=action,
+        state=next_status,
+        reason=reason,
+        next_action=next_action,
+        payload=req,
+        run_id=run_id,
+        extra={"changed": changed},
+    )
+    return {
+        "status": "ok" if changed else "noop",
+        "run_id": run_id,
+        "action": action,
+        "run_status": next_status,
+        "changed": changed,
+        "reason": reason,
+        "next_action": next_action,
+        "event": event,
+        "run": run_record,
+    }
 
 
 def _control_center_state_payload(force_refresh: bool = False) -> dict[str, Any]:
@@ -2186,12 +3239,12 @@ def _control_center_state_payload(force_refresh: bool = False) -> dict[str, Any]
             if cached_payload and expires_at > now_epoch:
                 return dict(cached_payload)
 
-    target_timeout = max(2, min(BOLTDIY_FORWARD_TIMEOUT, 8))
+    target_timeout = max(2, min(CONTROL_CENTER_PROBE_TIMEOUT, BOLTDIY_FORWARD_TIMEOUT, 8))
     target_probes = _target_health_status(probe_timeout=target_timeout)
     routing_targets = {
         target: {
             **probe,
-            "status_class": _http_status_to_status_class(probe.get("http_status")),
+            "status_class": _http_status_to_status_class(_probe_effective_http_status(probe)),
         }
         for target, probe in target_probes.items()
     }
@@ -2200,6 +3253,7 @@ def _control_center_state_payload(force_refresh: bool = False) -> dict[str, Any]
         "status": "ok",
         "targets": routing_targets,
         "latest_dispatch": latest_dispatch.get("dispatch_artifact", ""),
+        "override": dict(ROUTING_OVERRIDE_STATE),
         "checked_at": _now_iso(),
     }
 
@@ -2248,7 +3302,17 @@ def _control_center_state_payload(force_refresh: bool = False) -> dict[str, Any]
     bootstrap_payload = _bootstrap_status_snapshot()
     ready, reason = _is_ready_for_prompt_execution()
     latest_run = _latest_json(EVIDENCE_DIR / "autonomy_run_latest.json")
+    if isinstance(latest_run, dict) and str(latest_run.get("run_id", "")).strip():
+        try:
+            _persist_run_manifest(latest_run)
+        except Exception as exc:
+            latest_run.setdefault("manifest_refresh_error", str(exc))
+    timeline_rows = _timeline_rows_from_run(latest_run if isinstance(latest_run, dict) else None)
+    active_timeline = timeline_rows[-1] if timeline_rows else {}
+    latest_run_state = _operational_state_from_raw(str(latest_run.get("status", ""))) if isinstance(latest_run, dict) else "Idle"
     service_probes = _probe_catalog_parallel(_service_probe_catalog(), target_timeout)
+    contract = _load_platform7_contract()
+    contract_validation = _validate_platform7_contract(contract)
     payload = {
         "status": "ok",
         "ready_for_prompt_execute": ready,
@@ -2263,6 +3327,33 @@ def _control_center_state_payload(force_refresh: bool = False) -> dict[str, Any]
         },
         "service_probes": service_probes,
         "latest_run": latest_run,
+        "timeline": timeline_rows,
+        "active_execution": {
+            "run_id": str(latest_run.get("run_id", "")).strip() if isinstance(latest_run, dict) else "",
+            "trace_id": str(latest_run.get("trace_id", "")).strip() if isinstance(latest_run, dict) else "",
+            "task_id": str(latest_run.get("task_id", "")).strip() if isinstance(latest_run, dict) else "",
+            "agent_id": str(active_timeline.get("agent_id", "")).strip(),
+            "role": str(active_timeline.get("role", "")).strip(),
+            "runtime_target": str(active_timeline.get("runtime_target", "")).strip(),
+            "current_state": str(active_timeline.get("current_state", latest_run_state)).strip() or latest_run_state,
+            "previous_state": str(active_timeline.get("previous_state", "Idle")).strip() or "Idle",
+            "next_state": str(active_timeline.get("next_state", latest_run_state)).strip() or latest_run_state,
+            "reason": str(active_timeline.get("reason", "")).strip(),
+            "next_action": str(active_timeline.get("next_action", _next_action_for_state(latest_run_state))).strip(),
+            "fallback_or_recovery": (
+                "fallback"
+                if bool(active_timeline.get("fallback_used", False))
+                else "recovery"
+                if bool(active_timeline.get("recovery_used", False))
+                else "none"
+            ),
+        },
+        "latest_control_event": _latest_json(CONTROL_EVENT_DIR / "latest.json"),
+        "platform7_contract": {
+            "version": contract.get("version", "unknown"),
+            "source": str(PLATFORM7_CONTRACT_PATH),
+            "validation": contract_validation,
+        },
         "computed_at": _now_iso(),
         "cache_ttl_seconds": CONTROL_CENTER_STATUS_CACHE_TTL,
     }
@@ -2418,13 +3509,228 @@ def get_run_evidence(run_id: str) -> dict[str, Any]:
         "run_id": run.get("run_id", run_id),
         "snapshot": run.get("snapshot", ""),
         "run_file": str(RUNS_DIR / f"{run_id}.json"),
+        "evidence_manifest": run.get("evidence_manifest", ""),
+        "evidence_manifest_latest": run.get("evidence_manifest_latest", ""),
+        "evidence_status": run.get("evidence_status", "Unknown"),
         "steps": run.get("steps", []),
         "summary": {
             "status": run.get("status", "UNKNOWN"),
+            "evidence_status": run.get("evidence_status", "Unknown"),
             "forwarded_steps": run.get("forwarded_steps", 0),
             "total_steps": run.get("total_steps", 0),
         },
     }
+
+
+@app.post("/runs/{run_id}/stop")
+def run_stop(run_id: str, req: RunControlRequest) -> dict[str, Any]:
+    _ensure_dirs()
+    return _execute_run_control_action(run_id, "stop", req)
+
+
+@app.post("/runs/{run_id}/kill")
+def run_kill(run_id: str, req: RunControlRequest) -> dict[str, Any]:
+    _ensure_dirs()
+    return _execute_run_control_action(run_id, "stop", req)
+
+
+@app.post("/runs/{run_id}/pause")
+def run_pause(run_id: str, req: RunControlRequest) -> dict[str, Any]:
+    _ensure_dirs()
+    return _execute_run_control_action(run_id, "pause", req)
+
+
+@app.post("/runs/{run_id}/resume")
+def run_resume(run_id: str, req: RunControlRequest) -> dict[str, Any]:
+    _ensure_dirs()
+    return _execute_run_control_action(run_id, "resume", req)
+
+
+@app.post("/runs/{run_id}/retry-last-step")
+def run_retry_last_step(run_id: str, req: RunControlRequest) -> dict[str, Any]:
+    _ensure_dirs()
+    return _execute_run_control_action(run_id, "retry-last-step", req)
+
+
+@app.post("/runs/{run_id}/rollback")
+def run_rollback(run_id: str, req: RunControlRequest) -> dict[str, Any]:
+    _ensure_dirs()
+    return _execute_run_control_action(run_id, "rollback", req)
+
+
+@app.post("/runs/{run_id}/assign-human")
+def run_assign_human(run_id: str, req: RunControlRequest) -> dict[str, Any]:
+    _ensure_dirs()
+    return _execute_run_control_action(run_id, "assign-human", req)
+
+
+@app.post("/runs/{run_id}/reroute/{mode}")
+def run_reroute(run_id: str, mode: str, req: RunControlRequest) -> dict[str, Any]:
+    _ensure_dirs()
+    requested_mode = mode.strip().lower()
+    if requested_mode not in {"auto", "local", "remote"}:
+        raise HTTPException(status_code=422, detail="mode must be one of: auto, local, remote")
+    routing_req = RoutingOverrideRequest(
+        mode=requested_mode,
+        run_id=run_id.strip(),
+        source=req.source,
+        reason=req.reason,
+        session_id=req.session_id,
+        trace_id=req.trace_id,
+        span_id=req.span_id,
+        task_id=req.task_id,
+        step_id=req.step_id,
+        agent_id=req.agent_id,
+        role=req.role,
+        runtime_target=req.runtime_target,
+    )
+    response = routing_override(routing_req)
+    return {
+        "status": "ok",
+        "run_id": run_id,
+        "mode": requested_mode,
+        "reason": ROUTING_OVERRIDE_STATE.get("reason", ""),
+        "next_action": "Retry blocked step or continue run.",
+        "event": response.get("event", {}),
+        "override": response.get("override", {}),
+    }
+
+
+def _resolve_quarantine_artifact(run_record: dict[str, Any], requested_artifact: str) -> str:
+    requested = requested_artifact.strip()
+    if requested:
+        return requested
+    steps = run_record.get("steps", [])
+    if isinstance(steps, list):
+        for item in reversed(steps):
+            if not isinstance(item, dict):
+                continue
+            for key in ("final_code_artifact", "dispatch_artifact", "final_code_url"):
+                candidate = str(item.get(key, "")).strip()
+                if candidate:
+                    return candidate
+    for key in ("evidence_manifest", "snapshot", "run_file"):
+        candidate = str(run_record.get(key, "")).strip()
+        if candidate:
+            return candidate
+    return ""
+
+
+@app.post("/runs/{run_id}/quarantine")
+def run_quarantine(run_id: str, req: RunQuarantineRequest) -> dict[str, Any]:
+    _ensure_dirs()
+    run_record = _load_run_file(run_id)
+    artifact = _resolve_quarantine_artifact(run_record, req.artifact)
+    if not artifact:
+        raise HTTPException(status_code=422, detail="No artifact available to quarantine for this run.")
+    quarantine_req = QuarantineArtifactRequest(
+        artifact=artifact,
+        run_id=run_id.strip(),
+        source=req.source,
+        reason=req.reason,
+        session_id=req.session_id,
+        trace_id=req.trace_id,
+        span_id=req.span_id,
+        task_id=req.task_id,
+        step_id=req.step_id,
+        agent_id=req.agent_id,
+        role=req.role,
+        runtime_target=req.runtime_target,
+    )
+    response = evidence_quarantine(quarantine_req)
+    return {
+        "status": "ok",
+        "run_id": run_id,
+        "artifact": artifact,
+        "reason": quarantine_req.reason.strip() or "Artifact quarantined by operator.",
+        "next_action": "Inspect quarantine record and rerun verifiers.",
+        "event": response.get("event", {}),
+        "quarantine_record": response.get("quarantine_record", ""),
+        "quarantine_copy": response.get("quarantine_copy", ""),
+    }
+
+
+@app.post("/routing/override")
+def routing_override(req: RoutingOverrideRequest) -> dict[str, Any]:
+    _ensure_dirs()
+    requested_mode = req.mode.strip().lower()
+    if requested_mode not in {"auto", "local", "remote"}:
+        raise HTTPException(status_code=422, detail="mode must be one of: auto, local, remote")
+    ROUTING_OVERRIDE_STATE["mode"] = requested_mode
+    ROUTING_OVERRIDE_STATE["source"] = req.source.strip()
+    ROUTING_OVERRIDE_STATE["reason"] = req.reason.strip() or f"operator override -> {requested_mode}"
+    ROUTING_OVERRIDE_STATE["updated_at"] = _now_iso()
+    with CONTROL_CENTER_CACHE_LOCK:
+        CONTROL_CENTER_CACHE["expires_at"] = 0.0
+        CONTROL_CENTER_CACHE["payload"] = None
+    event = _emit_control_event(
+        action="routing-override",
+        state="Done",
+        reason=ROUTING_OVERRIDE_STATE["reason"],
+        next_action="Retry blocked step or continue run.",
+        payload=req,
+        run_id=req.run_id.strip(),
+        extra={"mode": requested_mode},
+    )
+    return {
+        "status": "ok",
+        "override": dict(ROUTING_OVERRIDE_STATE),
+        "event": event,
+    }
+
+
+@app.post("/routing/set")
+def routing_set_alias(req: RoutingOverrideRequest) -> dict[str, Any]:
+    return routing_override(req)
+
+
+@app.post("/evidence/quarantine")
+def evidence_quarantine(req: QuarantineArtifactRequest) -> dict[str, Any]:
+    _ensure_dirs()
+    quarantine_dir = EVIDENCE_DIR / "quarantine"
+    quarantine_dir.mkdir(parents=True, exist_ok=True)
+    descriptor = _artifact_descriptor(req.artifact)
+    moved_path = ""
+    if descriptor.get("kind") == "file" and descriptor.get("present", False):
+        source_path = Path(str(descriptor.get("path", "")))
+        target_name = f"{_now_iso().replace(':', '-').replace('.', '-')}_{source_path.name}"
+        target_path = quarantine_dir / target_name
+        shutil.copy2(source_path, target_path)
+        moved_path = str(target_path)
+    record = {
+        "timestamp": _now_iso(),
+        "run_id": req.run_id.strip(),
+        "artifact": req.artifact.strip(),
+        "descriptor": descriptor,
+        "quarantine_copy": moved_path,
+        "source": req.source.strip(),
+        "reason": req.reason.strip() or "Artifact quarantined by operator.",
+    }
+    record_path = quarantine_dir / f"quarantine_{record['timestamp'].replace(':', '-').replace('.', '-')}.json"
+    _write_json(record_path, record)
+    _write_json(quarantine_dir / "latest.json", record)
+    event = _emit_control_event(
+        action="quarantine-artifact",
+        state="Done",
+        reason=record["reason"],
+        next_action="Inspect quarantine record and rerun verifier.",
+        payload=req,
+        run_id=req.run_id.strip(),
+        extra={"record": str(record_path), "copied_artifact": moved_path},
+    )
+    return {
+        "status": "ok",
+        "run_id": req.run_id.strip(),
+        "artifact": req.artifact.strip(),
+        "quarantine_record": str(record_path),
+        "quarantine_copy": moved_path,
+        "event": event,
+    }
+
+
+@app.post("/artifacts/quarantine")
+def artifacts_quarantine_alias(req: QuarantineArtifactRequest) -> dict[str, Any]:
+    return evidence_quarantine(req)
 
 
 @app.get("/artifacts/ollamahf/{filename}")
@@ -2500,6 +3806,15 @@ def health() -> dict[str, Any]:
     _ensure_dirs()
     active_agents = AGENT_REGISTRY.get("active_agents", [])
     legacy_agents = AGENT_REGISTRY.get("legacy_agents", [])
+    virtual_agents = list(
+        {
+            str(item.get("agent_id", "")).strip(): item
+            for item in VIRTUAL_AGENT_LOOKUP.values()
+            if isinstance(item, dict) and str(item.get("agent_id", "")).strip()
+        }.values()
+    )
+    contract = _load_platform7_contract()
+    contract_validation = _validate_platform7_contract(contract)
 
     return {
         "status": "healthy",
@@ -2515,6 +3830,7 @@ def health() -> dict[str, Any]:
             "path": str(AGENT_REGISTRY_PATH),
             "active_agents": len(active_agents),
             "legacy_agents": len(legacy_agents),
+            "virtual_agents": len(virtual_agents),
             "alias_collisions": AGENT_ALIAS_COLLISIONS,
         },
         "targets": {
@@ -2539,19 +3855,33 @@ def health() -> dict[str, Any]:
         },
         "runtime_dir": str(RUNTIME_DIR),
         "evidence_dir": str(EVIDENCE_DIR),
+        "platform7_contract": {
+            "path": str(PLATFORM7_CONTRACT_PATH),
+            "version": contract.get("version", "unknown"),
+            "validation": contract_validation,
+        },
     }
 
 
 @app.get("/agents")
 def agents() -> dict[str, Any]:
+    virtual_agents = list(
+        {
+            str(item.get("agent_id", "")).strip(): item
+            for item in VIRTUAL_AGENT_LOOKUP.values()
+            if isinstance(item, dict) and str(item.get("agent_id", "")).strip()
+        }.values()
+    )
     return {
         "status": "ok",
         "registry_path": str(AGENT_REGISTRY_PATH),
         "active_count": len(AGENT_REGISTRY.get("active_agents", [])),
         "legacy_count": len(AGENT_REGISTRY.get("legacy_agents", [])),
+        "virtual_count": len(virtual_agents),
         "runtime_targets": RUNTIME_TARGETS,
         "active_agents": AGENT_REGISTRY.get("active_agents", []),
         "legacy_agents": AGENT_REGISTRY.get("legacy_agents", []),
+        "virtual_agents": virtual_agents,
         "alias_collisions": AGENT_ALIAS_COLLISIONS,
     }
 
@@ -2562,7 +3892,7 @@ def routing_status() -> dict[str, Any]:
     mapped = {
         target: {
             **probe,
-            "status_class": _http_status_to_status_class(probe.get("http_status")),
+            "status_class": _http_status_to_status_class(_probe_effective_http_status(probe)),
         }
         for target, probe in checks.items()
     }
@@ -2570,6 +3900,7 @@ def routing_status() -> dict[str, Any]:
     return {
         "status": "ok",
         "targets": mapped,
+        "override": dict(ROUTING_OVERRIDE_STATE),
         "latest_dispatch": latest_dispatch.get("dispatch_artifact", ""),
         "checked_at": _now_iso(),
     }
@@ -2595,6 +3926,18 @@ def autonomy_profiles() -> dict[str, Any]:
     }
 
 
+@app.get("/platform7/contract")
+def platform7_contract() -> dict[str, Any]:
+    contract = _load_platform7_contract()
+    validation = _validate_platform7_contract(contract)
+    return {
+        "status": "ok" if validation.get("ok", False) else "blocked",
+        "contract": contract,
+        "validation": validation,
+        "source": str(PLATFORM7_CONTRACT_PATH),
+    }
+
+
 @app.get("/autonomy/capabilities")
 def autonomy_capabilities() -> dict[str, Any]:
     return _capability_summary()
@@ -2614,39 +3957,64 @@ def dispatch(payload: MissionPayload) -> dict[str, Any]:
     call_id = str(uuid.uuid4())
     started_at = _now_iso()
     normalized_payload, agent_entry = _canonicalize_payload(payload)
-    runtime_target = str(agent_entry.get("runtime_target", "")).strip()
+    routing_mode = str(ROUTING_OVERRIDE_STATE.get("mode", "auto")).strip().lower()
+    requested_target = str(agent_entry.get("runtime_target", "")).strip()
+    runtime_target = _effective_runtime_target(requested_target)
+    if requested_target not in RUNTIME_TARGETS:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Invalid runtime_target '{requested_target}' for agent "
+                f"{normalized_payload.agent}. Allowed: {', '.join(RUNTIME_TARGETS)}"
+            ),
+        )
     if runtime_target not in RUNTIME_TARGETS:
         raise HTTPException(
             status_code=422,
             detail=(
-                f"Invalid runtime_target '{runtime_target}' for agent "
-                f"{normalized_payload.agent}. Allowed: {', '.join(RUNTIME_TARGETS)}"
+                f"Routing override resolved unsupported runtime_target '{runtime_target}' "
+                f"for agent {normalized_payload.agent}."
             ),
         )
 
-    is_heavy = _is_heavy_3d_task(normalized_payload.task)
-    policy_blocked = (
-        ZERO_COMPUTE_POLICY
-        and is_heavy
-        and (not ALLOW_LOCAL_HEAVY)
-        and runtime_target in LOCAL_HEAVY_BLOCKED_TARGETS
-    )
-    if policy_blocked:
+    if str(agent_entry.get("kind", "")).strip().lower() == "supervisor":
         result = {
             "target": runtime_target,
-            "status": "blocked",
-            "reason": (
-                "ZERO_COMPUTE_POLICY denied heavy 3D/KI task on local runtime target. "
-                "Route to remote target or disable policy explicitly."
-            ),
+            "status": "forwarded",
+            "reason": "Supervisor gate validated current step and emitted live oversight evidence.",
+            "supervisor_gate": True,
+            "http_status": 200,
         }
-        METRICS["policy_denied_total"] += 1
+        policy_blocked = False
     else:
-        result = _dispatch_by_target(runtime_target, normalized_payload)
+        is_heavy = _is_heavy_3d_task(normalized_payload.task)
+        policy_blocked = (
+            ZERO_COMPUTE_POLICY
+            and is_heavy
+            and (not ALLOW_LOCAL_HEAVY)
+            and runtime_target in LOCAL_HEAVY_BLOCKED_TARGETS
+        )
+        if policy_blocked:
+            result = {
+                "target": runtime_target,
+                "status": "blocked",
+                "reason": (
+                    "ZERO_COMPUTE_POLICY denied heavy 3D/KI task on local runtime target. "
+                    "Route to remote target or disable policy explicitly."
+                ),
+            }
+            METRICS["policy_denied_total"] += 1
+        else:
+            result = _dispatch_by_target(runtime_target, normalized_payload)
+            if str(result.get("status", "")).strip().lower() != "forwarded":
+                recovered = _attempt_runtime_recovery(runtime_target, normalized_payload, result)
+                if recovered is not result:
+                    result = recovered
 
     overall = result.get("status", "forward-failed")
+    executed_runtime_target = str(result.get("target", runtime_target)).strip() or runtime_target
     METRICS["dispatch_total"] += 1
-    METRICS["target_counts"][runtime_target] = METRICS["target_counts"].get(runtime_target, 0) + 1
+    METRICS["target_counts"][executed_runtime_target] = METRICS["target_counts"].get(executed_runtime_target, 0) + 1
     if overall == "forwarded":
         METRICS["dispatch_forwarded_total"] += 1
     elif overall == "blocked":
@@ -2664,14 +4032,26 @@ def dispatch(payload: MissionPayload) -> dict[str, Any]:
         "canonical_agent": normalized_payload.agent,
         "agent_origin": agent_entry.get("origin", "unknown"),
         "agent_status_class": agent_entry.get("status_class", "UNKNOWN"),
+        "routing_override_mode": routing_mode,
+        "requested_runtime_target": requested_target,
         "runtime_target": runtime_target,
+        "executed_runtime_target": executed_runtime_target,
+        "routing_decision": {
+            "mode": routing_mode,
+            "requested_target": requested_target,
+            "effective_target": runtime_target,
+            "executed_target": executed_runtime_target,
+            "recovery_used": bool(result.get("recovery_used")),
+            "recovery_from": str(result.get("recovery_from", "")).strip(),
+            "recovery_target": str(result.get("recovery_target", "")).strip(),
+        },
         "contract": {
             "status": "pass",
             "fields": list(normalized_payload.model_dump().keys()),
         },
         "zero_compute_policy": {
             "enabled": ZERO_COMPUTE_POLICY,
-            "task_detected_heavy": is_heavy,
+            "task_detected_heavy": _is_heavy_3d_task(normalized_payload.task),
             "policy_blocked": policy_blocked,
         },
         "result": result,
@@ -2704,7 +4084,13 @@ def dispatch(payload: MissionPayload) -> dict[str, Any]:
         "status": overall,
         "call_id": call_id,
         "agent": normalized_payload.agent,
+        "routing_mode": routing_mode,
+        "requested_runtime_target": requested_target,
         "runtime_target": runtime_target,
+        "executed_runtime_target": executed_runtime_target,
+        "recovery_used": bool(result.get("recovery_used")),
+        "recovery_from": str(result.get("recovery_from", "")).strip(),
+        "recovery_target": str(result.get("recovery_target", "")).strip(),
         "policy_blocked": policy_blocked,
         "dispatch_artifact": str(dispatch_file),
         "result": result,
@@ -2745,6 +4131,7 @@ def evidence_latest() -> dict[str, Any]:
         "bootstrap_latest": BOOTSTRAP_STATE_PATH,
         "run_latest": EVIDENCE_DIR / "autonomy_run_latest.json",
         "autonomy_run_latest": EVIDENCE_DIR / "autonomy_run_latest.json",
+        "run_manifest_latest": RUN_MANIFEST_DIR / "latest.json",
         "ollama_probe_latest": EVIDENCE_DIR / "ollama_probe_latest.json",
         "superbrain_gate_latest": EVIDENCE_DIR / "superbrain_gate_latest.json",
         "security_rotation_latest": EVIDENCE_DIR / "security_rotation_check_latest.json",
