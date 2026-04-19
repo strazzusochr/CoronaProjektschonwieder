@@ -3733,6 +3733,29 @@ def artifacts_quarantine_alias(req: QuarantineArtifactRequest) -> dict[str, Any]
     return evidence_quarantine(req)
 
 
+def _manifest_file_response(filename: str) -> FileResponse:
+    _ensure_dirs()
+    safe_name = Path(filename).name
+    candidate = (RUN_MANIFEST_DIR / safe_name).resolve()
+    allowed_root = RUN_MANIFEST_DIR.resolve()
+    if allowed_root not in candidate.parents or not candidate.exists() or candidate.suffix.lower() != ".json":
+        raise HTTPException(status_code=404, detail="Not Found")
+    return FileResponse(
+        candidate,
+        media_type="application/json",
+    )
+
+
+@app.get("/workspace/runtime/evidence/manifests/{filename}")
+def workspace_manifest_alias(filename: str) -> FileResponse:
+    return _manifest_file_response(filename)
+
+
+@app.get("/evidence/manifests/{filename}")
+def evidence_manifest_file(filename: str) -> FileResponse:
+    return _manifest_file_response(filename)
+
+
 @app.get("/artifacts/ollamahf/{filename}")
 def get_ollamahf_artifact(filename: str) -> FileResponse:
     _ensure_dirs()
