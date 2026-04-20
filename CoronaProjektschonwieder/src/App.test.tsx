@@ -118,6 +118,11 @@ describe('App - three window platform', () => {
                 { id: 'SentinelTruthAgent', name: 'SentinelTruthAgent', lane: 'Supervisor', kind: 'supervisor', namespace: 'sentinel_truth', note: 'truth gate' },
                 { id: 'SentinelRuntimeAgent', name: 'SentinelRuntimeAgent', lane: 'Supervisor', kind: 'supervisor', namespace: 'sentinel_runtime', note: 'runtime gate' },
               ],
+              tooling_requirements: [
+                { id: 'dispatch-hub', label: 'Dispatch Hub API', kind: 'runtime', required: true, evidence: 'health HTTP 200' },
+                { id: 'chrome-devtools', label: 'Chrome DevTools MCP', kind: 'browser', required: true, evidence: 'console/network snapshot' },
+                { id: 'puppeteer', label: 'Puppeteer MCP', kind: 'browser', required: true, evidence: 'live smoke trace' },
+              ],
               autonomy_profiles: [
                 {
                   id: 'three_d_web_game_swarm',
@@ -228,6 +233,97 @@ describe('App - three window platform', () => {
     await waitFor(() => {
       expect(screen.getByText(/run_id: run-1 \| trace_id: trace-1 \| task_id: task-1/i)).toBeTruthy();
       expect(screen.getByText(/runtime_target: langgraph-local \| session_id: session-1 \| span_id: span-1/i)).toBeTruthy();
+    });
+
+  });
+
+  it('uses 30000ms timeout for dispatch requests', async () => {
+    render(<App />);
+    const timeoutSpy = vi.spyOn(window, 'setTimeout');
+    timeoutSpy.mockClear();
+
+    fireEvent.click(screen.getAllByRole('button', { name: /dispatch starten/i })[0]);
+    await waitFor(() => {
+      expect(screen.getByText(/dispatch response http 200/i)).toBeTruthy();
+    });
+    expect(timeoutSpy.mock.calls.some((call) => call[1] === 30000)).toBe(true);
+  });
+
+  it('classifies AbortError as timeout in dispatch feedback', async () => {
+    render(<App />);
+    const fetchMock = vi.mocked(globalThis.fetch);
+    const defaultImpl = fetchMock.getMockImplementation();
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.includes('/dispatch')) {
+        throw new DOMException('Aborted', 'AbortError');
+      }
+      if (defaultImpl) return await defaultImpl(input, init);
+      return new Response(JSON.stringify({ status: 'ok' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+
+    fireEvent.click(screen.getAllByRole('button', { name: /dispatch starten/i })[0]);
+    await waitFor(() => {
+      expect(screen.getAllByText(/dispatch failed: request timed out after 30000ms/i).length).toBeGreaterThan(0);
+    });
+  });
+
+  it('falls back to bundled platform contract when hub contract endpoints are unreachable', async () => {
+    render(<App />);
+    const fetchMock = vi.mocked(globalThis.fetch);
+    const defaultImpl = fetchMock.getMockImplementation();
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.includes('/platform7/contract') || url.includes('/autonomy/profiles')) {
+        return new Response(JSON.stringify({ status: 'not-found' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (defaultImpl) return await defaultImpl(input, init);
+      return new Response(JSON.stringify({ status: 'ok' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/sentineltruthagent/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/sentinelruntimeagent/i).length).toBeGreaterThan(0);
+      expect(screen.getByText(/profile source:/i).textContent).toContain('bundled-contract');
+    });
+  });
+
+  it('maps virtual agent statuses so roles do not stay in default plan state', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    const defaultImpl = fetchMock.getMockImplementation();
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.includes('/agents')) {
+        return new Response(
+          JSON.stringify({
+            active_count: 29,
+            legacy_count: 1,
+            active_agents: [{ agent_id: 'local.smolagents.godmode_manager', status_class: 'IMPLEMENTED' }],
+            virtual_agents: [
+              { agent_id: 'product_scope', status_class: 'IMPLEMENTED' },
+              { agent_id: 'sentinel_truth', status_class: 'VERIFIED' },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      if (defaultImpl) return await defaultImpl(input, init);
+      return new Response(JSON.stringify({ status: 'ok' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+
+    render(<App />);
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Implemented\./i)).toBeTruthy();
+      expect(screen.queryByLabelText(/Plan\./i)).toBeNull();
     });
   });
 });

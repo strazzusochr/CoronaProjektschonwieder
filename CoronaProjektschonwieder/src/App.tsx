@@ -1,4 +1,5 @@
-import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import platform7ContractFallback from './platform7ContractFallback.json';
 import { resolveSyncCursor, type SyncCursor } from './sync';
 
 type WindowRole = 'commander' | 'glasshouse' | 'operations';
@@ -10,12 +11,14 @@ type EventSeverity = 'info' | 'warn' | 'error' | 'success';
 type PromptTemplate = { id: string; title: string; recommendedAgent: string; task: string };
 type AutonomyProfile = { id: string; label: string; description: string; agents: string[] };
 type Platform7ContractRole = { id: string; name: string; lane: string; kind: 'worker' | 'supervisor'; namespace: string; note: string };
+type ToolingRequirement = { id: string; label: string; kind: string; required: boolean; evidence: string };
 type Platform7Contract = {
   version: string;
   status_model: string[];
   maturity_model: string[];
   required_supervisor_namespaces: string[];
   roles: Platform7ContractRole[];
+  tooling_requirements: ToolingRequirement[];
   autonomy_profiles: AutonomyProfile[];
 };
 type DispatchPayload = { agent: string; task: string; source: string; repo: string; ref: string; status: string; timestamp: string };
@@ -192,6 +195,9 @@ const RUN_HEARTBEAT_STALE_MS = 22000;
 const WINDOW_HEARTBEAT_STALE_MS = 15000;
 const PROMPT_EXECUTION_TIMEOUT_MS = 180000;
 const AUTONOMY_RUN_TIMEOUT_MS = 180000;
+const FULL_29_PROFILE_ID = 'three_d_web_game_swarm';
+const CORE_11_PROFILE_ID = 'three_d_web_game_core_11';
+const WINDOW_ROLES: WindowRole[] = ['commander', 'glasshouse', 'operations'];
 
 const SERVICE_CATALOG = [
   { id: 'bolt', label: 'Dispatch Hub', targetKey: null, source: '/health' },
@@ -259,6 +265,7 @@ const EMPTY_PLATFORM7_CONTRACT: Platform7Contract = {
   maturity_model: [...Object.keys(MATURITY_META)],
   required_supervisor_namespaces: ['sentinel_truth', 'sentinel_runtime'],
   roles: [],
+  tooling_requirements: [],
   autonomy_profiles: [],
 };
 const EMPTY_RUNTIME_PROBE: RuntimeProbeSummary = {
@@ -298,12 +305,46 @@ function normalizeBaseUrl(value: string, fallback: string) { const normalized = 
 function getStoredValue(key: string) { try { return window.localStorage.getItem(key) ?? ''; } catch { return ''; } }
 function setStoredValue(key: string, value: string) { try { window.localStorage.setItem(key, value); } catch { /* ignore */ } }
 function parseErrorMessage(error: unknown) { return error instanceof Error && error.message.trim().length > 0 ? error.message : 'unknown error'; }
+function isAbortLikeError(error: unknown) {
+  if (error instanceof DOMException && error.name === 'AbortError') return true;
+  if (error instanceof Error && /abort/i.test(error.message)) return true;
+  return false;
+}
 function defaultDispatchPayload(): DispatchPayload { return { agent: 'product_scope', task: 'Prepare transparent execution plan for 3-window platform run.', source: 'commander', repo: 'strazzusochr/CoronaProjektschonwieder', ref: 'main', status: 'queued', timestamp: nowIso() }; }
+function findProfileById(profiles: AutonomyProfile[], profileId: string) { return profiles.find((profile) => profile.id === profileId) ?? null; }
+function pickPreferredProfileId(profiles: AutonomyProfile[]) {
+  if (profiles.length === 0) return '';
+  if (findProfileById(profiles, FULL_29_PROFILE_ID)) return FULL_29_PROFILE_ID;
+  if (findProfileById(profiles, CORE_11_PROFILE_ID)) return CORE_11_PROFILE_ID;
+  return profiles[0].id;
+}
+function capabilityRecommendedDefaults(payload: Record<string, unknown> | null) {
+  if (!payload || typeof payload !== 'object') return {};
+  const raw = payload.recommended_defaults;
+  if (!raw || typeof raw !== 'object') return {};
+  return raw as Record<string, unknown>;
+}
+function recommendedDefaultAgent(payload: Record<string, unknown> | null) {
+  const defaults = capabilityRecommendedDefaults(payload);
+  const value = String(defaults.default_agent ?? '').trim();
+  return value || 'product_scope';
+}
 
 async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = 7000) {
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
-  try { return await fetch(url, { ...init, signal: controller.signal }); } finally { window.clearTimeout(timeout); }
+  let timedOut = false;
+  const timeout = window.setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (timedOut || isAbortLikeError(error)) {
+      throw new Error(`request timed out after ${timeoutMs}ms`);
+    }
+    throw error;
+  } finally { window.clearTimeout(timeout); }
 }
 
 async function parseResponseSafely(response: Response): Promise<Record<string, unknown>> {
@@ -363,14 +404,38 @@ function normalizePlatform7Contract(value: unknown): Platform7Contract | null {
         })
         .filter((profile) => profile.id.length > 0)
     : [];
+  const toolingRequirements = Array.isArray(candidate.tooling_requirements)
+    ? candidate.tooling_requirements
+        .filter((entry) => entry && typeof entry === 'object' && !Array.isArray(entry))
+        .map((entry) => {
+          const tool = entry as Record<string, unknown>;
+          return {
+            id: String(tool.id ?? ''),
+            label: String(tool.label ?? tool.id ?? ''),
+            kind: String(tool.kind ?? 'runtime'),
+            required: Boolean(tool.required ?? true),
+            evidence: String(tool.evidence ?? ''),
+          } as ToolingRequirement;
+        })
+        .filter((tool) => tool.id.length > 0)
+    : [];
   return {
     version: String(candidate.version ?? 'unknown'),
     status_model: Array.isArray(candidate.status_model) ? candidate.status_model.map((entry) => String(entry)) : EMPTY_PLATFORM7_CONTRACT.status_model,
     maturity_model: Array.isArray(candidate.maturity_model) ? candidate.maturity_model.map((entry) => String(entry)) : EMPTY_PLATFORM7_CONTRACT.maturity_model,
     required_supervisor_namespaces: Array.isArray(candidate.required_supervisor_namespaces) ? candidate.required_supervisor_namespaces.map((entry) => String(entry)) : EMPTY_PLATFORM7_CONTRACT.required_supervisor_namespaces,
     roles,
+    tooling_requirements: toolingRequirements,
     autonomy_profiles: autonomyProfiles,
   };
+}
+
+function getBundledPlatform7Contract(): Platform7Contract {
+  return normalizePlatform7Contract(platform7ContractFallback) ?? EMPTY_PLATFORM7_CONTRACT;
+}
+
+function hasLoadedPlatform7Contract(contract: Platform7Contract | null): contract is Platform7Contract {
+  return Boolean(contract && contract.roles.length > 0);
 }
 
 function normalizeRunPayload(value: unknown): AgentRunRecord | null {
@@ -488,11 +553,71 @@ function runStatusToOperational(status: string): OperationalState {
   return 'Idle';
 }
 
+function normalizeStatusClass(value: unknown): string {
+  return String(value ?? '').trim().toUpperCase();
+}
+
+function isRuntimeStatusClass(value: string): boolean {
+  return [
+    'PASS',
+    'DONE',
+    'READY',
+    'SUCCESS',
+    'RUNNING',
+    'BOOTING',
+    'CHECKING',
+    'IN_PROGRESS',
+    'FORWARDED',
+    'FORWARDING',
+    'QUEUED',
+    'PENDING',
+    'WAITING',
+    'PAUSED',
+    'BLOCKED',
+    'NOT VERIFIED',
+    'UNVERIFIED',
+    'PARTIAL',
+    'DEGRADED',
+    'SKIPPED',
+    'FAIL',
+    'FAILED',
+    'ERROR',
+    'FORWARD-FAILED',
+    'ROLLED_BACK',
+    'STOPPED',
+  ].includes(value);
+}
+
+function statusClassToMaturity(value: string): MaturityState | null {
+  if (value === 'VERIFIED') return 'Verified';
+  if (value === 'IMPLEMENTED') return 'Implemented';
+  if (value === 'PARTIAL') return 'Partial';
+  if (value === 'BLOCKED' || value === 'FAILED' || value === 'FAIL' || value === 'ERROR') return 'Blocked';
+  if (value === 'LEGACY') return 'Legacy';
+  if (value === 'PLAN') return 'Plan';
+  if (value === 'UNKNOWN') return 'Unknown';
+  return null;
+}
+
+function operationalToMaturity(state: OperationalState): MaturityState {
+  if (state === 'Done') return 'Verified';
+  if (state === 'Running') return 'Implemented';
+  if (state === 'Partial') return 'Partial';
+  if (state === 'Blocked' || state === 'Failed') return 'Blocked';
+  return 'Unknown';
+}
+
 function healthToOperational(state: HealthState): OperationalState {
   if (state === 'up') return 'Done';
   if (state === 'checking') return 'Running';
   if (state === 'down') return 'Blocked';
   return 'Idle';
+}
+
+function bootstrapToOperational(bootstrap: BootstrapRecord): OperationalState {
+  if (bootstrap.ready || bootstrap.status === 'READY') return 'Done';
+  const mapped = runStatusToOperational(bootstrap.status);
+  return mapped === 'Idle' && bootstrap.status === 'DOWN' ? 'Blocked' : mapped;
 }
 
 function severityFromOperationalState(state: OperationalState, changed: 'yes' | 'no' | 'unknown' = 'unknown'): EventSeverity {
@@ -534,6 +659,33 @@ function roleNameForAgent(agentId: string, roles: Array<{ id: string; namespace:
   const normalized = agentId.toLowerCase();
   const hit = roles.find((role) => role.namespace.toLowerCase() === normalized || role.id.toLowerCase() === normalized);
   return hit?.name ?? agentId;
+}
+
+function agentLookupKeys(agent: AgentRecord): string[] {
+  const keys = new Set<string>();
+  const add = (value: unknown) => {
+    const text = String(value ?? '').trim();
+    if (!text) return;
+    keys.add(text.toLowerCase());
+    if (text.includes('.')) {
+      const parts = text.split('.').filter((part) => part.trim().length > 0);
+      if (parts.length > 0) keys.add(parts[parts.length - 1].trim().toLowerCase());
+    }
+  };
+
+  add(agent.agent_id);
+  add(agent.id);
+  add(agent.name);
+  add(agent.namespace);
+  add(agent.display_name);
+  add(agent.displayName);
+
+  const aliases = agent.aliases;
+  if (Array.isArray(aliases)) {
+    for (const alias of aliases) add(alias);
+  }
+
+  return [...keys];
 }
 
 function asStringArray(value: unknown): string[] { return Array.isArray(value) ? value.map((entry) => String(entry)) : []; }
@@ -641,11 +793,13 @@ export default function App() {
   const [bootstrapState, setBootstrapState] = useState<BootstrapRecord>({ status: 'DOWN', ready: false, summary: 'Bootstrap not started.' });
 
   const [dispatchPayload, setDispatchPayload] = useState<DispatchPayload>(defaultDispatchPayload());
+  const [manualDispatchOverride, setManualDispatchOverride] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState(PROMPT_TEMPLATES[0].id);
   const [autonomyProfiles, setAutonomyProfiles] = useState<AutonomyProfile[]>(EMPTY_AUTONOMY_PROFILES);
   const [autonomyProfileId, setAutonomyProfileId] = useState('');
   const [platformContract, setPlatformContract] = useState<Platform7Contract>(EMPTY_PLATFORM7_CONTRACT);
   const [platformContractValidation, setPlatformContractValidation] = useState<Record<string, unknown> | null>(null);
+  const [platformContractSource, setPlatformContractSource] = useState('none');
   const [autonomyGoal, setAutonomyGoal] = useState(PROMPT_TEMPLATES[0].task);
   const [promptCommand, setPromptCommand] = useState(PROMPT_TEMPLATES[0].task);
 
@@ -674,14 +828,36 @@ export default function App() {
   const effectiveAutonomyProfiles = platformContract.autonomy_profiles.length > 0
     ? platformContract.autonomy_profiles
     : autonomyProfiles;
+  const preferredAutonomyProfileId = pickPreferredProfileId(effectiveAutonomyProfiles);
   const autonomyProfileSource = platformContract.autonomy_profiles.length > 0
-    ? '/platform7/contract'
+    ? platformContractSource
     : autonomyProfiles.length > 0
       ? '/autonomy/profiles'
       : 'none';
-  const selectedAutonomyProfile = effectiveAutonomyProfiles.find((profile) => profile.id === autonomyProfileId) ?? effectiveAutonomyProfiles[0] ?? null;
-  const selectedAutonomyProfileId = selectedAutonomyProfile?.id ?? 'three_d_web_game_swarm';
+  const selectedAutonomyProfile = effectiveAutonomyProfiles.find((profile) => profile.id === autonomyProfileId)
+    ?? findProfileById(effectiveAutonomyProfiles, preferredAutonomyProfileId)
+    ?? effectiveAutonomyProfiles[0]
+    ?? null;
+  const selectedAutonomyProfileId = (selectedAutonomyProfile?.id ?? preferredAutonomyProfileId) || FULL_29_PROFILE_ID;
   const selectedAutonomyProfileLabel = selectedAutonomyProfile?.label ?? 'No profile loaded';
+  const quickProfileFull29 = findProfileById(effectiveAutonomyProfiles, FULL_29_PROFILE_ID);
+  const quickProfileCore11 = findProfileById(effectiveAutonomyProfiles, CORE_11_PROFILE_ID);
+  const defaultsFromCapabilities = capabilityRecommendedDefaults(capabilitiesStatus);
+  const capabilityDefaultProfileId = String(defaultsFromCapabilities.default_profile_id ?? '').trim();
+  const recommendedAutonomyProfileId = (
+    findProfileById(effectiveAutonomyProfiles, capabilityDefaultProfileId)?.id
+    ?? preferredAutonomyProfileId
+  ) || FULL_29_PROFILE_ID;
+  const recommendedDispatchAgent = recommendedDefaultAgent(capabilitiesStatus);
+  const toolingRequirements = platformContract.tooling_requirements;
+  const requiredToolingRequirements = toolingRequirements.filter((tool) => tool.required);
+  const browserToolingGateOk = requiredToolingRequirements.some((tool) => tool.id.toLowerCase() === 'chrome-devtools')
+    && requiredToolingRequirements.some((tool) => tool.id.toLowerCase() === 'puppeteer');
+  const browserToolingGateState: OperationalState = toolingRequirements.length === 0
+    ? 'Idle'
+    : browserToolingGateOk
+      ? 'Done'
+      : 'Blocked';
   const profileMissingFromContract = platformContract.autonomy_profiles.length > 0
     && !platformContract.autonomy_profiles.some((profile) => profile.id === selectedAutonomyProfileId);
   const profileSelectionReason = profileMissingFromContract
@@ -778,47 +954,57 @@ export default function App() {
       note: role.note,
     }));
     const map = new Map<string, { state: OperationalState; maturity: MaturityState; note: string }>();
+    const register = (
+      key: string,
+      update: Partial<{ state: OperationalState; maturity: MaturityState; note: string }>,
+      fallback: { state: OperationalState; maturity: MaturityState; note: string },
+    ) => {
+      const normalizedKey = key.trim().toLowerCase();
+      if (!normalizedKey) return;
+      const previous = map.get(normalizedKey) ?? fallback;
+      map.set(normalizedKey, {
+        state: update.state ?? previous.state,
+        maturity: update.maturity ?? previous.maturity,
+        note: update.note ?? previous.note,
+      });
+    };
     for (const role of baseRoles) {
-      map.set(role.id, { state: role.state, maturity: role.maturity, note: role.note });
-      map.set(role.namespace, { state: role.state, maturity: role.maturity, note: role.note });
+      const fallback = { state: role.state, maturity: role.maturity, note: role.note };
+      register(role.id, {}, fallback);
+      register(role.namespace, {}, fallback);
+      register(role.name, {}, fallback);
     }
     for (const agent of agents) {
-      const namespace = String(agent.agent_id ?? agent.id ?? agent.name ?? '');
-      if (!namespace) continue;
-      const statusClass = String(agent.status_class ?? agent.status ?? 'unknown');
-      const operational = runStatusToOperational(statusClass);
-      const maturity: MaturityState =
-        operational === 'Done'
-          ? 'Verified'
-          : operational === 'Running'
-            ? 'Implemented'
-            : operational === 'Partial'
-              ? 'Partial'
-              : operational === 'Blocked' || operational === 'Failed'
-                ? 'Blocked'
-                : 'Unknown';
-      map.set(namespace, { state: operational, maturity, note: `Registry status: ${statusClass}` });
+      const keys = agentLookupKeys(agent);
+      if (!keys.length) continue;
+      const statusClass = normalizeStatusClass(agent.status_class ?? agent.status ?? 'unknown');
+      const runtimeState = runStatusToOperational(statusClass);
+      const runtimeMaturity = operationalToMaturity(runtimeState);
+      const maturity = statusClassToMaturity(statusClass) ?? runtimeMaturity;
+      const stateOverride = isRuntimeStatusClass(statusClass) ? runtimeState : undefined;
+      for (const key of keys) {
+        register(
+          key,
+          { state: stateOverride, maturity, note: `Registry status: ${statusClass || 'UNKNOWN'}` },
+          { state: 'Idle', maturity: 'Unknown', note: '' },
+        );
+      }
     }
     if (currentRun?.steps?.length) {
       for (const step of currentRun.steps) {
-        const namespace = String(step.agent ?? '').trim();
+        const namespace = String(step.agent ?? '').trim().toLowerCase();
         if (!namespace) continue;
         const operational = runStatusToOperational(step.status);
-        const maturity: MaturityState =
-          operational === 'Done'
-            ? 'Verified'
-            : operational === 'Running'
-              ? 'Implemented'
-              : operational === 'Partial'
-                ? 'Partial'
-                : operational === 'Blocked' || operational === 'Failed'
-                  ? 'Blocked'
-                  : 'Unknown';
-        map.set(namespace, { state: operational, maturity, note: step.reason || 'Live run step update' });
+        const maturity = operationalToMaturity(operational);
+        register(
+          namespace,
+          { state: operational, maturity, note: step.reason || 'Live run step update' },
+          { state: 'Idle', maturity: 'Unknown', note: '' },
+        );
       }
     }
     return baseRoles.map((role) => {
-      const override = map.get(role.id) ?? map.get(role.namespace);
+      const override = map.get(role.namespace.toLowerCase()) ?? map.get(role.name.toLowerCase()) ?? map.get(role.id.toLowerCase());
       return { ...role, state: override?.state ?? role.state, maturity: override?.maturity ?? role.maturity, note: override?.note ?? role.note };
     });
   }, [agents, currentRun, platformContract.roles]);
@@ -1088,6 +1274,26 @@ export default function App() {
     let observedRunStatus = 'unknown';
     let observedBootstrapStatus = 'unknown';
     let observedReady = false;
+    let resolvedContract: Platform7Contract | null = null;
+    let resolvedAutonomyProfiles: AutonomyProfile[] = EMPTY_AUTONOMY_PROFILES;
+
+    const applyPlatformContract = (
+      nextContract: Platform7Contract,
+      validation: Record<string, unknown> | null,
+      source: string,
+    ) => {
+      resolvedContract = nextContract;
+      resolvedAutonomyProfiles = nextContract.autonomy_profiles;
+      setPlatformContract(nextContract);
+      setPlatformContractValidation(validation);
+      setPlatformContractSource(source);
+      if (nextContract.autonomy_profiles.length > 0) {
+        setAutonomyProfiles(nextContract.autonomy_profiles);
+        if (!nextContract.autonomy_profiles.some((profile) => profile.id === autonomyProfileId)) {
+          setAutonomyProfileId(pickPreferredProfileId(nextContract.autonomy_profiles));
+        }
+      }
+    };
 
     try {
       const stateResponse = await fetchWithTimeout(`${effectiveHubBaseUrl}/control-center/state?fresh=1`, { method: 'GET' }, 12000);
@@ -1120,9 +1326,14 @@ export default function App() {
       });
       if (statePayload.platform7_contract && typeof statePayload.platform7_contract === 'object') {
         const contractInfo = statePayload.platform7_contract as Record<string, unknown>;
-        if (contractInfo.validation && typeof contractInfo.validation === 'object') {
-          setPlatformContractValidation(contractInfo.validation as Record<string, unknown>);
-        }
+        const embeddedContract = normalizePlatform7Contract(contractInfo.contract ?? contractInfo);
+        applyPlatformContract(
+          hasLoadedPlatform7Contract(embeddedContract) ? embeddedContract : getBundledPlatform7Contract(),
+          contractInfo.validation && typeof contractInfo.validation === 'object'
+            ? (contractInfo.validation as Record<string, unknown>)
+            : null,
+          '/control-center/state',
+        );
       }
       if (statePayload.service_probes && typeof statePayload.service_probes === 'object' && !Array.isArray(statePayload.service_probes)) {
         directServiceProbes = statePayload.service_probes as Record<string, Record<string, unknown>>;
@@ -1153,8 +1364,17 @@ export default function App() {
     try {
       const agentsResponse = await fetchWithTimeout(`${effectiveHubBaseUrl}/agents`, { method: 'GET' }, 8000);
       const agentsPayload = await parseResponseSafely(agentsResponse);
-      const normalizedAgents = Array.isArray(agentsPayload.active_agents) ? (agentsPayload.active_agents as AgentRecord[]) : Array.isArray(agentsPayload.agents) ? (agentsPayload.agents as AgentRecord[]) : [];
-      setAgents(normalizedAgents);
+      const mergedSources: AgentRecord[] = [];
+      if (Array.isArray(agentsPayload.active_agents)) mergedSources.push(...(agentsPayload.active_agents as AgentRecord[]));
+      if (Array.isArray(agentsPayload.agents)) mergedSources.push(...(agentsPayload.agents as AgentRecord[]));
+      if (Array.isArray(agentsPayload.virtual_agents)) mergedSources.push(...(agentsPayload.virtual_agents as AgentRecord[]));
+      const deduped = new Map<string, AgentRecord>();
+      for (const agent of mergedSources) {
+        const key = String(agent.agent_id ?? agent.id ?? agent.name ?? agent.display_name ?? '').trim().toLowerCase();
+        if (!key) continue;
+        deduped.set(key, agent);
+      }
+      setAgents([...deduped.values()]);
       setAgentCounts({ active: Number(agentsPayload.active_count ?? 0), legacy: Number(agentsPayload.legacy_count ?? 0) });
     } catch {
       setAgents([]);
@@ -1175,24 +1395,34 @@ export default function App() {
     try {
       const contractResponse = await fetchWithTimeout(`${effectiveHubBaseUrl}/platform7/contract`, { method: 'GET' }, 8000);
       const contractPayload = await parseResponseSafely(contractResponse);
-      const normalizedContract = normalizePlatform7Contract(contractPayload.contract);
-      if (normalizedContract) {
-        setPlatformContract(normalizedContract);
-        setPlatformContractValidation(
+      const normalizedContract = normalizePlatform7Contract(contractPayload.contract ?? contractPayload);
+      if (hasLoadedPlatform7Contract(normalizedContract)) {
+        applyPlatformContract(
+          normalizedContract,
           contractPayload.validation && typeof contractPayload.validation === 'object'
             ? (contractPayload.validation as Record<string, unknown>)
-            : null
+            : null,
+          '/platform7/contract',
         );
-        if (!autonomyProfiles.length && normalizedContract.autonomy_profiles.length > 0) {
-          setAutonomyProfiles(normalizedContract.autonomy_profiles);
-          if (!autonomyProfileId && normalizedContract.autonomy_profiles[0]) {
-            setAutonomyProfileId(normalizedContract.autonomy_profiles[0].id);
-          }
-        }
+      } else if (!resolvedContract) {
+        applyPlatformContract(
+          getBundledPlatform7Contract(),
+          {
+            ok: false,
+            errors: [`Platform7 contract endpoint returned HTTP ${contractResponse.status}.`],
+            source: 'bundled-fallback',
+          },
+          'bundled-contract',
+        );
       }
     } catch {
-      setPlatformContract(EMPTY_PLATFORM7_CONTRACT);
-      setPlatformContractValidation({ ok: false, errors: ['Platform7 contract endpoint unreachable.'] });
+      if (!resolvedContract) {
+        applyPlatformContract(
+          getBundledPlatform7Contract(),
+          { ok: false, errors: ['Platform7 contract endpoint unreachable.'], source: 'bundled-fallback' },
+          'bundled-contract',
+        );
+      }
     }
 
     try {
@@ -1201,10 +1431,23 @@ export default function App() {
       const profiles = normalizeAutonomyProfiles(profilesPayload);
       if (profiles.length > 0) {
         setAutonomyProfiles(profiles);
-        if (!profiles.some((profile) => profile.id === autonomyProfileId)) setAutonomyProfileId(profiles[0]?.id ?? '');
+        if (!profiles.some((profile) => profile.id === autonomyProfileId)) setAutonomyProfileId(pickPreferredProfileId(profiles));
+      } else if (resolvedAutonomyProfiles.length > 0) {
+        setAutonomyProfiles(resolvedAutonomyProfiles);
+        if (!resolvedAutonomyProfiles.some((profile) => profile.id === autonomyProfileId)) {
+          setAutonomyProfileId(pickPreferredProfileId(resolvedAutonomyProfiles));
+        }
       }
     } catch {
-      setAutonomyProfiles(platformContract.autonomy_profiles.length > 0 ? platformContract.autonomy_profiles : EMPTY_AUTONOMY_PROFILES);
+      const fallbackProfiles = resolvedAutonomyProfiles.length > 0
+        ? resolvedAutonomyProfiles
+        : platformContract.autonomy_profiles.length > 0
+          ? platformContract.autonomy_profiles
+          : EMPTY_AUTONOMY_PROFILES;
+      setAutonomyProfiles(fallbackProfiles);
+      if (fallbackProfiles.length > 0 && !fallbackProfiles.some((profile) => profile.id === autonomyProfileId)) {
+        setAutonomyProfileId(pickPreferredProfileId(fallbackProfiles));
+      }
     }
 
     try {
@@ -1371,9 +1614,39 @@ export default function App() {
 
   const applyTemplateToDispatch = () => {
     setDispatchPayload((current) => ({ ...current, agent: selectedTemplate.recommendedAgent, task: selectedTemplate.task, source: 'platform-template', status: 'queued', timestamp: nowIso() }));
+    setManualDispatchOverride(true);
     setAutonomyGoal(selectedTemplate.task);
     setPromptCommand(selectedTemplate.task);
     pushEvent('Apply template', 'Done', `Template ${selectedTemplate.title} applied to dispatch and prompts.`, 'Dispatch or run autonomy', 'success');
+    persistSyncState();
+  };
+
+  const applyRecommendedDefaults = () => {
+    const nextProfileId = recommendedAutonomyProfileId || selectedAutonomyProfileId;
+    setAutonomyProfileId(nextProfileId);
+    setDispatchPayload((current) => ({
+      ...current,
+      agent: recommendedDispatchAgent,
+      source: 'platform-defaults',
+      status: 'queued',
+      timestamp: nowIso(),
+    }));
+    setManualDispatchOverride(false);
+    pushEvent(
+      'Apply defaults',
+      'Done',
+      `Recommended defaults applied: profile=${nextProfileId || '-'} agent=${recommendedDispatchAgent}.`,
+      'Dispatch or run autonomy',
+      'success',
+    );
+    persistSyncState();
+  };
+
+  const switchAutonomyProfileQuick = (profileId: string, label: string) => {
+    if (!profileId) return;
+    setAutonomyProfileId(profileId);
+    setManualDispatchOverride(true);
+    pushEvent('Profile quick switch', 'Done', `Profile switched to ${label}.`, 'Dispatch or run autonomy', 'info');
     persistSyncState();
   };
 
@@ -1397,15 +1670,19 @@ export default function App() {
     setDispatchMessage('Dispatch in progress...');
     pushEvent('Dispatch mission', 'Running', `Dispatching ${dispatchPayload.agent} on ${dispatchPayload.repo}@${dispatchPayload.ref}.`, 'Wait for response', 'info');
     try {
-      const response = await fetchWithTimeout(`${hubBaseUrl}/dispatch`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dispatchPayload) }, 9000);
+      const response = await fetchWithTimeout(`${hubBaseUrl}/dispatch`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dispatchPayload) }, 30000);
       const payload = await parseResponseSafely(response);
       setDispatchMessage(`Dispatch response HTTP ${response.status}. ${JSON.stringify(payload).slice(0, 260)}`);
       setDispatchPayload((current) => ({ ...current, timestamp: nowIso() }));
       pushEvent('Dispatch mission', response.ok ? 'Done' : 'Partial', `Dispatch endpoint returned HTTP ${response.status}.`, response.ok ? 'Monitor run in Glasshouse' : 'Retry dispatch or reroute target', response.ok ? 'success' : 'warn');
       persistSyncState();
     } catch (error) {
-      setDispatchMessage(`Dispatch failed: ${parseErrorMessage(error)}`);
-      pushEvent('Dispatch mission', 'Failed', `Dispatch failed: ${parseErrorMessage(error)}`, 'Retry or inspect Operations', 'error');
+      const detail = parseErrorMessage(error);
+      const nextAction = /timed out/i.test(detail)
+        ? 'Inspect Operations latency or increase dispatch timeout'
+        : 'Retry or inspect Operations';
+      setDispatchMessage(`Dispatch failed: ${detail}`);
+      pushEvent('Dispatch mission', 'Failed', `Dispatch failed: ${detail}`, nextAction, 'error');
     } finally {
       setDispatchBusy(false);
     }
@@ -1873,8 +2150,40 @@ export default function App() {
     return 'Running';
   };
 
-  const renderStatusChip = (state: OperationalState) => <span className={operationalChipClass(state)}><span aria-hidden="true">{OPERATIONAL_META[state].symbol}</span> {state}</span>;
-  const renderMaturityChip = (state: MaturityState) => <span className={maturityChipClass(state)}><span aria-hidden="true">{MATURITY_META[state].symbol}</span> {state}</span>;
+  const presenceMeta = (role: WindowRole) => {
+    const seen = presence[role];
+    if (!seen || seen === '-') {
+      return { state: 'Idle' as OperationalState, action: 'Open this window', detail: 'No heartbeat yet' };
+    }
+    const heartbeat = heartbeatAge(seen);
+    if (heartbeat.isClockSkew) {
+      return { state: 'Blocked' as OperationalState, action: 'Correct local clock skew', detail: `Last heartbeat ${seen}` };
+    }
+    if (heartbeat.isInvalid) {
+      return { state: 'Blocked' as OperationalState, action: 'Refresh the window heartbeat', detail: `Last heartbeat ${seen}` };
+    }
+    if ((heartbeat.ageMs ?? 0) > WINDOW_HEARTBEAT_STALE_MS) {
+      return { state: 'Stale' as OperationalState, action: 'Refresh this window now', detail: `Last heartbeat ${seen}` };
+    }
+    return { state: 'Running' as OperationalState, action: 'Continue monitoring', detail: `Last heartbeat ${seen}` };
+  };
+
+  const renderStatusChip = (state: OperationalState, action = OPERATIONAL_META[state].action) => (
+    <span className={operationalChipClass(state)} aria-label={`${state}. ${action}.`}>
+      <span className="chip__symbol" aria-hidden="true">{OPERATIONAL_META[state].symbol}</span>
+      <span className="chip__text">{state}</span>
+      <span className="chip__action">{action}</span>
+    </span>
+  );
+  const renderMaturityChip = (state: MaturityState) => (
+    <span className={maturityChipClass(state)} aria-label={`${state}.`}>
+      <span className="chip__symbol" aria-hidden="true">{MATURITY_META[state].symbol}</span>
+      <span className="chip__text">{state}</span>
+    </span>
+  );
+  const renderSummaryValue = (value: ReactNode) => <strong className="summary-grid__value">{value}</strong>;
+  const bootstrapOperational = bootstrapToOperational(bootstrapState);
+  const promptGateOperational: OperationalState = readyForPromptExecution ? 'Done' : bootstrapBusy || platformBusy ? 'Running' : 'Blocked';
   const renderEventEntry = (entry: ControlEvent) => {
     const c = entry.correlation;
     return (
@@ -1896,12 +2205,12 @@ export default function App() {
         <h2>Commander</h2>
         <p className="muted">Main controls stay here: role selection, prompt input, dispatch controls, and run quick actions.</p>
         <div className="summary-grid">
-          <p>Selected agent<strong>{quickSummary.selectedAgent}</strong></p>
-          <p>Profile<strong>{quickSummary.selectedProfile}</strong></p>
-          <p>Repo<strong>{quickSummary.repo}</strong></p>
-          <p>Branch<strong>{quickSummary.branch}</strong></p>
-          <p>Current run<strong>{quickSummary.currentRun}</strong></p>
-          <p>Active AI<strong>{quickSummary.activeAI}</strong></p>
+          <p>Selected agent{renderSummaryValue(quickSummary.selectedAgent)}</p>
+          <p>Profile{renderSummaryValue(quickSummary.selectedProfile)}</p>
+          <p>Repo{renderSummaryValue(quickSummary.repo)}</p>
+          <p>Branch{renderSummaryValue(quickSummary.branch)}</p>
+          <p>Current run{renderSummaryValue(quickSummary.currentRun)}</p>
+          <p>Active AI{renderSummaryValue(quickSummary.activeAI)}</p>
         </div>
         <div className="button-row">
           <button type="button" className="button button--primary" onClick={() => void dispatchMission()}>Dispatch starten</button>
@@ -1942,12 +2251,23 @@ export default function App() {
             {PROMPT_TEMPLATES.map((template) => <option key={template.id} value={template.id}>{template.title}</option>)}
           </select>
         </label>
-        <p className="muted">Recommended: <code>{selectedTemplate.recommendedAgent}</code></p>
-        <div className="button-row"><button type="button" className="button" onClick={applyTemplateToDispatch}>Apply template</button></div>
+        <p className="muted">Recommended template agent: <code>{selectedTemplate.recommendedAgent}</code></p>
+        <p className="muted">Recommended defaults: profile <code>{recommendedAutonomyProfileId || '-'}</code> | agent <code>{recommendedDispatchAgent}</code></p>
+        <div className="button-row">
+          <button type="button" className="button" onClick={applyTemplateToDispatch}>Apply template</button>
+          <button type="button" className="button" onClick={applyRecommendedDefaults}>Empfohlene Defaults anwenden</button>
+          {quickProfileFull29 ? <button type="button" className="button" onClick={() => switchAutonomyProfileQuick(quickProfileFull29.id, quickProfileFull29.label)}>Quick: Full-29</button> : null}
+          {quickProfileCore11 ? <button type="button" className="button" onClick={() => switchAutonomyProfileQuick(quickProfileCore11.id, quickProfileCore11.label)}>Quick: Core-11</button> : null}
+        </div>
+        <p className="muted">Dispatch mode: <code>{manualDispatchOverride ? 'manual-override' : 'recommended-defaults'}</code></p>
+        <p className="muted"><strong>Manuelle Auswahl/Override</strong></p>
 
         <form className="dispatch-form" onSubmit={dispatchMission}>
           <label htmlFor="dispatch-agent">Agent
-            <input id="dispatch-agent" name="dispatch_agent" value={dispatchPayload.agent} onChange={(event) => setDispatchPayload((current) => ({ ...current, agent: event.target.value }))} />
+            <input id="dispatch-agent" name="dispatch_agent" value={dispatchPayload.agent} onChange={(event) => {
+              setDispatchPayload((current) => ({ ...current, agent: event.target.value }));
+              setManualDispatchOverride(true);
+            }} />
           </label>
           <label htmlFor="dispatch-task">Task
             <textarea id="dispatch-task" name="dispatch_task" rows={4} value={dispatchPayload.task} onChange={(event) => setDispatchPayload((current) => ({ ...current, task: event.target.value }))} />
@@ -1961,7 +2281,10 @@ export default function App() {
             </label>
           </div>
           <label htmlFor="autonomy-profile">Profile
-            <select id="autonomy-profile" name="autonomy_profile" value={selectedAutonomyProfileId} onChange={(event) => setAutonomyProfileId(event.target.value)}>
+            <select id="autonomy-profile" name="autonomy_profile" value={selectedAutonomyProfileId} onChange={(event) => {
+              setAutonomyProfileId(event.target.value);
+              setManualDispatchOverride(true);
+            }}>
               {effectiveAutonomyProfiles.length === 0 ? <option value="">No profile loaded</option> : null}
               {effectiveAutonomyProfiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}
             </select>
@@ -1978,7 +2301,10 @@ export default function App() {
         <p className="status-banner">{dispatchMessage}</p>
         <p className="status-banner">{promptMessage}</p>
         <p className="status-banner">{autonomyMessage}</p>
-        <p className="status-banner">Bootstrap status: <strong>{bootstrapState.status}</strong> | Prompt Ready: <strong>{readyForPromptExecution ? 'YES' : 'NO'}</strong></p>
+        <p className="status-banner">
+          Bootstrap {renderStatusChip(bootstrapOperational, bootstrapState.ready ? 'Prompt command layer is unlocked' : 'Finish bootstrap and rerun diagnostics')} |
+          Prompt gate {renderStatusChip(promptGateOperational, readyForPromptExecution ? 'Prompt and autonomy controls are ready' : 'Wait for bootstrap readiness before running prompts')}
+        </p>
         {profileSelectionReason ? <p className="status-banner">Profile gate: <strong>{profileSelectionReason}</strong></p> : null}
       </article>
 
@@ -2020,14 +2346,14 @@ export default function App() {
         <h2>Glasshouse</h2>
         <p className="muted">Live transparency stream: timeline, lanes, evidence, and intervention controls.</p>
         <div className="summary-grid">
-          <p>run_id<strong>{currentRun?.run_id ?? '-'}</strong></p>
-          <p>trace_id<strong>{activeStep?.trace_id || currentRun?.trace_id || 'unknown'}</strong></p>
-          <p>task_id<strong>{activeStep?.task_id || currentRun?.task_id || 'unknown'}</strong></p>
-          <p>step_id<strong>{activeStep?.step_id || activeStep?.call_id || '-'}</strong></p>
-          <p>active agent<strong>{currentRun?.current_agent || activeStep?.agent || '-'}</strong></p>
-          <p>heartbeat<strong>{currentRunOperational === 'Stale' ? 'STALE' : 'LIVE'}</strong></p>
+          <p>run_id{renderSummaryValue(currentRun?.run_id ?? '-')}</p>
+          <p>trace_id{renderSummaryValue(activeStep?.trace_id || currentRun?.trace_id || 'unknown')}</p>
+          <p>task_id{renderSummaryValue(activeStep?.task_id || currentRun?.task_id || 'unknown')}</p>
+          <p>step_id{renderSummaryValue(activeStep?.step_id || activeStep?.call_id || '-')}</p>
+          <p>active agent{renderSummaryValue(currentRun?.current_agent || activeStep?.agent || '-')}</p>
+          <p>heartbeat{renderSummaryValue(currentRunOperational === 'Stale' ? 'STALE' : 'LIVE')}</p>
         </div>
-        <p className="status-banner">Active KI: <strong>{currentRun?.current_agent || activeStep?.agent || '-'}</strong> | Status: <strong>{currentRun?.status || 'IDLE'}</strong> | Reason: <strong>{activeStep?.reason || 'not reported'}</strong></p>
+        <p className="status-banner">Active KI: <strong>{currentRun?.current_agent || activeStep?.agent || '-'}</strong> | Status: {renderStatusChip(currentRunOperational)} | Reason: <strong>{activeStep?.reason || 'not reported'}</strong></p>
       </article>
 
       <article className="panel">
@@ -2102,16 +2428,41 @@ export default function App() {
         <h2>Operations</h2>
         <p className="muted">Service health, routing, bootstrap, config presence, evidence browser, and raw JSON diagnostics.</p>
         <div className="summary-grid">
-          <p>Registry active<strong>{agentCounts.active}</strong></p>
-          <p>Registry legacy<strong>{agentCounts.legacy}</strong></p>
-          <p>Bootstrap<strong>{bootstrapState.status}</strong></p>
-          <p>Prompt ready<strong>{readyForPromptExecution ? 'YES' : 'NO'}</strong></p>
-          <p>Current run<strong>{currentRun?.run_id ?? '-'}</strong></p>
-          <p>Session<strong>{sessionId}</strong></p>
-          <p>Contract<strong>{platformContract.version}</strong></p>
+          <p>Registry active{renderSummaryValue(agentCounts.active)}</p>
+          <p>Registry legacy{renderSummaryValue(agentCounts.legacy)}</p>
+          <p>Bootstrap{renderSummaryValue(bootstrapState.status)}</p>
+          <p>Prompt ready{renderSummaryValue(readyForPromptExecution ? 'YES' : 'NO')}</p>
+          <p>Current run{renderSummaryValue(currentRun?.run_id ?? '-')}</p>
+          <p>Session{renderSummaryValue(sessionId)}</p>
+          <p>Contract{renderSummaryValue(platformContract.version)}</p>
         </div>
         <p className="status-banner">{platformStatus}</p>
         {platformContractValidation ? <p className="status-banner">Contract validation: <strong>{String(platformContractValidation.ok ?? 'unknown')}</strong></p> : null}
+      </article>
+
+      <article className="panel">
+        <h3>Required Tooling</h3>
+        <p>Browser gate: {renderStatusChip(browserToolingGateState)}</p>
+        <p>Total required tools: <strong>{requiredToolingRequirements.length}</strong></p>
+        {toolingRequirements.length === 0 ? (
+          <p className="status-banner">No tooling requirements found in Platform7 contract.</p>
+        ) : (
+          <div className="table-scroll">
+            <table className="presence-table" aria-label="Platform7 tooling requirements">
+              <thead><tr><th>Tool</th><th>Kind</th><th>Required</th><th>Evidence</th></tr></thead>
+              <tbody>
+                {toolingRequirements.map((tool) => (
+                  <tr key={tool.id}>
+                    <td><code>{tool.label}</code> (<code>{tool.id}</code>)</td>
+                    <td>{tool.kind}</td>
+                    <td>{tool.required ? 'Yes' : 'No'}</td>
+                    <td>{tool.evidence || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </article>
 
       <article className="panel">
@@ -2120,7 +2471,7 @@ export default function App() {
           {serviceHealth.map((service) => (
             <div key={service.id} className="service-card">
               <p><strong>{service.label}</strong></p>
-              <p>{renderStatusChip(healthToOperational(service.state))}</p>
+              <p>{renderStatusChip(healthToOperational(service.state), service.action)}</p>
               <p>{service.detail}</p>
               <p>Source: <code>{service.source}</code></p>
               <p>Action: {service.action}</p>
@@ -2240,28 +2591,17 @@ export default function App() {
       </header>
 
       <section className="window-presence" aria-label="Window heartbeat monitor">
-        {(['commander', 'glasshouse', 'operations'] as WindowRole[]).map((role) => (
+        {WINDOW_ROLES.map((role) => {
+          const heartbeat = presenceMeta(role);
+          return (
           <article key={role} className="window-presence-card">
             <h2>{role}</h2>
-            <p>{renderStatusChip((() => {
-              const seen = presence[role];
-              if (!seen || seen === '-') return 'Idle';
-              const heartbeat = heartbeatAge(seen);
-              if (heartbeat.isInvalid || heartbeat.isClockSkew) return 'Blocked';
-              if ((heartbeat.ageMs ?? 0) > WINDOW_HEARTBEAT_STALE_MS) return 'Stale';
-              return 'Running';
-            })())}</p>
-            <p>{presence[role] === '-' ? 'No heartbeat yet' : `Last heartbeat ${presence[role]}`}</p>
-            <p>Action: {(() => {
-              const seen = presence[role];
-              if (!seen || seen === '-') return 'Open this window';
-              const heartbeat = heartbeatAge(seen);
-              if (heartbeat.isClockSkew) return 'Clock skew detected';
-              if (heartbeat.isInvalid || (heartbeat.ageMs ?? 0) > WINDOW_HEARTBEAT_STALE_MS) return 'Refresh window';
-              return 'Continue monitoring';
-            })()}</p>
+            <p>{renderStatusChip(heartbeat.state, heartbeat.action)}</p>
+            <p>{heartbeat.detail}</p>
+            <p>Action: {heartbeat.action}</p>
           </article>
-        ))}
+          );
+        })}
       </section>
 
       {windowRole === 'commander' ? renderCommander() : null}
