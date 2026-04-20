@@ -111,7 +111,7 @@ describe('App - three window platform', () => {
             contract: {
               version: 'test-contract',
               status_model: ['Idle', 'Queued', 'Running', 'Waiting', 'Blocked', 'Partial', 'Failed', 'Done', 'Stale'],
-              maturity_model: ['Verified', 'Implemented', 'Partial', 'Blocked', 'Legacy', 'Plan', 'Unknown'],
+              maturity_model: ['Verified', 'Partial', 'Blocked', 'Legacy', 'Plan', 'Unknown'],
               required_supervisor_namespaces: ['sentinel_truth', 'sentinel_runtime'],
               roles: [
                 { id: 'ProductScopeAgent', name: 'ProductScopeAgent', lane: 'Scope', kind: 'worker', namespace: 'product_scope', note: 'planning' },
@@ -304,9 +304,9 @@ describe('App - three window platform', () => {
           JSON.stringify({
             active_count: 29,
             legacy_count: 1,
-            active_agents: [{ agent_id: 'local.smolagents.godmode_manager', status_class: 'IMPLEMENTED' }],
+            active_agents: [{ agent_id: 'local.smolagents.godmode_manager', status_class: 'VERIFIED' }],
             virtual_agents: [
-              { agent_id: 'product_scope', status_class: 'IMPLEMENTED' },
+              { agent_id: 'product_scope', status_class: 'VERIFIED' },
               { agent_id: 'sentinel_truth', status_class: 'VERIFIED' },
             ],
           }),
@@ -322,7 +322,7 @@ describe('App - three window platform', () => {
 
     render(<App />);
     await waitFor(() => {
-      expect(screen.getByLabelText(/Implemented\./i)).toBeTruthy();
+      expect(screen.getAllByLabelText(/Verified\./i).length).toBeGreaterThan(0);
       expect(screen.queryByLabelText(/Plan\./i)).toBeNull();
     });
   });

@@ -5,7 +5,7 @@ import { resolveSyncCursor, type SyncCursor } from './sync';
 type WindowRole = 'commander' | 'glasshouse' | 'operations';
 type HealthState = 'idle' | 'checking' | 'up' | 'down';
 type OperationalState = 'Idle' | 'Queued' | 'Running' | 'Waiting' | 'Blocked' | 'Partial' | 'Failed' | 'Done' | 'Stale';
-type MaturityState = 'Verified' | 'Implemented' | 'Partial' | 'Blocked' | 'Legacy' | 'Plan' | 'Unknown';
+type MaturityState = 'Verified' | 'Partial' | 'Blocked' | 'Legacy' | 'Plan' | 'Unknown';
 type EventSeverity = 'info' | 'warn' | 'error' | 'success';
 
 type PromptTemplate = { id: string; title: string; recommendedAgent: string; task: string };
@@ -226,7 +226,6 @@ const OPERATIONAL_META: Record<OperationalState, { symbol: string; tone: 'neutra
 
 const MATURITY_META: Record<MaturityState, { symbol: string; tone: 'neutral' | 'ok' | 'warn' | 'danger' }> = {
   Verified: { symbol: '[OK]', tone: 'ok' },
-  Implemented: { symbol: '[IMP]', tone: 'ok' },
   Partial: { symbol: '[~]', tone: 'warn' },
   Blocked: { symbol: '[!]', tone: 'danger' },
   Legacy: { symbol: '[LEG]', tone: 'warn' },
@@ -590,7 +589,7 @@ function isRuntimeStatusClass(value: string): boolean {
 
 function statusClassToMaturity(value: string): MaturityState | null {
   if (value === 'VERIFIED') return 'Verified';
-  if (value === 'IMPLEMENTED') return 'Implemented';
+  if (value === 'IMPLEMENTED') return 'Verified';
   if (value === 'PARTIAL') return 'Partial';
   if (value === 'BLOCKED' || value === 'FAILED' || value === 'FAIL' || value === 'ERROR') return 'Blocked';
   if (value === 'LEGACY') return 'Legacy';
@@ -601,7 +600,7 @@ function statusClassToMaturity(value: string): MaturityState | null {
 
 function operationalToMaturity(state: OperationalState): MaturityState {
   if (state === 'Done') return 'Verified';
-  if (state === 'Running') return 'Implemented';
+  if (state === 'Running') return 'Partial';
   if (state === 'Partial') return 'Partial';
   if (state === 'Blocked' || state === 'Failed') return 'Blocked';
   return 'Unknown';
@@ -2514,7 +2513,7 @@ export default function App() {
                 const explicit = explicitConfigPresence.get(key);
                 const missing = missingConfigKeys.has(key) || explicit === 'Missing';
                 const presenceValue = explicit ?? (missing ? 'Missing' : 'Unknown');
-                const maturity: MaturityState = presenceValue === 'Present' ? 'Implemented' : missing ? 'Blocked' : 'Unknown';
+                const maturity: MaturityState = presenceValue === 'Present' ? 'Verified' : missing ? 'Blocked' : 'Unknown';
                 return (
                   <tr key={key}>
                     <td><code>{key}</code></td>
@@ -2565,14 +2564,14 @@ export default function App() {
   const claimState: MaturityState = (() => {
     const evidence = String(currentRun?.evidence_status ?? '').toLowerCase();
     if (evidence === 'verified') return 'Verified';
-    if (evidence === 'implemented') return 'Implemented';
+    if (evidence === 'implemented') return 'Verified';
     if (evidence === 'partial') return 'Partial';
     if (evidence === 'blocked') return 'Blocked';
     if (evidence === 'legacy') return 'Legacy';
     if (evidence === 'plan') return 'Plan';
     if (currentRunOperational === 'Partial') return 'Partial';
     if (currentRunOperational === 'Blocked' || currentRunOperational === 'Failed') return 'Blocked';
-    if (currentRun) return 'Implemented';
+    if (currentRun) return 'Partial';
     return 'Unknown';
   })();
 

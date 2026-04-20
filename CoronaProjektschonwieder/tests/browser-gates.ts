@@ -58,7 +58,7 @@ function runPayload(runId: string, status = 'RUNNING') {
     forwarded_steps: 1,
     partial_steps: 0,
     total_steps: 3,
-    evidence_status: status === 'PASS' ? 'Verified' : 'Implemented',
+    evidence_status: status === 'PASS' ? 'Verified' : 'Partial',
     evidence_manifest: `/evidence/manifests/${runId}.json`,
     evidence_manifest_latest: `/evidence/manifests/${runId}_latest.json`,
     steps: [
@@ -153,7 +153,7 @@ export async function mockDispatchHubApi(page: Page) {
         contract: {
           version: 'test-contract',
           status_model: ['Idle', 'Queued', 'Running', 'Waiting', 'Blocked', 'Partial', 'Failed', 'Done', 'Stale'],
-          maturity_model: ['Verified', 'Implemented', 'Partial', 'Blocked', 'Legacy', 'Plan', 'Unknown'],
+          maturity_model: ['Verified', 'Partial', 'Blocked', 'Legacy', 'Plan', 'Unknown'],
           required_supervisor_namespaces: ['sentinel_truth', 'sentinel_runtime'],
           roles: [
             { id: 'ProductScopeAgent', name: 'ProductScopeAgent', lane: 'Scope', kind: 'worker', namespace: 'product_scope', note: 'Scope owner' },
