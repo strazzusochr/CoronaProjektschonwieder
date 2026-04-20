@@ -1,0 +1,123 @@
+{
+  "version": "2026-04-16-platform7-v1",
+  "status_model": [
+    "Idle",
+    "Queued",
+    "Running",
+    "Waiting",
+    "Blocked",
+    "Partial",
+    "Failed",
+    "Done",
+    "Stale"
+  ],
+  "maturity_model": [
+    "Verified",
+    "Implemented",
+    "Partial",
+    "Blocked",
+    "Legacy",
+    "Plan",
+    "Unknown"
+  ],
+  "required_supervisor_namespaces": [
+    "sentinel_truth",
+    "sentinel_runtime"
+  ],
+  "roles": [
+    { "id": "ProductScopeAgent", "name": "ProductScopeAgent", "lane": "Scope", "kind": "worker", "namespace": "product_scope", "note": "Milestones and acceptance criteria" },
+    { "id": "GameDesignAgent", "name": "GameDesignAgent", "lane": "Design", "kind": "worker", "namespace": "game_design", "note": "Gameplay loop and balancing" },
+    { "id": "WebGLClientAgent", "name": "WebGLClientAgent", "lane": "Client", "kind": "worker", "namespace": "webgl_client", "note": "Rendering, camera, controls" },
+    { "id": "GameplaySystemsAgent", "name": "GameplaySystemsAgent", "lane": "Gameplay", "kind": "worker", "namespace": "gameplay_systems", "note": "Core mechanics and state" },
+    { "id": "MultiplayerNetcodeAgent", "name": "MultiplayerNetcodeAgent", "lane": "Netcode", "kind": "worker", "namespace": "multiplayer_netcode", "note": "Realtime sync and reconciliation" },
+    { "id": "BackendPlatformAgent", "name": "BackendPlatformAgent", "lane": "Backend", "kind": "worker", "namespace": "backend_platform", "note": "API, auth, persistence" },
+    { "id": "CloudInfraDevOpsAgent", "name": "CloudInfraDevOpsAgent", "lane": "Cloud", "kind": "worker", "namespace": "cloud_infra_devops", "note": "IaC, CI/CD, rollout controls" },
+    { "id": "QAValidationAgent", "name": "QAValidationAgent", "lane": "QA", "kind": "worker", "namespace": "qa_validation", "note": "Unit, integration, e2e gates" },
+    { "id": "SecurityAntiCheatAgent", "name": "SecurityAntiCheatAgent", "lane": "Security", "kind": "worker", "namespace": "security_anticheat", "note": "Abuse prevention and hardening" },
+    { "id": "DispatchConductorAgent", "name": "DispatchConductorAgent", "lane": "Dispatch", "kind": "worker", "namespace": "local.dispatch.conductor", "note": "7-field mission dispatch" },
+    { "id": "PromptOrchestratorAgent", "name": "PromptOrchestratorAgent", "lane": "Dispatch", "kind": "worker", "namespace": "local.prompt.orchestrator", "note": "Prompt to run conversion" },
+    { "id": "RegistryStewardAgent", "name": "RegistryStewardAgent", "lane": "Registry", "kind": "worker", "namespace": "local.registry.steward", "note": "Role and namespace map keeper" },
+    { "id": "RoutingControllerAgent", "name": "RoutingControllerAgent", "lane": "Routing", "kind": "worker", "namespace": "local.routing.controller", "note": "Local/remote routing changes" },
+    { "id": "BootstrapOperatorAgent", "name": "BootstrapOperatorAgent", "lane": "Runtime", "kind": "worker", "namespace": "local.bootstrap.operator", "note": "One-click startup and preflight" },
+    { "id": "EvidenceCuratorAgent", "name": "EvidenceCuratorAgent", "lane": "Evidence", "kind": "worker", "namespace": "local.evidence.curator", "note": "Collect and classify artifacts" },
+    { "id": "RecoveryMarshalAgent", "name": "RecoveryMarshalAgent", "lane": "Recovery", "kind": "worker", "namespace": "local.recovery.marshal", "note": "Reroute, rollback, quarantine playbooks" },
+    { "id": "OpenHandsOperatorAgent", "name": "OpenHandsOperatorAgent", "lane": "Runtime", "kind": "worker", "namespace": "local.openhands.openhands", "note": "OpenHands session control" },
+    { "id": "N8nFlowEngineerAgent", "name": "N8nFlowEngineerAgent", "lane": "Runtime", "kind": "worker", "namespace": "local.n8n.flow", "note": "Workflow automation hooks" },
+    { "id": "LiteLLMRoutingAgent", "name": "LiteLLMRoutingAgent", "lane": "Runtime", "kind": "worker", "namespace": "local.litellm.router", "note": "Model gateway targeting" },
+    { "id": "LangGraphPlannerAgent", "name": "LangGraphPlannerAgent", "lane": "LangGraph", "kind": "worker", "namespace": "local.langgraph.planner", "note": "Planning worker" },
+    { "id": "LangGraphResearchAgent", "name": "LangGraphResearchAgent", "lane": "LangGraph", "kind": "worker", "namespace": "local.langgraph.research", "note": "Research worker" },
+    { "id": "LangGraphReviewerAgent", "name": "LangGraphReviewerAgent", "lane": "LangGraph", "kind": "worker", "namespace": "local.langgraph.reviewer", "note": "Review worker" },
+    { "id": "LangGraphFinalizeAgent", "name": "LangGraphFinalizeAgent", "lane": "LangGraph", "kind": "worker", "namespace": "local.langgraph.finalize", "note": "Finalize worker" },
+    { "id": "SmolagentsCoordinatorAgent", "name": "SmolagentsCoordinatorAgent", "lane": "External", "kind": "worker", "namespace": "smolagents", "note": "Smolagents adapter lane" },
+    { "id": "HFAiderAgent", "name": "HFAiderAgent", "lane": "External", "kind": "worker", "namespace": "hf-aider", "note": "HF aider integration lane" },
+    { "id": "OllamaHFOrchestratorAgent", "name": "OllamaHFOrchestratorAgent", "lane": "External", "kind": "worker", "namespace": "ollama-hf-orchestrator", "note": "Ollama HF orchestration lane" },
+    { "id": "DevToolsBridgeOperatorAgent", "name": "DevToolsBridgeOperatorAgent", "lane": "Runtime", "kind": "worker", "namespace": "devtools-bridge", "note": "Browser bridge runtime path" },
+    { "id": "SentinelTruthAgent", "name": "SentinelTruthAgent", "lane": "Supervisor", "kind": "supervisor", "namespace": "sentinel_truth", "note": "Claim integrity gate (cannot be disabled)" },
+    { "id": "SentinelRuntimeAgent", "name": "SentinelRuntimeAgent", "lane": "Supervisor", "kind": "supervisor", "namespace": "sentinel_runtime", "note": "Live runtime gate (cannot be disabled)" }
+  ],
+  "tooling_requirements": [
+    { "id": "dispatch-hub", "label": "Dispatch Hub API", "kind": "runtime", "required": true, "evidence": "health/routing/control-center HTTP 200" },
+    { "id": "core-tools-bridge", "label": "Core Tools Bridge", "kind": "runtime", "required": true, "evidence": "devtools bridge health + run_playwright endpoint" },
+    { "id": "chrome-devtools", "label": "Chrome DevTools MCP", "kind": "browser", "required": true, "evidence": "console/network snapshot linked in run evidence" },
+    { "id": "puppeteer", "label": "Puppeteer MCP", "kind": "browser", "required": true, "evidence": "live browser smoke trace with pass/fail result" },
+    { "id": "playwright", "label": "Playwright Verification", "kind": "browser", "required": true, "evidence": "test:browser output artifacts" },
+    { "id": "evidence-manifests", "label": "Evidence Manifest Store", "kind": "evidence", "required": true, "evidence": "manifests/latest.json + <run>_latest.json" },
+    { "id": "quarantine-control", "label": "Quarantine Control", "kind": "operations", "required": true, "evidence": "quarantine/latest.json + rollback mapping" }
+  ],
+  "autonomy_profiles": [
+    {
+      "id": "three_d_web_game_swarm",
+      "label": "3D Web Game Full-29 Swarm",
+      "description": "29-role execution with permanent supervisors and live browser gates.",
+      "agents": [
+        "product_scope",
+        "game_design",
+        "webgl_client",
+        "gameplay_systems",
+        "multiplayer_netcode",
+        "backend_platform",
+        "cloud_infra_devops",
+        "qa_validation",
+        "security_anticheat",
+        "local.dispatch.conductor",
+        "local.prompt.orchestrator",
+        "local.registry.steward",
+        "local.routing.controller",
+        "local.bootstrap.operator",
+        "local.evidence.curator",
+        "local.recovery.marshal",
+        "local.openhands.openhands",
+        "local.n8n.flow",
+        "local.litellm.router",
+        "local.langgraph.planner",
+        "local.langgraph.research",
+        "local.langgraph.reviewer",
+        "local.langgraph.finalize",
+        "smolagents",
+        "hf-aider",
+        "ollama-hf-orchestrator",
+        "devtools-bridge",
+        "sentinel_truth",
+        "sentinel_runtime"
+      ]
+    },
+    {
+      "id": "three_d_web_game_core_11",
+      "label": "3D Web Game Core-11",
+      "description": "Core execution profile (9 builders + 2 supervisors).",
+      "agents": [
+        "product_scope",
+        "game_design",
+        "webgl_client",
+        "gameplay_systems",
+        "multiplayer_netcode",
+        "backend_platform",
+        "cloud_infra_devops",
+        "qa_validation",
+        "security_anticheat",
+        "sentinel_truth",
+        "sentinel_runtime"
+      ]
+    }
+  ]
+}

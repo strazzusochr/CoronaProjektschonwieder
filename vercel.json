@@ -1,6 +1,7 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "installCommand": "cd CoronaProjektschonwieder && npm install",
+  "installCommand": "cd CoronaProjektschonwieder && npm ci --no-audit --no-fund",
   "buildCommand": "cd CoronaProjektschonwieder && npm run build",
   "outputDirectory": "CoronaProjektschonwieder/dist"
 }
