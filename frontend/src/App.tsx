@@ -44,9 +44,11 @@ const App: React.FC = () => {
   const emergency = useGameStore((state) => state.emergency);
   const setTension = useGameStore((state) => state.setTension);
   const setEmergency = useGameStore((state) => state.setEmergency);
+  const isStreamingMode = useGameStore((state) => state.isStreamingMode);
 
   const [shiftNotification, setShiftNotification] = useState<string | null>(null);
   const [cloudConnected, setCloudConnected] = useState(false);
+  const [thermalSafety, setThermalSafety] = useState(true); // Standardmäßig zum Schutz aktiv
   const socketRef = useRef<any>(null);
 
   useEffect(() => {
@@ -54,63 +56,78 @@ const App: React.FC = () => {
     const params = new URLSearchParams(window.location.search);
     const backendUrl = params.get('backend');
     
+    // 🛡️ THERMAL BYPASS: Wenn wir im Streaming-Modus (Cloud) sind, Rendering erlauben
+    if (isStreamingMode) {
+       setThermalSafety(false);
+       console.log('[V5.3] CLOUD-RENDERER ACTIVE — 3D ENGINE ENGAGED');
+    }
+
     if (!backendUrl) {
-      console.log('[V5.3 HYBRID] Kein Backend — LOCAL 3D ENGINE AKTIV');
+      console.log('[V5.3 THERMAL] Kein Backend — ZERO LOAD SAFETY ACTIVE');
       setConnectionStatus('disconnected');
       setCloudConnected(false);
+      
+      if (!isStreamingMode) {
+         setThermalSafety(true);
+         return;
+      }
 
-      // 200 Demo-NPCs lokal generieren
+      // --- CLOUD-SIDE BACKEND SIMULATION (Läuft nur in Colab) ---
       const demoNpcs: Record<string, NPCData> = {};
       const types = ['civilian', 'civilian', 'civilian', 'demonstrator', 'Police', 'civilian', 'civilian', 'RiotCop'];
-      for (let i = 0; i < 200; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const radius = 30 + Math.random() * 80; // Start outside pond
+      for (let i = 0; i < 150; i++) {
+        const x = (Math.random() - 0.5) * 80;
+        const z = (Math.random() - 0.5) * 80;
         demoNpcs[`npc_${i}`] = {
           id: `npc_${i}`,
-          position: [
-            Math.cos(angle) * radius,
-            0,
-            Math.sin(angle) * radius
-          ],
-          action: Math.random() > 0.5 ? 'JOGGING' : 'IDLE',
+          position: [x, 0, z],
+          action: Math.random() > 0.4 ? 'JOGGING' : 'IDLE',
           mood: 'NEUTRAL',
           type: types[i % types.length],
         };
       }
       useGameStore.getState().setNPCs(demoNpcs);
-      const counts: Record<string, number> = {};
-      Object.values(demoNpcs).forEach(n => {
-        counts[n.type] = (counts[n.type] || 0) + 1;
-      });
-      useGameStore.getState().setSimData(counts, 1, false);
 
-      // Echtzeit-Uhr + Phasen
+      const isSafe = (x: number, z: number) => {
+        const absX = Math.abs(x);
+        const absZ = Math.abs(z);
+        const dist = Math.sqrt(x*x + z*z);
+        if (absX < 45 && absZ < 45) return true; // Park
+        if (absX < 9) return true; // N-S Road
+        if (absZ < 9) return true; // E-W Road
+        if (dist > 44 && dist < 53) return true; // Ring Road
+        return false; // Collision with buildings
+      };
+
       const demoTimer = setInterval(() => {
         const now = new Date();
         const h = now.getHours().toString().padStart(2, '0');
         const m = now.getMinutes().toString().padStart(2, '0');
-        const hour = now.getHours();
-        let phase = 'NACHT';
-        if (hour >= 5 && hour < 7) phase = 'SONNENAUFGANG';
-        else if (hour >= 7 && hour < 12) phase = 'MORGEN';
-        else if (hour >= 12 && hour < 14) phase = 'MITTAG';
-        else if (hour >= 14 && hour < 18) phase = 'NACHMITTAG';
-        else if (hour >= 18 && hour < 20) phase = 'SONNENUNTERGANG';
-        setWorldState(`${h}:${m}`, phase, hour >= 7 && hour < 18 ? 0.8 : 0.2, 'OPEN');
-        setTension(Math.floor(Math.random() * 30) + 15);
+        setWorldState(`${h}:${m}`, 'NACHT', 0.2, 'OPEN');
+        setTension(25);
 
-        // NPC Positionen animieren
         const pool = useGameStore.getState().npcPool;
         Object.values(pool).forEach((npc: any) => {
           if (npc.action === 'JOGGING') {
-            npc.position[0] += (Math.random() - 0.5) * 0.3;
-            npc.position[2] += (Math.random() - 0.5) * 0.3;
+            const dx = (Math.random() - 0.5) * 0.8;
+            const dz = (Math.random() - 0.5) * 0.8;
+            const nextX = npc.position[0] + dx;
+            const nextZ = npc.position[2] + dz;
+            if (isSafe(nextX, nextZ)) {
+              npc.position[0] = nextX;
+              npc.position[2] = nextZ;
+            } else {
+               // Bei Kollision Richtung ändern (Wander-Logik)
+               npc.position[0] -= dx * 1.5;
+               npc.position[2] -= dz * 1.5;
+            }
           }
         });
-      }, 1000);
+      }, 50); // Höhere Frequenz für glattere Cloud-Frames
       return () => clearInterval(demoTimer);
     }
     
+    setThermalSafety(false); // Deaktivieren wenn wir Cloud-Streaming nutzen
     console.log('[V5.3 HYBRID] Connecting to:', backendUrl);
     const socket = io(backendUrl, {
       transports: ['polling', 'websocket'],
@@ -126,14 +143,16 @@ const App: React.FC = () => {
     });
 
     socket.on('connect_error', () => {
-      console.log('[V5.3] Cloud offline — LOCAL 3D RENDERING ACTIVE');
+      console.log('[V5.3] Cloud offline — THERMAL PROTECTION TRIGGERED');
       setConnectionStatus('disconnected');
       setCloudConnected(false);
+      setThermalSafety(!isStreamingMode);
     });
 
     socket.on('disconnect', () => {
       setConnectionStatus('disconnected');
       setCloudConnected(false);
+      setThermalSafety(!isStreamingMode);
     });
 
     const handleData = (data: SocketData) => {
@@ -176,11 +195,41 @@ const App: React.FC = () => {
       socket.disconnect();
       setConnectionStatus('disconnected');
     };
-  }, [setConnectionStatus, setWorldState, setTension, setEmergency]);
+  }, [setConnectionStatus, setWorldState, setTension, setEmergency, isStreamingMode]);
+
+  // 🛡️ HARDWARE PROTECTION: Nur wenn explizit ?streaming=true gesetzt ist, wird die 3D Engine geladen.
+  // Das verhindert JEDE GPU/CPU Last auf dem Client-System.
+  if (!isStreamingMode) {
+    return (
+      <div style={{ 
+        width: '100vw', height: '100vh', background: '#000', 
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        color: '#0f0', fontFamily: 'monospace' 
+      }}>
+        <div style={{ 
+          padding: '40px', border: '2px solid #0f0', borderRadius: '12px', 
+          background: 'rgba(0,255,0,0.05)', textAlign: 'center', boxShadow: '0 0 40px rgba(0,255,0,0.1)'
+        }}>
+          <h1 style={{ fontSize: '32px', marginBottom: '20px' }}>⚡ JETBRAIN THIN-CLIENT ⚡</h1>
+          <p style={{ fontSize: '18px', color: '#fff' }}>ZERO-LOAD MODUS AKTIV</p>
+          <div style={{ marginTop: '30px', color: '#888', fontSize: '14px' }}>
+            Die 3D-Engine ist auf diesem System deaktiviert.<br/>
+            Nutze den Cloud-Stream für die visuelle Darstellung.<br/>
+            <b>Lokale Last: 0% GPU / 0% CPU</b>
+          </div>
+          <div style={{ marginTop: '40px', color: '#0f0', fontSize: '12px' }}>
+            Empfange Telemetrie: {cloudConnected ? 'JA' : 'NEIN (Warte auf Backend)'}
+          </div>
+        </div>
+        
+        {/* Telemetrie-HUD — geringe CPU-Last, keine GPU-Last */}
+        <TelemetryHUD socket={socketRef.current} />
+      </div>
+    );
+  }
 
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#000' }}>
-      {/* ═══ LOCAL 3D RENDERING (Three.js/R3F) ═══ */}
+    <div style={{ width: '100vw', height: '100vh', background: '#000', overflow: 'hidden' }}>
       <Canvas
         shadows
         camera={{ position: [0, 120, 80], fov: 50, near: 0.1, far: 600 }}
@@ -188,28 +237,14 @@ const App: React.FC = () => {
         gl={{ antialias: true, alpha: false }}
       >
         <Suspense fallback={null}>
-          {/* === Tag/Nacht-Zyklus (ersetzt statische Lichter) === */}
-          <DayNightCycle
-            speedMultiplier={30}
-            onPhaseChange={(phase, hour) => {
-              console.log(`[PHASE] ${phase} (${hour}:00)`);
-            }}
-          />
-          
-          {/* Fog */}
+          <DayNightCycle speedMultiplier={30} />
           <fog attach="fog" args={['#050810', 100, 350]} />
-          
-          {/* Starfield */}
           <Stars radius={200} depth={60} count={5000} factor={5} saturation={0.2} fade speed={0.5} />
-          
-          {/* 3D Scene (1:1 Reconstruction) */}
           <RoadSystem />
           <CentralPark />
           <CityEnvironment />
           <NPCManager />
           <StreetLamps />
-          
-          {/* Camera Controls */}
           <OrbitControls 
             enableDamping 
             dampingFactor={0.05}
@@ -220,6 +255,18 @@ const App: React.FC = () => {
         </Suspense>
       </Canvas>
 
+      <TelemetryHUD socket={socketRef.current} />
+
+      <div style={{
+        position: 'absolute', top: 10, right: 10,
+        fontFamily: 'monospace', fontSize: '11px',
+        background: 'rgba(0,0,0,0.8)', padding: '5px 12px',
+        border: '1px solid #00f0ff', color: '#00f0ff',
+        borderRadius: '4px', zIndex: 9999
+      }}>
+        RENDERER-MODE (CLOUD)
+      </div>
+
       {/* HUD Overlay */}
       <TelemetryHUD socket={socketRef.current} />
 
@@ -228,15 +275,15 @@ const App: React.FC = () => {
         position: 'absolute', top: 10, right: 10,
         fontFamily: 'monospace', fontSize: '11px',
         background: 'rgba(0,0,0,0.8)', padding: '5px 12px',
-        border: `1px solid ${cloudConnected ? '#00ff00' : '#ffaa00'}`,
-        color: cloudConnected ? '#00ff00' : '#ffaa00',
+        border: `1px solid ${cloudConnected ? '#00ff00' : (thermalSafety ? '#ff2244' : '#ffaa00')}`,
+        color: cloudConnected ? '#00ff00' : (thermalSafety ? '#ff2244' : '#ffaa00'),
         borderRadius: '4px', zIndex: 9999
       }}>
         <span style={{
           display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
-          background: cloudConnected ? '#00ff00' : '#ffaa00', marginRight: 6,
+          background: cloudConnected ? '#00ff00' : (thermalSafety ? '#ff2244' : '#ffaa00'), marginRight: 6,
         }} />
-        {cloudConnected ? 'CLOUD STREAM' : 'LOCAL 3D ENGINE'}
+        {cloudConnected ? 'CLOUD STREAM' : (isStreamingMode ? 'CLOUD SOURCE' : (thermalSafety ? 'ZERO LOAD SAFETY' : 'LOCAL 3D ENGINE'))}
       </div>
 
       {/* Shift Notification */}

@@ -51,14 +51,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   setStreamingMode: (value) => set({ isStreamingMode: value }),
 
-  // setNPCs updates the non-reactive pool for performance, 
-  // and the reactive state ONLY if the count changes (rarely)
+  // setNPCs updates the non-reactive pool for performance.
+  // We ONLY do this on the local client (isStreamingMode: false) for 3D state.
+  // The Cloud Renderer handles its own internal sim state.
   setNPCs: (npcs) => {
     const state = get();
-    if (state.isStreamingMode) return; // Thermal Guard
+    if (state.isStreamingMode) return; // Thermal Guard (Cloud Renderer doesn't need store NPCs)
     state.npcPool = npcs;
     
-    // Only trigger React update if the structure/count changed significantly
     if (Object.keys(state.npcs).length !== Object.keys(npcs).length) {
       set({ npcs });
     }

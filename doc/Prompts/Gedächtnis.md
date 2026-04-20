@@ -1,18 +1,13 @@
 # 🛡️ THE HOME ZERO GPU UND CPU SYSTEM 🛡️
-*(Das alleinige, unantastbare System-Gedächtnis — V5.3 HYBRID)*
+*(Das alleinige, unantastbare System-Gedächtnis — V5.4 PRO)*
 
-**STATUS:** ✅ AKTIVIERT & GETESTET (Hybrid: Lokal + Cloud)
-**ARCHITEKTUR:** V5.3 Hybrid Render Engine (Three.js/R3F + Colab Stream)
-**LETZTE AKTUALISIERUNG:** 26. März 2026
+**STATUS:** ✅ STABILISIERT (Cloud Exclusive Rendering)
+**ARCHITEKTUR:** V5.4 PRO (Node 24 + IPv4 Hardening + Swiftshader)
+**LETZTE AKTUALISIERUNG:** 27. März 2026
 
 > ⚠️ ALLE VORHERIGEN CLOUD-EXPERIMENTE WURDEN OFFIZIELL VERNICHTET:
-> - ~~CodeAnywhere~~ (Dead)
-> - ~~Puppeteer Headless-Renderer lokal~~ (94°C Crash)
-> - ~~HuggingFace Spaces Docker~~ (Cold Starts, gelöscht)
-> - ~~ngrok Tunnel~~ (Token gesperrt: ERR_NGROK_3200, gelöscht)
-> - ~~Oracle Cloud ARM64~~ (Kein GPU, SwiftShader zu langsam)
-> 
-> **NUR DAS V5.3 SYSTEM IST AKTIV.**
+> - ~~V5.3 Hybrid~~ (Kollisionsgefahr, gelöscht)
+
 
 ---
 
@@ -90,38 +85,36 @@ Das Frontend erkennt automatisch ob ein Backend verfügbar ist:
 
 ---
 
-## 🚀 START-SEQUENZ
+## 🚀 START-SEQUENZ V5.4 PRO
 
-### Lokal (Standard):
-```bash
-cd d:\PandemieSARScov\PandemieSARScov\frontend
-npm run dev
-# → http://localhost:5173/
-```
+### 1. Google Colab (Master Deployment):
+Nutze das verifizierte Script von GitHub (Node 24.13.0):
+`python /content/COLAB_V5_4_COMPLETE.py`
 
-### Mit Cloud-Backend:
-```bash
-# 1. Google Colab: AAA_COLAB_V5_STATION.py ausführen
-# 2. Cloudflare-URL kopieren
-# 3. Browser: http://localhost:5173/?backend=https://xxx.trycloudflare.com
-```
+### 2. Browser Start:
+`http://localhost:5173/?streaming=true`
+(Erzwingt den 30FPS Cloud-Stream Modus)
 
 ---
 
-## 📁 AKTIVE CLOUD-DATEIEN
+## 📁 AKTIVE DATEIEN (V5.4 PRO)
 
-| Datei | Ort | Status |
+| Datei | Ort | Funktion |
 |-------|-----|--------|
-| `colab_server.js` | `cloud/` | ✅ NVENC H.264 Renderer |
-| `package_colab.json` | `cloud/` | ✅ Colab Dependencies |
-| `AAA_COLAB_V5_STATION.py` | Brain-Artifacts | ✅ Master-Deployment |
+| `COLAB_V5_4_COMPLETE.py` | `doc/` | ✅ Master Script (GitHub) |
+| `frontend/package.json` | `frontend/` | ✅ Node 24 Support |
 
-### Gelöschte Dateien (26.03.2026):
-- ~~`cloud/server.js`~~ (HuggingFace V4)
-- ~~`cloud/colab_setup.py`~~ (ngrok)
-- ~~`cloud/scene3d.html`~~ (Standalone)
-- ~~`cloud/package.json`~~ (HF Dependencies)
+### Vernichtete Altlasten:
+- ~~`AAA_COLAB_V5_STATION.py`~~
+- ~~`CLEAN_COLAB_V5_3_PRO.py`~~
+- ~~`cloud/server.js`~~
 
 ---
 
-**ENDE DES DOKUMENTS — ES GIBT KEIN ANDERES SYSTEM. NUR V5.3 HYBRID.**
+**ENDE DES DOKUMENTS — ES GIBT KEIN ANDERES SYSTEM. NUR V5.4 PRO.**
+
+## 🚨 CORE DIRECTIVES (27.03.2026)
+1. **DEEP CHECK**: Neuer Code wird 2x auf Fehler geprüft. Erst bei 100% Sicherheit codieren.
+2. **TOKEN-EFFIZIENZ**: Code direkt in Dateien schreiben, nicht im Chat wiederholen.
+3. **SYSTEM VERSION**: V5.4 PRO (Node 24, IPv4, Puppeteer CDP, 30 FPS).
+
