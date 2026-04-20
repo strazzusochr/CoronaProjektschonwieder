@@ -18,6 +18,7 @@ const HUB_BASE_CANDIDATES = Array.from(
   ),
 );
 const SESSION_ID = `live-${Date.now()}`;
+const LIVE_HUB_PROBE_TIMEOUT_MS = Number.parseInt(process.env.LIVE_HUB_PROBE_TIMEOUT_MS ?? '12000', 10);
 
 async function waitForHttp200(
   fn: () => Promise<{ status: number; body: string }>,
@@ -50,7 +51,7 @@ type HubProbeResult = {
 async function probeContractEndpoint(
   request: APIRequestContext,
   base: string,
-  timeoutMs = 4500,
+  timeoutMs = LIVE_HUB_PROBE_TIMEOUT_MS,
 ): Promise<HubProbeResult> {
   try {
     const response = await request.get(`${base}/platform7/contract`, {
@@ -76,10 +77,31 @@ async function probeContractEndpoint(
         : {};
     const roles = Array.isArray(contract.roles) ? contract.roles : [];
     const statusAllowed = status === 'ok' || status === 'blocked';
-    if (statusAllowed && roles.length >= 29) {
-      return { ok: true, detail: `status=${status} roles=${roles.length}` };
+    if (!(statusAllowed && roles.length >= 29)) {
+      return { ok: false, detail: `status=${status || 'empty'} roles=${roles.length}` };
     }
-    return { ok: false, detail: `status=${status || 'empty'} roles=${roles.length}` };
+
+    // A reachable contract is not enough for live run-control gates.
+    // Require a hub that is ready to accept /runs (prevents choosing a blocked fallback instance).
+    const stateResponse = await request.get(`${base}/control-center/state?fresh=1`, {
+      timeout: timeoutMs,
+      failOnStatusCode: false,
+    });
+    if (stateResponse.status() !== 200) {
+      return { ok: false, detail: `status=${status} roles=${roles.length} state_http=${stateResponse.status()}` };
+    }
+    const stateRaw = await stateResponse.text();
+    let stateBody: Record<string, unknown>;
+    try {
+      stateBody = JSON.parse(stateRaw) as Record<string, unknown>;
+    } catch {
+      return { ok: false, detail: `status=${status} roles=${roles.length} state=invalid-json` };
+    }
+    const readyForPromptExecute = Boolean(stateBody.ready_for_prompt_execute);
+    if (readyForPromptExecute) {
+      return { ok: true, detail: `status=${status} roles=${roles.length} ready=true` };
+    }
+    return { ok: false, detail: `status=${status} roles=${roles.length} ready=false` };
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     return { ok: false, detail };
@@ -167,81 +189,126 @@ async function assertControlCenterStateContract(request: APIRequestContext, hubB
 }
 
 async function assertRunControlTransitions(request: APIRequestContext, hubBase: string) {
-  const startResponse = await request.post(`${hubBase}/runs`, {
-    data: {
-      goal: 'Live run-control gate for Platform7.',
-      profile_id: 'three_d_web_game_swarm',
-      source: 'test:browser:live',
-      repo: 'https://github.com/strazzusochr/CoronaProjektschonwieder',
-      ref: 'main',
-      status: 'queued',
-      halt_on_fail: false,
-    },
-  });
-  expect(startResponse.ok(), 'Start run for control transition gate').toBeTruthy();
-  const startPayload = (await startResponse.json()) as Record<string, unknown>;
-  const runId = String(
-    startPayload.run_id ??
-      ((startPayload.run && typeof startPayload.run === 'object'
-        ? (startPayload.run as Record<string, unknown>).run_id
-        : '') as string),
-  );
-  expect(runId.length, 'run id must exist for control transition gate').toBeGreaterThan(0);
-
-  const actions = ['pause', 'resume', 'retry-last-step', 'assign-human', 'rollback'] as const;
-  for (const action of actions) {
-    const response = await request.post(`${hubBase}/runs/${runId}/${action}`, {
-      data: {
-        source: 'test:browser:live',
-        reason: `control-${action}`,
-        session_id: `live-control-${Date.now()}`,
-        trace_id: '',
-        task_id: '',
-        step_id: '',
-        agent_id: '',
-        role: '',
-        runtime_target: '',
-      },
-    });
-    expect(response.ok(), `run control ${action} should succeed`).toBeTruthy();
-    const payload = (await response.json()) as Record<string, unknown>;
-    expect(String(payload.reason ?? '').length, `run control ${action} reason`).toBeGreaterThan(0);
-    expect(String(payload.next_action ?? '').length, `run control ${action} next_action`).toBeGreaterThan(0);
-    expect(Boolean(payload.event), `run control ${action} event`).toBeTruthy();
-  }
-
-  const reroutePayload = {
-    source: 'test:browser:live',
-    reason: 'control-reroute',
-    session_id: `live-control-${Date.now()}`,
-    trace_id: '',
-    task_id: '',
-    step_id: '',
-    agent_id: '',
-    role: '',
-    runtime_target: '',
-  };
-  for (const mode of ['local', 'remote'] as const) {
-    const response = await request.post(`${hubBase}/runs/${runId}/reroute/${mode}`, { data: reroutePayload });
-    expect(response.ok(), `run reroute ${mode} should succeed`).toBeTruthy();
-    const payload = (await response.json()) as Record<string, unknown>;
-    expect(String(payload.mode ?? ''), `run reroute ${mode} mode`).toBe(mode);
-    expect(Boolean(payload.event), `run reroute ${mode} event`).toBeTruthy();
-  }
-
-  const evidenceResponse = await request.get(`${hubBase}/runs/${runId}/evidence`);
-  expect(evidenceResponse.ok(), 'run evidence should load').toBeTruthy();
-  const evidencePayload = (await evidenceResponse.json()) as Record<string, unknown>;
-  const summary =
-    evidencePayload.summary && typeof evidencePayload.summary === 'object'
-      ? (evidencePayload.summary as Record<string, unknown>)
+  const routingBeforeResponse = await request.get(`${hubBase}/routing/status`);
+  expect(routingBeforeResponse.ok(), 'routing status should load before reroute assertions').toBeTruthy();
+  const routingBeforePayload = (await routingBeforeResponse.json()) as Record<string, unknown>;
+  const beforeOverride =
+    routingBeforePayload.override && typeof routingBeforePayload.override === 'object'
+      ? (routingBeforePayload.override as Record<string, unknown>)
       : {};
-  const stepCount = Number(summary.total_steps ?? 0);
-  if (stepCount > 0) {
-    const quarantineResponse = await request.post(`${hubBase}/runs/${runId}/quarantine`, {
+  const beforeModeRaw = String(beforeOverride.mode ?? 'auto').toLowerCase();
+  const initialGlobalMode: 'auto' | 'local' | 'remote' =
+    beforeModeRaw === 'local' || beforeModeRaw === 'remote' ? beforeModeRaw : 'auto';
+
+  try {
+    const startResponse = await request.post(`${hubBase}/runs`, {
       data: {
+        goal: 'Live run-control gate for Platform7.',
+        profile_id: 'three_d_web_game_swarm',
         source: 'test:browser:live',
-        reason: 'control-quarantine',
+        repo: 'https://github.com/strazzusochr/CoronaProjektschonwieder',
+        ref: 'main',
+        status: 'queued',
+        halt_on_fail: false,
+      },
+    });
+    expect(startResponse.ok(), 'Start run for control transition gate').toBeTruthy();
+    const startPayload = (await startResponse.json()) as Record<string, unknown>;
+    const runId = String(
+      startPayload.run_id ??
+        ((startPayload.run && typeof startPayload.run === 'object'
+          ? (startPayload.run as Record<string, unknown>).run_id
+          : '') as string),
+    );
+    expect(runId.length, 'run id must exist for control transition gate').toBeGreaterThan(0);
+
+    const actions = ['pause', 'resume', 'retry-last-step', 'assign-human', 'rollback'] as const;
+    for (const action of actions) {
+      const response = await request.post(`${hubBase}/runs/${runId}/${action}`, {
+        data: {
+          source: 'test:browser:live',
+          reason: `control-${action}`,
+          session_id: `live-control-${Date.now()}`,
+          trace_id: '',
+          task_id: '',
+          step_id: '',
+          agent_id: '',
+          role: '',
+          runtime_target: '',
+        },
+      });
+      expect(response.ok(), `run control ${action} should succeed`).toBeTruthy();
+      const payload = (await response.json()) as Record<string, unknown>;
+      expect(String(payload.reason ?? '').length, `run control ${action} reason`).toBeGreaterThan(0);
+      expect(String(payload.next_action ?? '').length, `run control ${action} next_action`).toBeGreaterThan(0);
+      expect(Boolean(payload.event), `run control ${action} event`).toBeTruthy();
+    }
+
+    const reroutePayload = {
+      source: 'test:browser:live',
+      reason: 'control-reroute',
+      session_id: `live-control-${Date.now()}`,
+      trace_id: '',
+      task_id: '',
+      step_id: '',
+      agent_id: '',
+      role: '',
+      runtime_target: '',
+    };
+    for (const mode of ['local', 'remote'] as const) {
+      const response = await request.post(`${hubBase}/runs/${runId}/reroute/${mode}`, { data: reroutePayload });
+      expect(response.ok(), `run reroute ${mode} should succeed`).toBeTruthy();
+      const payload = (await response.json()) as Record<string, unknown>;
+      expect(String(payload.mode ?? ''), `run reroute ${mode} mode`).toBe(mode);
+      expect(Boolean(payload.event), `run reroute ${mode} event`).toBeTruthy();
+    }
+
+    const routingAfterResponse = await request.get(`${hubBase}/routing/status`);
+    expect(routingAfterResponse.ok(), 'routing status should load after run reroutes').toBeTruthy();
+    const routingAfterPayload = (await routingAfterResponse.json()) as Record<string, unknown>;
+    const afterOverride =
+      routingAfterPayload.override && typeof routingAfterPayload.override === 'object'
+        ? (routingAfterPayload.override as Record<string, unknown>)
+        : {};
+    expect(
+      String(afterOverride.mode ?? 'auto').toLowerCase(),
+      'global routing mode should remain unchanged by run-scoped reroutes',
+    ).toBe(initialGlobalMode);
+
+    const evidenceResponse = await request.get(`${hubBase}/runs/${runId}/evidence`);
+    expect(evidenceResponse.ok(), 'run evidence should load').toBeTruthy();
+    const evidencePayload = (await evidenceResponse.json()) as Record<string, unknown>;
+    const summary =
+      evidencePayload.summary && typeof evidencePayload.summary === 'object'
+        ? (evidencePayload.summary as Record<string, unknown>)
+        : {};
+    const stepCount = Number(summary.total_steps ?? 0);
+    if (stepCount > 0) {
+      const quarantineResponse = await request.post(`${hubBase}/runs/${runId}/quarantine`, {
+        data: {
+          source: 'test:browser:live',
+          reason: 'control-quarantine',
+          session_id: `live-control-${Date.now()}`,
+          trace_id: '',
+          task_id: '',
+          step_id: '',
+          agent_id: '',
+          role: '',
+          runtime_target: '',
+          artifact: '',
+        },
+      });
+      expect(quarantineResponse.ok(), 'run quarantine should succeed when evidence exists').toBeTruthy();
+      const quarantinePayload = (await quarantineResponse.json()) as Record<string, unknown>;
+      expect(String(quarantinePayload.run_id ?? ''), 'run quarantine run id').toBe(runId);
+      expect(Boolean(quarantinePayload.event), 'run quarantine event').toBeTruthy();
+    }
+  } finally {
+    const restoreResponse = await request.post(`${hubBase}/routing/override`, {
+      data: {
+        mode: initialGlobalMode,
+        source: 'test:browser:live',
+        reason: 'restore-global-routing-mode',
         session_id: `live-control-${Date.now()}`,
         trace_id: '',
         task_id: '',
@@ -249,13 +316,9 @@ async function assertRunControlTransitions(request: APIRequestContext, hubBase: 
         agent_id: '',
         role: '',
         runtime_target: '',
-        artifact: '',
       },
     });
-    expect(quarantineResponse.ok(), 'run quarantine should succeed when evidence exists').toBeTruthy();
-    const quarantinePayload = (await quarantineResponse.json()) as Record<string, unknown>;
-    expect(String(quarantinePayload.run_id ?? ''), 'run quarantine run id').toBe(runId);
-    expect(Boolean(quarantinePayload.event), 'run quarantine event').toBeTruthy();
+    expect(restoreResponse.ok(), 'global routing mode restore should succeed').toBeTruthy();
   }
 }
 

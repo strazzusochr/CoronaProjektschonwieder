@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib import error, request
 
-REPO_ROOT = Path("d:/Web/docs/godmode_setup")
+REPO_ROOT = Path(__file__).resolve().parent
 FRONTEND_ROOT = REPO_ROOT / "CoronaProjektschonwieder"
 DEFAULT_HUB = "http://127.0.0.1:3901"
 DEFAULT_N8N_WEBHOOK = (
@@ -400,7 +400,7 @@ def main() -> int:
 
     report = {
         "timestamp": ts,
-        "status": "PASS" if all_verified_full else "PARTIAL",
+        "status": "PASS" if all_verified_full else "BLOCKED",
         "core_status": "PASS" if all_verified_core else "PARTIAL",
         "full_status": "PASS" if all_verified_full else "PARTIAL",
         "hub_base_url": hub,
@@ -430,7 +430,7 @@ def main() -> int:
             ensure_ascii=True,
         )
     )
-    return 0
+    return 0 if all_verified_full else 1
 
 
 if __name__ == "__main__":
