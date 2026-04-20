@@ -49,6 +49,7 @@ type ControlEvent = {
   reason: string;
   nextAction: string;
   severity: EventSeverity;
+  repeatCount?: number;
   rawState?: string;
   correlation?: ControlEventCorrelation;
 };
@@ -195,6 +196,7 @@ const RUN_HEARTBEAT_STALE_MS = 22000;
 const WINDOW_HEARTBEAT_STALE_MS = 15000;
 const PROMPT_EXECUTION_TIMEOUT_MS = 180000;
 const AUTONOMY_RUN_TIMEOUT_MS = 180000;
+const CORE_12_PROFILE_ID = 'core12_coder_swarm';
 const FULL_29_PROFILE_ID = 'three_d_web_game_swarm';
 const CORE_11_PROFILE_ID = 'three_d_web_game_core_11';
 const WINDOW_ROLES: WindowRole[] = ['commander', 'glasshouse', 'operations'];
@@ -313,6 +315,7 @@ function defaultDispatchPayload(): DispatchPayload { return { agent: 'product_sc
 function findProfileById(profiles: AutonomyProfile[], profileId: string) { return profiles.find((profile) => profile.id === profileId) ?? null; }
 function pickPreferredProfileId(profiles: AutonomyProfile[]) {
   if (profiles.length === 0) return '';
+  if (findProfileById(profiles, CORE_12_PROFILE_ID)) return CORE_12_PROFILE_ID;
   if (findProfileById(profiles, FULL_29_PROFILE_ID)) return FULL_29_PROFILE_ID;
   if (findProfileById(profiles, CORE_11_PROFILE_ID)) return CORE_11_PROFILE_ID;
   return profiles[0].id;
@@ -837,8 +840,9 @@ export default function App() {
     ?? findProfileById(effectiveAutonomyProfiles, preferredAutonomyProfileId)
     ?? effectiveAutonomyProfiles[0]
     ?? null;
-  const selectedAutonomyProfileId = (selectedAutonomyProfile?.id ?? preferredAutonomyProfileId) || FULL_29_PROFILE_ID;
+  const selectedAutonomyProfileId = (selectedAutonomyProfile?.id ?? preferredAutonomyProfileId) || CORE_12_PROFILE_ID;
   const selectedAutonomyProfileLabel = selectedAutonomyProfile?.label ?? 'No profile loaded';
+  const quickProfileCore12 = findProfileById(effectiveAutonomyProfiles, CORE_12_PROFILE_ID);
   const quickProfileFull29 = findProfileById(effectiveAutonomyProfiles, FULL_29_PROFILE_ID);
   const quickProfileCore11 = findProfileById(effectiveAutonomyProfiles, CORE_11_PROFILE_ID);
   const defaultsFromCapabilities = capabilityRecommendedDefaults(capabilitiesStatus);
@@ -846,7 +850,7 @@ export default function App() {
   const recommendedAutonomyProfileId = (
     findProfileById(effectiveAutonomyProfiles, capabilityDefaultProfileId)?.id
     ?? preferredAutonomyProfileId
-  ) || FULL_29_PROFILE_ID;
+  ) || CORE_12_PROFILE_ID;
   const recommendedDispatchAgent = recommendedDefaultAgent(capabilitiesStatus);
   const toolingRequirements = platformContract.tooling_requirements;
   const requiredToolingRequirements = toolingRequirements.filter((tool) => tool.required);
@@ -1023,7 +1027,27 @@ export default function App() {
   const heartbeatKey = `${WINDOW_HEARTBEAT_PREFIX}.${sessionId}`;
 
   const pushEventEntry = (entry: ControlEvent) => {
-    setEvents((current) => [entry, ...current].slice(0, 300));
+    setEvents((current) => {
+      if (current.length > 0) {
+        const head = current[0];
+        const samePayload =
+          head.action === entry.action
+          && head.state === entry.state
+          && head.reason === entry.reason
+          && head.nextAction === entry.nextAction;
+        const headEpoch = Date.parse(head.timestamp);
+        const nextEpoch = Date.parse(entry.timestamp);
+        const withinWindow = Number.isFinite(headEpoch) && Number.isFinite(nextEpoch)
+          ? Math.abs(nextEpoch - headEpoch) <= 10000
+          : false;
+        if (samePayload && withinWindow) {
+          const repeatCount = (head.repeatCount ?? 1) + 1;
+          const merged: ControlEvent = { ...head, timestamp: entry.timestamp, repeatCount };
+          return [merged, ...current.slice(1)].slice(0, 300);
+        }
+      }
+      return [{ ...entry, repeatCount: entry.repeatCount ?? 1 }, ...current].slice(0, 300);
+    });
   };
 
   const pushEvent = (action: string, state: OperationalState, reason: string, nextAction: string, severity: EventSeverity = 'info') => {
@@ -2187,7 +2211,7 @@ export default function App() {
     const c = entry.correlation;
     return (
       <li key={entry.id} className={`event event--${entry.severity}`}>
-        <p><strong>{entry.action}</strong> {renderStatusChip(entry.state)}</p>
+        <p><strong>{entry.action}</strong> {renderStatusChip(entry.state)} {entry.repeatCount && entry.repeatCount > 1 ? <code>x{entry.repeatCount}</code> : null}</p>
         <p>{entry.reason}</p>
         {c ? <p>run_id: {c.runId || '-'} | trace_id: {c.traceId || '-'} | task_id: {c.taskId || '-'}</p> : null}
         {c ? <p>step_id: {c.stepId || '-'} | agent_id: {c.agentId || '-'} | role: {c.role || '-'}</p> : null}
@@ -2255,6 +2279,7 @@ export default function App() {
         <div className="button-row">
           <button type="button" className="button" onClick={applyTemplateToDispatch}>Apply template</button>
           <button type="button" className="button" onClick={applyRecommendedDefaults}>Empfohlene Defaults anwenden</button>
+          {quickProfileCore12 ? <button type="button" className="button" onClick={() => switchAutonomyProfileQuick(quickProfileCore12.id, quickProfileCore12.label)}>Quick: Core-12</button> : null}
           {quickProfileFull29 ? <button type="button" className="button" onClick={() => switchAutonomyProfileQuick(quickProfileFull29.id, quickProfileFull29.label)}>Quick: Full-29</button> : null}
           {quickProfileCore11 ? <button type="button" className="button" onClick={() => switchAutonomyProfileQuick(quickProfileCore11.id, quickProfileCore11.label)}>Quick: Core-11</button> : null}
         </div>

@@ -248,6 +248,31 @@ OLLAMAHF_CITY_PARK_PROMPT_MARKERS = (
     "3d city park",
     "reference world",
 )
+CORE12_PROFILE_ID = "core12_coder_swarm"
+CORE12_CODER_NAMESPACES = (
+    "webgl_client",
+    "gameplay_systems",
+    "backend_platform",
+    "multiplayer_netcode",
+    "cloud_infra_devops",
+    "qa_validation",
+    "security_anticheat",
+    "local.langgraph.planner",
+    "local.langgraph.research",
+    "local.langgraph.reviewer",
+)
+OLLAMAHF_MONITOR_DEDUPE_WINDOW_SECONDS = int(
+    os.environ.get("OLLAMAHF_MONITOR_DEDUPE_WINDOW_SECONDS", "12")
+)
+OLLAMAHF_MONITOR_EVENT_SAMPLE_LIMIT = int(
+    os.environ.get("OLLAMAHF_MONITOR_EVENT_SAMPLE_LIMIT", "160")
+)
+OLLAMAHF_MONITOR_EVENT_RENDER_LIMIT = int(
+    os.environ.get("OLLAMAHF_MONITOR_EVENT_RENDER_LIMIT", "40")
+)
+OLLAMAHF_MONITOR_SNAPSHOT_TIMEOUT = int(
+    os.environ.get("OLLAMAHF_MONITOR_SNAPSHOT_TIMEOUT", "6")
+)
 BOOTSTRAP_STATE_PATH = EVIDENCE_DIR / "bootstrap_latest.json"
 STARTED_AT = datetime.now(timezone.utc).isoformat()
 RUNTIME_TARGETS = [
@@ -432,6 +457,11 @@ AUTONOMY_PROFILES: dict[str, dict[str, Any]] = {
 BOOTSTRAP_LOCK = threading.Lock()
 CONTROL_CENTER_CACHE_LOCK = threading.Lock()
 CONTROL_CENTER_CACHE: dict[str, Any] = {
+    "expires_at": 0.0,
+    "payload": None,
+}
+OLLAMAHF_MONITOR_CACHE_LOCK = threading.Lock()
+OLLAMAHF_MONITOR_CACHE: dict[str, Any] = {
     "expires_at": 0.0,
     "payload": None,
 }
@@ -741,9 +771,11 @@ def _validate_platform7_contract(contract: dict[str, Any]) -> dict[str, Any]:
             + ", ".join(missing_superpowers)
         )
     full_profile_ok = False
+    core12_profile_agents: set[str] = set()
     for entry in autonomy_profiles:
         if not isinstance(entry, dict):
             continue
+        profile_id = str(entry.get("id", "")).strip()
         profile_agents = {
             str(agent).strip().lower()
             for agent in entry.get("agents", [])
@@ -751,11 +783,25 @@ def _validate_platform7_contract(contract: dict[str, Any]) -> dict[str, Any]:
         }
         if not profile_agents:
             continue
+        if profile_id == CORE12_PROFILE_ID:
+            core12_profile_agents = set(profile_agents)
         if role_namespace_set.issubset(profile_agents) and {"sentinel_truth", "sentinel_runtime"}.issubset(profile_agents):
             full_profile_ok = True
-            break
     if not full_profile_ok:
         errors.append("Platform7 autonomy_profiles must include one full 29-role profile with both supervisors.")
+    if not core12_profile_agents:
+        errors.append("Platform7 autonomy_profiles must include core12_coder_swarm.")
+    else:
+        required_core12 = set(CORE12_CODER_NAMESPACES).union({"sentinel_truth", "sentinel_runtime"})
+        missing_core12 = sorted(required_core12 - core12_profile_agents)
+        if missing_core12:
+            errors.append(
+                "core12_coder_swarm missing required roles: " + ", ".join(missing_core12)
+            )
+        if len(core12_profile_agents) != 12:
+            errors.append(
+                f"core12_coder_swarm must contain exactly 12 roles; found {len(core12_profile_agents)}."
+            )
     if not autonomy_profiles:
         warnings.append("Platform7 contract has no autonomy_profiles; fallback profiles remain active.")
 
@@ -2188,11 +2234,12 @@ def _probe_url(url: str, timeout: int, headers: dict[str, str] | None = None) ->
                 "http_status": int(response.status),
             }
     except error.HTTPError as exc:
+        raw = exc.read().decode("utf-8", errors="replace")
         return {
             "reachable": exc.code < 500,
             "url": url,
             "http_status": int(exc.code),
-            "error": str(exc),
+            "error": raw or str(exc),
         }
     except Exception as exc:  # pragma: no cover - runtime path
         fallback_attempts: list[dict[str, Any]] = []
@@ -2209,11 +2256,12 @@ def _probe_url(url: str, timeout: int, headers: dict[str, str] | None = None) ->
                         "original_error": str(exc),
                     }
             except error.HTTPError as fallback_exc:
+                fallback_raw = fallback_exc.read().decode("utf-8", errors="replace")
                 fallback_attempts.append(
                     {
                         "url": fallback_url,
                         "http_status": int(fallback_exc.code),
-                        "error": str(fallback_exc),
+                        "error": fallback_raw or str(fallback_exc),
                     }
                 )
             except Exception as fallback_exc:  # pragma: no cover - runtime path
@@ -2270,6 +2318,420 @@ def _probe_catalog_parallel(
                     "error": str(exc),
                 }
     return results
+
+
+def _http_probe_status(http_status: int) -> str:
+    if http_status == 200:
+        return "forwarded"
+    if http_status in {401, 403, 404}:
+        return "blocked"
+    return "forward-failed"
+
+
+def _redact_sensitive_text(value: str) -> str:
+    text = str(value or "")
+    if not text:
+        return ""
+    text = re.sub(r"(?i)(authorization\s*[:=]\s*bearer\s+)[^\s\"']+", r"\1***", text)
+    text = re.sub(r"(?i)(api[_-]?key\s*[:=]\s*)[^\s\"']+", r"\1***", text)
+    text = re.sub(r"(?i)(token\s*[:=]\s*)[A-Za-z0-9._-]{8,}", r"\1***", text)
+    return text
+
+
+def _looks_like_invalid_hf_credentials(text: str) -> bool:
+    normalized = str(text or "").lower()
+    if not normalized:
+        return False
+    return "invalid username or password" in normalized or '"error":"invalid username or password."' in normalized
+
+
+def _safe_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_epoch(value: Any, fallback: float) -> float:
+    if value is None:
+        return fallback
+    if isinstance(value, (int, float)):
+        return float(value)
+    raw = str(value).strip()
+    if not raw:
+        return fallback
+    try:
+        return float(raw)
+    except ValueError:
+        pass
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.timestamp()
+    except ValueError:
+        return fallback
+
+
+def _get_json_url(
+    url: str,
+    timeout: int,
+    headers: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    req = request.Request(url=url, method="GET", headers=headers or {})
+    try:
+        with request.urlopen(req, timeout=timeout) as response:
+            raw = response.read().decode("utf-8", errors="replace")
+            parsed: Any
+            try:
+                parsed = json.loads(raw) if raw else {}
+            except json.JSONDecodeError:
+                parsed = {"raw": raw[:2000]}
+            http_status = int(response.status)
+            return {
+                "status": _http_probe_status(http_status),
+                "url": url,
+                "http_status": http_status,
+                "response": parsed if isinstance(parsed, (dict, list)) else {"raw": str(parsed)[:2000]},
+                "error": "",
+            }
+    except error.HTTPError as exc:
+        raw = exc.read().decode("utf-8", errors="replace")
+        parsed: Any = {}
+        if raw:
+            try:
+                parsed = json.loads(raw)
+            except json.JSONDecodeError:
+                parsed = {"raw": raw[:2000]}
+        http_status = int(exc.code)
+        return {
+            "status": _http_probe_status(http_status),
+            "url": url,
+            "http_status": http_status,
+            "response": parsed if isinstance(parsed, (dict, list)) else {},
+            "error": _redact_sensitive_text(raw or str(exc)),
+        }
+    except Exception as exc:  # pragma: no cover - runtime path
+        return {
+            "status": "forward-failed",
+            "url": url,
+            "http_status": None,
+            "response": {},
+            "error": _redact_sensitive_text(str(exc)),
+        }
+
+
+def _monitor_probe_with_auth_fallback(
+    path: str,
+    timeout: int,
+    *,
+    expect_json: bool,
+    allow_public_retry: bool,
+) -> dict[str, Any]:
+    base = OLLAMAHF_BASE_URL.rstrip("/")
+    url = f"{base}{path}"
+    has_token = bool(OLLAMAHF_BEARER_TOKEN)
+    headers = _ollama_headers() if has_token else {}
+
+    def _execute(with_headers: dict[str, str] | None) -> dict[str, Any]:
+        if expect_json:
+            return _get_json_url(url, timeout, headers=with_headers)
+        probe = _probe_url(url, timeout, headers=with_headers)
+        http_status = _safe_int(probe.get("http_status"), 0)
+        return {
+            "status": _http_probe_status(http_status),
+            "url": str(probe.get("url", url)),
+            "http_status": probe.get("http_status"),
+            "response": {},
+            "error": _redact_sensitive_text(str(probe.get("error", ""))),
+            "reachable": bool(probe.get("reachable", False)),
+        }
+
+    primary = _execute(headers or None)
+    primary_status = _safe_int(primary.get("http_status"), 0)
+    primary_error = _redact_sensitive_text(str(primary.get("error", "")))
+    auth_state = "missing" if not has_token else ("valid" if primary_status == 200 else "unknown")
+    invalid_token = has_token and primary_status == 401 and _looks_like_invalid_hf_credentials(primary_error)
+    if allow_public_retry and invalid_token:
+        public_retry = _execute(None)
+        merged = dict(primary)
+        merged["public_retry"] = {
+            "http_status": public_retry.get("http_status"),
+            "status": public_retry.get("status"),
+            "error": _redact_sensitive_text(str(public_retry.get("error", ""))),
+        }
+        merged["fallback_public"] = True
+        merged["auth_state"] = "invalid_fallback_public"
+        if _safe_int(public_retry.get("http_status"), 0) == 200:
+            merged.update(public_retry)
+            merged["fallback_public"] = True
+            merged["auth_state"] = "invalid_fallback_public"
+            merged["token_error_excerpt"] = primary_error[:240]
+        return merged
+
+    merged = dict(primary)
+    merged["auth_state"] = auth_state
+    merged["fallback_public"] = False
+    return merged
+
+
+def _monitor_extract_records(payload: Any, stream: str) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    source_items: list[Any] = []
+    if isinstance(payload, list):
+        source_items = payload
+    elif isinstance(payload, dict):
+        for key in ("events", "logs", "items", "data", "entries"):
+            candidate = payload.get(key)
+            if isinstance(candidate, list):
+                source_items = candidate
+                break
+    now = time.time()
+    for item in source_items[: max(1, OLLAMAHF_MONITOR_EVENT_SAMPLE_LIMIT)]:
+        if isinstance(item, dict):
+            message = (
+                str(item.get("message", "")).strip()
+                or str(item.get("msg", "")).strip()
+                or str(item.get("detail", "")).strip()
+                or str(item.get("text", "")).strip()
+            )
+            model_id = (
+                str(item.get("model_id", "")).strip()
+                or str(item.get("model", "")).strip()
+                or str(item.get("model_name", "")).strip()
+                or "unknown"
+            )
+            state = (
+                str(item.get("state", "")).strip()
+                or str(item.get("status", "")).strip()
+                or str(item.get("level", "")).strip()
+                or "unknown"
+            )
+            ts_raw = (
+                item.get("timestamp")
+                or item.get("time")
+                or item.get("created_at")
+                or item.get("updated_at")
+                or ""
+            )
+            if not message:
+                continue
+            records.append(
+                {
+                    "stream": stream,
+                    "model_id": model_id,
+                    "state": state,
+                    "message": _redact_sensitive_text(message)[:600],
+                    "timestamp": str(ts_raw).strip(),
+                    "epoch": _safe_epoch(ts_raw, now),
+                }
+            )
+    return records
+
+
+def _dedupe_monitor_records(records: list[dict[str, Any]], window_seconds: int) -> list[dict[str, Any]]:
+    deduped: list[dict[str, Any]] = []
+    index_by_key: dict[tuple[str, str, str, str], tuple[int, float]] = {}
+    horizon = float(max(1, window_seconds))
+    for item in records:
+        stream = str(item.get("stream", "")).strip() or "unknown"
+        model_id = str(item.get("model_id", "")).strip() or "unknown"
+        state = str(item.get("state", "")).strip() or "unknown"
+        message = str(item.get("message", "")).strip()
+        if not message:
+            continue
+        key = (stream, model_id, state, message)
+        epoch = float(item.get("epoch", time.time()) or time.time())
+        existing = index_by_key.get(key)
+        if existing and (epoch - existing[1]) <= horizon:
+            idx = existing[0]
+            deduped[idx]["repeat_count"] = int(deduped[idx].get("repeat_count", 1)) + 1
+            deduped[idx]["last_seen_at"] = str(item.get("timestamp", "")).strip() or deduped[idx].get("last_seen_at", "")
+            index_by_key[key] = (idx, epoch)
+            continue
+        record = {
+            "stream": stream,
+            "model_id": model_id,
+            "state": state,
+            "message": message,
+            "timestamp": str(item.get("timestamp", "")).strip(),
+            "repeat_count": 1,
+            "last_seen_at": str(item.get("timestamp", "")).strip(),
+        }
+        deduped.append(record)
+        index_by_key[key] = (len(deduped) - 1, epoch)
+    return deduped
+
+
+def _extract_model_ids(payload: Any) -> list[str]:
+    if isinstance(payload, dict):
+        data = payload.get("data")
+        if isinstance(data, list):
+            model_ids = [
+                str(entry.get("id", "")).strip()
+                for entry in data
+                if isinstance(entry, dict) and str(entry.get("id", "")).strip()
+            ]
+            return sorted(set(model_ids))
+    if isinstance(payload, list):
+        model_ids = [str(item).strip() for item in payload if str(item).strip()]
+        return sorted(set(model_ids))
+    return []
+
+
+def _default_model_summary() -> dict[str, Any]:
+    return {
+        "source": "/v1/models",
+        "checked_at": _now_iso(),
+        "verified_model_ids": [],
+        "count": 0,
+    }
+
+
+def _ollamahf_monitor_snapshot(force_refresh: bool = False, timeout: int | None = None) -> dict[str, Any]:
+    now_epoch = time.time()
+    ttl = max(1, min(CONTROL_CENTER_STATUS_CACHE_TTL, 30))
+    if not force_refresh:
+        with OLLAMAHF_MONITOR_CACHE_LOCK:
+            cached = OLLAMAHF_MONITOR_CACHE.get("payload")
+            expires_at = float(OLLAMAHF_MONITOR_CACHE.get("expires_at", 0.0) or 0.0)
+            if isinstance(cached, dict) and expires_at > now_epoch:
+                return dict(cached)
+
+    base = OLLAMAHF_BASE_URL.rstrip("/")
+    if not base:
+        payload = {
+            "status": "blocked",
+            "checked_at": _now_iso(),
+            "base_url": "",
+            "hf_auth_state": "missing",
+            "router_model_summary": _default_model_summary(),
+            "endpoints": {},
+            "logs": {
+                "dedupe_key": "(stream, model_id, state, message)",
+                "window_seconds": OLLAMAHF_MONITOR_DEDUPE_WINDOW_SECONDS,
+                "sample_total": 0,
+                "sample_unique": 0,
+                "events": [],
+            },
+            "stream_snapshot_health": {"build_http_status": 0, "run_http_status": 0, "fallback_public_used": False},
+            "model_source_timestamp": "",
+        }
+        with OLLAMAHF_MONITOR_CACHE_LOCK:
+            OLLAMAHF_MONITOR_CACHE["expires_at"] = now_epoch + float(ttl)
+            OLLAMAHF_MONITOR_CACHE["payload"] = dict(payload)
+        return payload
+
+    effective_timeout = max(2, min(timeout or OLLAMAHF_MONITOR_SNAPSHOT_TIMEOUT, 30))
+    endpoint_specs = [
+        ("health", "/health", False, False),
+        ("models", "/v1/models", True, False),
+        ("chat_completions", "/v1/chat/completions", False, False),
+        ("orchestrate", "/orchestrate", False, False),
+        ("space", "/monitor/api/space", True, False),
+        ("model_downloads", "/monitor/api/model-downloads", True, False),
+        ("logs_build", "/monitor/api/logs/build", True, True),
+        ("logs_run", "/monitor/api/logs/run", True, True),
+        ("stream_build", "/monitor/stream/build", False, True),
+        ("stream_run", "/monitor/stream/run", False, True),
+    ]
+    endpoint_results: dict[str, dict[str, Any]] = {}
+    for endpoint_id, path, expect_json, allow_public_retry in endpoint_specs:
+        endpoint_results[endpoint_id] = _monitor_probe_with_auth_fallback(
+            path,
+            effective_timeout,
+            expect_json=expect_json,
+            allow_public_retry=allow_public_retry,
+        )
+
+    has_token = bool(OLLAMAHF_BEARER_TOKEN)
+    auth_state = "missing" if not has_token else "unknown"
+    for endpoint in endpoint_results.values():
+        endpoint_auth_state = str(endpoint.get("auth_state", "")).strip()
+        if endpoint_auth_state == "invalid_fallback_public":
+            auth_state = "invalid_fallback_public"
+            break
+        if endpoint_auth_state == "valid" and auth_state != "invalid_fallback_public":
+            auth_state = "valid"
+
+    model_ids = _extract_model_ids(endpoint_results.get("models", {}).get("response"))
+    router_model_summary = {
+        "source": "/v1/models",
+        "checked_at": _now_iso(),
+        "verified_model_ids": model_ids,
+        "count": len(model_ids),
+    }
+
+    sampled_records: list[dict[str, Any]] = []
+    sampled_records.extend(_monitor_extract_records(endpoint_results.get("logs_build", {}).get("response"), "build"))
+    sampled_records.extend(_monitor_extract_records(endpoint_results.get("logs_run", {}).get("response"), "run"))
+    deduped_records = _dedupe_monitor_records(
+        sampled_records,
+        OLLAMAHF_MONITOR_DEDUPE_WINDOW_SECONDS,
+    )
+
+    endpoints_public: dict[str, dict[str, Any]] = {}
+    for endpoint_id, result in endpoint_results.items():
+        endpoints_public[endpoint_id] = {
+            "url": str(result.get("url", "")).strip(),
+            "status": str(result.get("status", "forward-failed")).strip(),
+            "http_status": result.get("http_status"),
+            "auth_state": str(result.get("auth_state", "unknown")).strip() or "unknown",
+            "fallback_public": bool(result.get("fallback_public", False)),
+            "reachable": bool(result.get("reachable", _safe_int(result.get("http_status"), 0) > 0)),
+            "error": _redact_sensitive_text(str(result.get("error", "")))[:320],
+        }
+    health_ok = _safe_int(endpoint_results.get("health", {}).get("http_status"), 0) == 200
+    models_ok = _safe_int(endpoint_results.get("models", {}).get("http_status"), 0) == 200
+    status = "ok" if health_ok and models_ok else "partial" if health_ok or models_ok else "blocked"
+
+    payload = {
+        "status": status,
+        "checked_at": _now_iso(),
+        "base_url": base,
+        "hf_auth_state": auth_state,
+        "router_model_summary": router_model_summary,
+        "endpoints": endpoints_public,
+        "logs": {
+            "dedupe_key": "(stream, model_id, state, message)",
+            "window_seconds": OLLAMAHF_MONITOR_DEDUPE_WINDOW_SECONDS,
+            "sample_total": len(sampled_records),
+            "sample_unique": len(deduped_records),
+            "events": deduped_records[: max(1, OLLAMAHF_MONITOR_EVENT_RENDER_LIMIT)],
+        },
+        "stream_snapshot_health": {
+            "build_http_status": endpoint_results.get("stream_build", {}).get("http_status"),
+            "run_http_status": endpoint_results.get("stream_run", {}).get("http_status"),
+            "fallback_public_used": bool(endpoint_results.get("stream_build", {}).get("fallback_public"))
+            or bool(endpoint_results.get("stream_run", {}).get("fallback_public"))
+            or bool(endpoint_results.get("logs_build", {}).get("fallback_public"))
+            or bool(endpoint_results.get("logs_run", {}).get("fallback_public")),
+        },
+        "model_source_timestamp": router_model_summary.get("checked_at", ""),
+    }
+    with OLLAMAHF_MONITOR_CACHE_LOCK:
+        OLLAMAHF_MONITOR_CACHE["expires_at"] = now_epoch + float(ttl)
+        OLLAMAHF_MONITOR_CACHE["payload"] = dict(payload)
+    return payload
+
+
+def _select_verified_ollamahf_model(preferred: str = "qwen2.5-coder-7b") -> str:
+    snapshot = _ollamahf_monitor_snapshot(timeout=max(OLLAMAHF_MONITOR_SNAPSHOT_TIMEOUT, 2))
+    summary = snapshot.get("router_model_summary", {})
+    if not isinstance(summary, dict):
+        return preferred
+    verified = summary.get("verified_model_ids", [])
+    if not isinstance(verified, list):
+        return preferred
+    normalized_verified = [str(item).strip() for item in verified if str(item).strip()]
+    if not normalized_verified:
+        return preferred
+    if preferred in normalized_verified:
+        return preferred
+    for model_id in normalized_verified:
+        if model_id.endswith(f"/{preferred}"):
+            return model_id
+    return normalized_verified[0]
 
 
 def _space_candidates(space_url: str) -> dict[str, str]:
@@ -2739,6 +3201,8 @@ def _prompt_fidelity_mismatch(task: str, final_code: str) -> dict[str, Any]:
 
 
 def _dispatch_ollamahf(payload: MissionPayload) -> dict[str, Any]:
+    selected_model = _select_verified_ollamahf_model()
+
     def _chat_artifact_recovery(base_url: str, primary_result: dict[str, Any]) -> dict[str, Any]:
         recovery_prompt = (
             "Du bist ein cloud-basierter Artifact-Builder fuer eine All-in-One Entwicklerplattform. "
@@ -2750,7 +3214,7 @@ def _dispatch_ollamahf(payload: MissionPayload) -> dict[str, Any]:
         chat_result = _post_json(
             f"{base_url}/v1/chat/completions",
             {
-                "model": "qwen2.5-coder-7b",
+                "model": selected_model,
                 "messages": [{"role": "user", "content": recovery_prompt}],
                 "temperature": 0.0,
                 "max_tokens": OLLAMAHF_CHAT_RECOVERY_MAX_TOKENS,
@@ -2902,7 +3366,7 @@ def _dispatch_ollamahf(payload: MissionPayload) -> dict[str, Any]:
         "prompt": payload.task,
         "master_key": OLLAMAHF_MASTER_KEY,
         "mode": "single_model",
-        "selected_model": "qwen2.5-coder-7b",
+        "selected_model": selected_model,
         "dry_run": OLLAMAHF_DISPATCH_DRY_RUN,
         "project_profile": "3d_web_game",
         "task_type": "implementation",
@@ -3428,8 +3892,16 @@ def _list_autonomy_profiles() -> list[dict[str, Any]]:
 def _recommended_defaults_payload() -> dict[str, Any]:
     profiles = _list_autonomy_profiles()
     profile_ids = [str(entry.get("id", "")).strip() for entry in profiles if str(entry.get("id", "")).strip()]
-    default_profile_id = "three_d_web_game_swarm" if "three_d_web_game_swarm" in profile_ids else (profile_ids[0] if profile_ids else "")
+    default_profile_id = (
+        CORE12_PROFILE_ID
+        if CORE12_PROFILE_ID in profile_ids
+        else "three_d_web_game_swarm"
+        if "three_d_web_game_swarm" in profile_ids
+        else (profile_ids[0] if profile_ids else "")
+    )
+    full_profile_id = "three_d_web_game_swarm" if "three_d_web_game_swarm" in profile_ids else ""
     core_profile_id = "three_d_web_game_core_11" if "three_d_web_game_core_11" in profile_ids else ""
+    core12_profile_id = CORE12_PROFILE_ID if CORE12_PROFILE_ID in profile_ids else ""
     role_runtime_targets: dict[str, str] = {}
     roles = PLATFORM7_CONTRACT.get("roles", [])
     if isinstance(roles, list):
@@ -3443,13 +3915,32 @@ def _recommended_defaults_payload() -> dict[str, Any]:
     return {
         "default_profile_id": default_profile_id,
         "quick_profile_ids": {
-            "full_29": default_profile_id,
+            "full_29": full_profile_id,
+            "core_12": core12_profile_id,
             "core_11": core_profile_id,
         },
         "default_agent": "product_scope",
         "quality_priority": True,
         "manual_override_allowed": True,
         "role_runtime_targets": role_runtime_targets,
+    }
+
+
+def _core12_profile_state() -> dict[str, Any]:
+    profiles = _list_autonomy_profiles()
+    core12_profile = next(
+        (entry for entry in profiles if str(entry.get("id", "")).strip() == CORE12_PROFILE_ID),
+        None,
+    )
+    coder_swarm_size = (
+        len(core12_profile.get("agents", []))
+        if isinstance(core12_profile, dict) and isinstance(core12_profile.get("agents", []), list)
+        else 0
+    )
+    defaults = _recommended_defaults_payload()
+    return {
+        "core12_profile_active": str(defaults.get("default_profile_id", "")).strip() == CORE12_PROFILE_ID,
+        "coder_swarm_size": coder_swarm_size,
     }
 
 
@@ -4373,6 +4864,8 @@ def _control_center_state_payload(force_refresh: bool = False) -> dict[str, Any]
 
     target_timeout = max(1, min(CONTROL_CENTER_PROBE_TIMEOUT, 2))
     target_probes = _target_health_status(probe_timeout=target_timeout)
+    ollamahf_monitor = _ollamahf_monitor_snapshot(timeout=max(target_timeout, 2))
+    core12_state = _core12_profile_state()
     storage_metrics = _storage_metrics_cached_or_stub()
     maintenance = _runtime_maintenance_snapshot()
     routing_targets = {
@@ -4434,6 +4927,11 @@ def _control_center_state_payload(force_refresh: bool = False) -> dict[str, Any]
         "evidence_dir": str(EVIDENCE_DIR),
         "storage_metrics": storage_metrics,
         "maintenance": maintenance,
+        "external_monitor": {"ollama_hf": ollamahf_monitor},
+        "hf_auth_state": str(ollamahf_monitor.get("hf_auth_state", "unknown")),
+        "router_model_summary": ollamahf_monitor.get("router_model_summary", _default_model_summary()),
+        "core12_profile_active": bool(core12_state.get("core12_profile_active", False)),
+        "coder_swarm_size": int(core12_state.get("coder_swarm_size", 0)),
     }
 
     bootstrap_payload = _bootstrap_status_snapshot()
@@ -4486,6 +4984,11 @@ def _control_center_state_payload(force_refresh: bool = False) -> dict[str, Any]
         "service_probes": service_probes,
         "storage": storage_metrics,
         "maintenance": maintenance,
+        "external_monitor": {"ollama_hf": ollamahf_monitor},
+        "hf_auth_state": str(ollamahf_monitor.get("hf_auth_state", "unknown")),
+        "core12_profile_active": bool(core12_state.get("core12_profile_active", False)),
+        "coder_swarm_size": int(core12_state.get("coder_swarm_size", 0)),
+        "router_model_summary": ollamahf_monitor.get("router_model_summary", _default_model_summary()),
         "latest_run": latest_run,
         "timeline": timeline_rows,
         "active_execution": {
@@ -5043,9 +5546,10 @@ def health() -> dict[str, Any]:
         if HEALTH_STORAGE_MODE == "full"
         else _storage_metrics_cached_or_stub()
     )
-    maintenance = _runtime_maintenance_snapshot()
-
     routing_probe_timeout = max(1, min(CONTROL_CENTER_PROBE_TIMEOUT, 3))
+    maintenance = _runtime_maintenance_snapshot()
+    ollamahf_monitor = _ollamahf_monitor_snapshot(timeout=max(routing_probe_timeout, 2))
+    core12_state = _core12_profile_state()
 
     return {
         "status": "healthy",
@@ -5088,6 +5592,11 @@ def health() -> dict[str, Any]:
         "evidence_dir": str(EVIDENCE_DIR),
         "storage_metrics": storage_metrics,
         "maintenance": maintenance,
+        "external_monitor": {"ollama_hf": ollamahf_monitor},
+        "hf_auth_state": str(ollamahf_monitor.get("hf_auth_state", "unknown")),
+        "router_model_summary": ollamahf_monitor.get("router_model_summary", _default_model_summary()),
+        "core12_profile_active": bool(core12_state.get("core12_profile_active", False)),
+        "coder_swarm_size": int(core12_state.get("coder_swarm_size", 0)),
         "platform7_contract": {
             "path": str(PLATFORM7_CONTRACT_PATH),
             "version": contract.get("version", "unknown"),

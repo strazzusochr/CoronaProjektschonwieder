@@ -94,6 +94,25 @@ describe('App - three window platform', () => {
           JSON.stringify({
             profiles: [
               {
+                id: 'core12_coder_swarm',
+                label: 'Core-12 Coder-Swarm',
+                description: '10 coder + 2 supervisors',
+                agents: [
+                  'webgl_client',
+                  'gameplay_systems',
+                  'backend_platform',
+                  'multiplayer_netcode',
+                  'cloud_infra_devops',
+                  'qa_validation',
+                  'security_anticheat',
+                  'local.langgraph.planner',
+                  'local.langgraph.research',
+                  'local.langgraph.reviewer',
+                  'sentinel_truth',
+                  'sentinel_runtime',
+                ],
+              },
+              {
                 id: 'three_d_web_game_swarm',
                 label: '3D Web Game Swarm',
                 description: '11-agent execution',
@@ -124,6 +143,25 @@ describe('App - three window platform', () => {
                 { id: 'puppeteer', label: 'Puppeteer MCP', kind: 'browser', required: true, evidence: 'live smoke trace' },
               ],
               autonomy_profiles: [
+                {
+                  id: 'core12_coder_swarm',
+                  label: 'Core-12 Coder-Swarm',
+                  description: '10 coder + 2 supervisors',
+                  agents: [
+                    'webgl_client',
+                    'gameplay_systems',
+                    'backend_platform',
+                    'multiplayer_netcode',
+                    'cloud_infra_devops',
+                    'qa_validation',
+                    'security_anticheat',
+                    'local.langgraph.planner',
+                    'local.langgraph.research',
+                    'local.langgraph.reviewer',
+                    'sentinel_truth',
+                    'sentinel_runtime',
+                  ],
+                },
                 {
                   id: 'three_d_web_game_swarm',
                   label: '3D Web Game Swarm',
@@ -324,6 +362,24 @@ describe('App - three window platform', () => {
     await waitFor(() => {
       expect(screen.getAllByLabelText(/Verified\./i).length).toBeGreaterThan(0);
       expect(screen.queryByLabelText(/Plan\./i)).toBeNull();
+    });
+  });
+
+  it('shows core-12 as the recommended default profile when available', async () => {
+    render(<App />);
+    await waitFor(() => {
+      expect(screen.getByText(/recommended defaults: profile/i).textContent).toContain('core12_coder_swarm');
+      expect(screen.getByRole('button', { name: /quick: core-12/i })).toBeTruthy();
+    });
+  });
+
+  it('dedupes repeated event entries and increments repeat counter', async () => {
+    render(<App />);
+    const saveButtons = screen.getAllByRole('button', { name: /save connection/i });
+    fireEvent.click(saveButtons[0]);
+    fireEvent.click(saveButtons[0]);
+    await waitFor(() => {
+      expect(screen.getAllByText(/x2/i).length).toBeGreaterThan(0);
     });
   });
 });

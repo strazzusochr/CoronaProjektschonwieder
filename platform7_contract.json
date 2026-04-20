@@ -384,6 +384,25 @@
   ],
   "autonomy_profiles": [
     {
+      "id": "core12_coder_swarm",
+      "label": "Core-12 Coder-Swarm",
+      "description": "Fixed coding swarm with 10 coder roles + 2 permanent supervisors.",
+      "agents": [
+        "webgl_client",
+        "gameplay_systems",
+        "backend_platform",
+        "multiplayer_netcode",
+        "cloud_infra_devops",
+        "qa_validation",
+        "security_anticheat",
+        "local.langgraph.planner",
+        "local.langgraph.research",
+        "local.langgraph.reviewer",
+        "sentinel_truth",
+        "sentinel_runtime"
+      ]
+    },
+    {
       "id": "three_d_web_game_swarm",
       "label": "3D Web Game Full-29 Swarm",
       "description": "29-role execution with permanent supervisors and live browser gates.",
