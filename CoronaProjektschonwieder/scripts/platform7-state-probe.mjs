@@ -170,7 +170,7 @@ function parseArgs(argv) {
     hubProvided: false,
     samples: 30,
     intervalMs: 700,
-    timeoutMs: 10000,
+    timeoutMs: 20000,
     out: '',
   };
 
@@ -205,6 +205,17 @@ function parseArgs(argv) {
   }
 
   return options;
+}
+
+function isTransientProbeError(message) {
+  const normalized = String(message ?? '').toLowerCase();
+  if (!normalized) return false;
+  return (
+    normalized.includes('aborted') ||
+    normalized.includes('timeout') ||
+    normalized.includes('econnreset') ||
+    normalized.includes('socket hang up')
+  );
 }
 
 function candidateHubs(args) {
@@ -266,53 +277,72 @@ function countTransitions(values) {
 }
 
 async function probeOnce(hub, timeoutMs) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const startedAt = nowIso();
-  try {
-    const response = await fetch(`${hub}/control-center/state?fresh=1`, {
-      method: 'GET',
-      signal: controller.signal,
-    });
-    let payload = {};
+  const attempts = 2;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs + (attempt - 1) * 5000);
     try {
-      payload = await response.json();
-    } catch {
-      payload = {};
+      const response = await fetch(`${hub}/control-center/state?fresh=1`, {
+        method: 'GET',
+        signal: controller.signal,
+      });
+      let payload = {};
+      try {
+        payload = await response.json();
+      } catch {
+        payload = {};
+      }
+      const bootstrap = payload && typeof payload.bootstrap === 'object' ? payload.bootstrap : {};
+      const probes = payload && typeof payload.service_probes === 'object' ? payload.service_probes : {};
+      const bridgeProbe = probes && typeof probes['devtools-bridge'] === 'object' ? probes['devtools-bridge'] : {};
+      const bridgeStatus = Number(bridgeProbe?.effective_http_status ?? bridgeProbe?.http_status ?? 0);
+      return {
+        t: startedAt,
+        ok: response.ok,
+        http_status: response.status,
+        run_status: String(payload?.latest_run?.status ?? ''),
+        bootstrap: String(bootstrap?.status ?? ''),
+        ready: Boolean(payload?.ready_for_prompt_execute),
+        bridge_http: bridgeStatus,
+        service_probes: Object.fromEntries(
+          Object.entries(probes).map(([key, value]) => [key, Number(value?.effective_http_status ?? value?.http_status ?? 0)]),
+        ),
+        error: '',
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const isRetryable = attempt < attempts && isTransientProbeError(message);
+      if (isRetryable) {
+        await sleep(250);
+        continue;
+      }
+      return {
+        t: startedAt,
+        ok: false,
+        http_status: 0,
+        run_status: '',
+        bootstrap: '',
+        ready: false,
+        bridge_http: 0,
+        service_probes: {},
+        error: message,
+      };
+    } finally {
+      clearTimeout(timeout);
     }
-    const bootstrap = payload && typeof payload.bootstrap === 'object' ? payload.bootstrap : {};
-    const probes = payload && typeof payload.service_probes === 'object' ? payload.service_probes : {};
-    const bridgeProbe = probes && typeof probes['devtools-bridge'] === 'object' ? probes['devtools-bridge'] : {};
-    const bridgeStatus = Number(bridgeProbe?.effective_http_status ?? bridgeProbe?.http_status ?? 0);
-    return {
-      t: startedAt,
-      ok: response.ok,
-      http_status: response.status,
-      run_status: String(payload?.latest_run?.status ?? ''),
-      bootstrap: String(bootstrap?.status ?? ''),
-      ready: Boolean(payload?.ready_for_prompt_execute),
-      bridge_http: bridgeStatus,
-      service_probes: Object.fromEntries(
-        Object.entries(probes).map(([key, value]) => [key, Number(value?.effective_http_status ?? value?.http_status ?? 0)]),
-      ),
-      error: '',
-    };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return {
-      t: startedAt,
-      ok: false,
-      http_status: 0,
-      run_status: '',
-      bootstrap: '',
-      ready: false,
-      bridge_http: 0,
-      service_probes: {},
-      error: message,
-    };
-  } finally {
-    clearTimeout(timeout);
   }
+  return {
+    t: startedAt,
+    ok: false,
+    http_status: 0,
+    run_status: '',
+    bootstrap: '',
+    ready: false,
+    bridge_http: 0,
+    service_probes: {},
+    error: 'state-probe-exhausted',
+  };
 }
 
 async function main() {

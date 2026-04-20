@@ -213,6 +213,7 @@ BOOTSTRAP_ALLOW_SCRIPT_START = os.environ.get("BOOTSTRAP_ALLOW_SCRIPT_START", "f
 }
 BOOTSTRAP_START_SCRIPT = os.environ.get("BOOTSTRAP_START_SCRIPT", "").strip()
 BOOTSTRAP_COMMAND_TIMEOUT = int(os.environ.get("BOOTSTRAP_COMMAND_TIMEOUT", "900"))
+GLOBAL_ROUTING_OVERRIDE_TTL_SECONDS = int(os.environ.get("GLOBAL_ROUTING_OVERRIDE_TTL_SECONDS", "1800"))
 CONTROL_CENTER_STATUS_CACHE_TTL = int(os.environ.get("CONTROL_CENTER_STATUS_CACHE_TTL", "8"))
 CONTROL_CENTER_PROBE_TIMEOUT = int(os.environ.get("CONTROL_CENTER_PROBE_TIMEOUT", "4"))
 CONTROL_CENTER_PERSIST_MANIFEST = os.environ.get("CONTROL_CENTER_PERSIST_MANIFEST", "false").strip().lower() in {
@@ -470,11 +471,16 @@ STORAGE_METRICS_CACHE: dict[str, Any] = {
     "expires_at": 0.0,
     "payload": None,
 }
+ROUTING_OVERRIDE_LOCK = threading.Lock()
 ROUTING_OVERRIDE_STATE: dict[str, Any] = {
     "mode": "auto",
     "source": "system",
     "reason": "initial",
     "updated_at": datetime.now(timezone.utc).isoformat(),
+    "expires_at": 0.0,
+    "ttl_seconds": 0,
+    "seconds_remaining": 0.0,
+    "drift_prevented": False,
 }
 RUN_ROUTING_OVERRIDES_LOCK = threading.Lock()
 RUN_ROUTING_OVERRIDES: dict[str, dict[str, Any]] = {}
@@ -1522,14 +1528,6 @@ if BOOTSTRAP_STATE_PATH.exists():
         BOOTSTRAP_STATE = cached_state
 
 
-def _with_masked_env(value: str) -> str:
-    if not value:
-        return ""
-    if len(value) <= 8:
-        return "***"
-    return f"{value[:4]}***{value[-2:]}"
-
-
 def _is_loopback_url(url: str) -> bool:
     candidate = (url or "").strip().lower()
     return candidate.startswith("http://127.0.0.1") or candidate.startswith("http://localhost")
@@ -1906,7 +1904,6 @@ def _run_bootstrap(include_script_start: bool, source: str) -> dict[str, Any]:
             "bolt_token_present": bool(BOLTDIY_SPACE_TOKEN),
             "ollamahf_bearer_present": bool(OLLAMAHF_BEARER_TOKEN),
             "ollamahf_master_present": bool(OLLAMAHF_MASTER_KEY),
-            "masked_hf_token": _with_masked_env(_HF_TOKEN),
         },
     }
     _persist_bootstrap_state(record)
@@ -1916,6 +1913,27 @@ def _run_bootstrap(include_script_start: bool, source: str) -> dict[str, Any]:
 def _bootstrap_status_snapshot() -> dict[str, Any]:
     with BOOTSTRAP_LOCK:
         return dict(BOOTSTRAP_STATE)
+
+
+def _bootstrap_status(boot_id: str = "", source: str = "", include_script_start: bool = False) -> dict[str, Any]:
+    state = _bootstrap_status_snapshot()
+    ready, reason = _is_ready_for_prompt_execution()
+    return {
+        "status": str(state.get("status", "DOWN")).strip() or "DOWN",
+        "ready": bool(state.get("ready", False)),
+        "boot_id": boot_id.strip() or str(state.get("boot_id", "")).strip(),
+        "source": source.strip() or str(state.get("source", "")).strip(),
+        "include_script_start": bool(include_script_start),
+        "summary": str(state.get("summary", "")).strip(),
+        "ready_for_prompt_execute": ready,
+        "ready_reason": reason,
+        "tokens": {
+            "hf_token_present": bool(_HF_TOKEN),
+            "bolt_token_present": bool(BOLTDIY_SPACE_TOKEN),
+            "ollamahf_bearer_present": bool(OLLAMAHF_BEARER_TOKEN),
+            "ollamahf_master_present": bool(OLLAMAHF_MASTER_KEY),
+        },
+    }
 
 
 def _probe_http_200(probe: dict[str, Any]) -> bool:
@@ -2002,6 +2020,16 @@ def _ollama_headers() -> dict[str, str]:
     return headers
 
 
+def _read_http_error_body(exc: error.HTTPError) -> str:
+    try:
+        return exc.read().decode("utf-8", errors="replace")
+    finally:
+        try:
+            exc.close()
+        except Exception:
+            pass
+
+
 def _post_json(
     url: str,
     payload: dict[str, Any],
@@ -2072,7 +2100,7 @@ def _post_json(
                     "response": parsed,
                 }
         except error.HTTPError as exc:
-            raw = exc.read().decode("utf-8", errors="replace")
+            raw = _read_http_error_body(exc)
             return {
                 "status": "blocked" if exc.code in {401, 403, 404} else "forward-failed",
                 "url": target_url,
@@ -2234,7 +2262,7 @@ def _probe_url(url: str, timeout: int, headers: dict[str, str] | None = None) ->
                 "http_status": int(response.status),
             }
     except error.HTTPError as exc:
-        raw = exc.read().decode("utf-8", errors="replace")
+        raw = _read_http_error_body(exc)
         return {
             "reachable": exc.code < 500,
             "url": url,
@@ -2256,7 +2284,7 @@ def _probe_url(url: str, timeout: int, headers: dict[str, str] | None = None) ->
                         "original_error": str(exc),
                     }
             except error.HTTPError as fallback_exc:
-                fallback_raw = fallback_exc.read().decode("utf-8", errors="replace")
+                fallback_raw = _read_http_error_body(fallback_exc)
                 fallback_attempts.append(
                     {
                         "url": fallback_url,
@@ -2396,7 +2424,7 @@ def _get_json_url(
                 "error": "",
             }
     except error.HTTPError as exc:
-        raw = exc.read().decode("utf-8", errors="replace")
+        raw = _read_http_error_body(exc)
         parsed: Any = {}
         if raw:
             try:
@@ -2451,7 +2479,11 @@ def _monitor_probe_with_auth_fallback(
     primary_status = _safe_int(primary.get("http_status"), 0)
     primary_error = _redact_sensitive_text(str(primary.get("error", "")))
     auth_state = "missing" if not has_token else ("valid" if primary_status == 200 else "unknown")
-    invalid_token = has_token and primary_status == 401 and _looks_like_invalid_hf_credentials(primary_error)
+    invalid_token = (
+        has_token
+        and primary_status in {401, 403, 500}
+        and _looks_like_invalid_hf_credentials(primary_error)
+    )
     if allow_public_retry and invalid_token:
         public_retry = _execute(None)
         merged = dict(primary)
@@ -3483,6 +3515,88 @@ def _normalize_routing_mode(value: str) -> str:
     return "auto"
 
 
+def _global_routing_override_snapshot(
+    now_epoch: float | None = None,
+    auto_reset: bool = True,
+) -> dict[str, Any]:
+    now_value = float(now_epoch if now_epoch is not None else time.time())
+    with ROUTING_OVERRIDE_LOCK:
+        snapshot = dict(ROUTING_OVERRIDE_STATE)
+
+    mode = _normalize_routing_mode(str(snapshot.get("mode", "auto")))
+    source = str(snapshot.get("source", "system")).strip() or "system"
+    reason = str(snapshot.get("reason", "initial")).strip() or "initial"
+    updated_at = str(snapshot.get("updated_at", "")).strip() or _now_iso()
+    expires_at = float(snapshot.get("expires_at", 0.0) or 0.0)
+    ttl_seconds = int(snapshot.get("ttl_seconds", 0) or 0)
+    previous_override = snapshot.get("previous_override")
+
+    expired = mode != "auto" and expires_at > 0 and now_value >= expires_at
+    if expired and auto_reset:
+        expired_at = _now_iso()
+        reset_state = {
+            "mode": "auto",
+            "source": "system",
+            "reason": f"Expired global routing override '{mode}' reverted to auto.",
+            "updated_at": expired_at,
+            "expires_at": 0.0,
+            "ttl_seconds": 0,
+            "seconds_remaining": 0.0,
+            "drift_prevented": True,
+            "previous_override": {
+                "mode": mode,
+                "source": source,
+                "reason": reason,
+                "updated_at": updated_at,
+                "expires_at": expires_at,
+                "ttl_seconds": ttl_seconds,
+                "expired_at": expired_at,
+            },
+        }
+        with ROUTING_OVERRIDE_LOCK:
+            ROUTING_OVERRIDE_STATE.clear()
+            ROUTING_OVERRIDE_STATE.update(reset_state)
+            snapshot = dict(ROUTING_OVERRIDE_STATE)
+        return snapshot
+
+    snapshot["mode"] = mode
+    snapshot["source"] = source
+    snapshot["reason"] = reason
+    snapshot["updated_at"] = updated_at
+    if mode == "auto":
+        snapshot["expires_at"] = 0.0
+        snapshot["ttl_seconds"] = 0
+        snapshot["seconds_remaining"] = 0.0
+    else:
+        snapshot["expires_at"] = expires_at
+        snapshot["ttl_seconds"] = ttl_seconds
+        snapshot["seconds_remaining"] = round(max(0.0, expires_at - now_value), 3) if expires_at > 0 else 0.0
+    snapshot["drift_prevented"] = bool(snapshot.get("drift_prevented", False))
+    if isinstance(previous_override, dict):
+        snapshot["previous_override"] = dict(previous_override)
+    return snapshot
+
+
+def _set_global_routing_override(mode: str, source: str, reason: str) -> dict[str, Any]:
+    normalized_mode = _normalize_routing_mode(mode)
+    ttl_seconds = GLOBAL_ROUTING_OVERRIDE_TTL_SECONDS if normalized_mode != "auto" else 0
+    expires_at = time.time() + float(ttl_seconds) if ttl_seconds > 0 else 0.0
+    state = {
+        "mode": normalized_mode,
+        "source": source.strip() or "operator",
+        "reason": reason.strip() or f"operator override -> {normalized_mode}",
+        "updated_at": _now_iso(),
+        "expires_at": expires_at,
+        "ttl_seconds": ttl_seconds,
+        "seconds_remaining": float(ttl_seconds) if ttl_seconds > 0 else 0.0,
+        "drift_prevented": False,
+    }
+    with ROUTING_OVERRIDE_LOCK:
+        ROUTING_OVERRIDE_STATE.clear()
+        ROUTING_OVERRIDE_STATE.update(state)
+    return _global_routing_override_snapshot(auto_reset=False)
+
+
 def _cleanup_run_routing_overrides(now_epoch: float | None = None) -> None:
     now_value = float(now_epoch if now_epoch is not None else time.time())
     stale_run_ids: list[str] = []
@@ -3546,7 +3660,7 @@ def _routing_mode_for_run(run_id: str = "") -> str:
             state = RUN_ROUTING_OVERRIDES.get(normalized_run_id)
         if isinstance(state, dict):
             return _normalize_routing_mode(str(state.get("mode", "auto")))
-    return _normalize_routing_mode(str(ROUTING_OVERRIDE_STATE.get("mode", "auto")))
+    return _normalize_routing_mode(str(_global_routing_override_snapshot().get("mode", "auto")))
 
 
 def _run_routing_overrides_snapshot() -> dict[str, dict[str, Any]]:
@@ -4880,7 +4994,7 @@ def _control_center_state_payload(force_refresh: bool = False) -> dict[str, Any]
         "status": "ok",
         "targets": routing_targets,
         "latest_dispatch": latest_dispatch.get("dispatch_artifact", ""),
-        "override": dict(ROUTING_OVERRIDE_STATE),
+        "override": _global_routing_override_snapshot(),
         "run_overrides": _run_routing_overrides_snapshot(),
         "checked_at": _now_iso(),
     }
@@ -5075,13 +5189,14 @@ def bootstrap_start(req: BootstrapStartRequest) -> dict[str, Any]:
 @app.get("/bootstrap/status")
 def bootstrap_status() -> dict[str, Any]:
     _ensure_dirs()
+    helper_payload = _bootstrap_status()
     state = _bootstrap_status_snapshot()
-    ready, reason = _is_ready_for_prompt_execution()
     return {
         "status": "ok",
         "bootstrap": state,
-        "ready_for_prompt_execute": ready,
-        "ready_reason": reason,
+        "ready_for_prompt_execute": helper_payload["ready_for_prompt_execute"],
+        "ready_reason": helper_payload["ready_reason"],
+        "tokens": helper_payload["tokens"],
     }
 
 
@@ -5292,7 +5407,7 @@ def run_reroute(run_id: str, mode: str, req: RunControlRequest) -> dict[str, Any
         "next_action": "Retry blocked step or continue run.",
         "event": event,
         "override": run_override,
-        "global_override": dict(ROUTING_OVERRIDE_STATE),
+        "global_override": _global_routing_override_snapshot(),
     }
 
 
@@ -5357,17 +5472,18 @@ def routing_override(req: RoutingOverrideRequest) -> dict[str, Any]:
     if requested_mode not in {"auto", "local", "remote"}:
         raise HTTPException(status_code=422, detail="mode must be one of: auto, local, remote")
     _cleanup_run_routing_overrides()
-    ROUTING_OVERRIDE_STATE["mode"] = requested_mode
-    ROUTING_OVERRIDE_STATE["source"] = req.source.strip()
-    ROUTING_OVERRIDE_STATE["reason"] = req.reason.strip() or f"operator override -> {requested_mode}"
-    ROUTING_OVERRIDE_STATE["updated_at"] = _now_iso()
+    override_state = _set_global_routing_override(
+        mode=requested_mode,
+        source=req.source,
+        reason=req.reason,
+    )
     with CONTROL_CENTER_CACHE_LOCK:
         CONTROL_CENTER_CACHE["expires_at"] = 0.0
         CONTROL_CENTER_CACHE["payload"] = None
     event = _emit_control_event(
         action="routing-override",
         state="Done",
-        reason=ROUTING_OVERRIDE_STATE["reason"],
+        reason=str(override_state.get("reason", "")),
         next_action="Retry blocked step or continue run.",
         payload=req,
         run_id=req.run_id.strip(),
@@ -5376,7 +5492,7 @@ def routing_override(req: RoutingOverrideRequest) -> dict[str, Any]:
     return {
         "status": "ok",
         "scope": "global",
-        "override": dict(ROUTING_OVERRIDE_STATE),
+        "override": override_state,
         "run_overrides": _run_routing_overrides_snapshot(),
         "event": event,
     }
@@ -5650,7 +5766,7 @@ def routing_status() -> dict[str, Any]:
     return {
         "status": "ok",
         "targets": mapped,
-        "override": dict(ROUTING_OVERRIDE_STATE),
+        "override": _global_routing_override_snapshot(),
         "run_overrides": _run_routing_overrides_snapshot(),
         "latest_dispatch": latest_dispatch.get("dispatch_artifact", ""),
         "checked_at": _now_iso(),

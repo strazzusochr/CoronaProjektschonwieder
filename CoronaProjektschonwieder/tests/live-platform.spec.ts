@@ -378,7 +378,13 @@ test('@live live gate requires real hub+bridge readiness and synchronized window
     await expect(page.getByText(/sentinelruntimeagent/i).first()).toBeVisible();
 
     if (role.window === 'commander') {
-      await page.getByRole('button', { name: /sync now/i }).click();
+      const syncNowButton = page.getByRole('button', { name: /sync now/i });
+      const syncingButton = page.getByRole('button', { name: /syncing\.\.\./i });
+      if (await syncNowButton.isVisible().catch(() => false)) {
+        await syncNowButton.click();
+      } else {
+        await expect(syncingButton).toBeVisible();
+      }
       await expect(page.getByRole('button', { name: /dispatch starten/i }).first()).toBeVisible();
     }
     if (role.window === 'glasshouse') {

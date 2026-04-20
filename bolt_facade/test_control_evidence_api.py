@@ -4,6 +4,7 @@ import importlib.util
 import json
 import os
 import tempfile
+import time
 import types
 import unittest
 import uuid
@@ -92,6 +93,7 @@ class BoltFacadeControlEvidenceApiTests(unittest.TestCase):
             "HF_SMOLAGENTS_SPACE_URL",
             "OLLAMAHF_BASE_URL",
             "OLLAMAHF_BEARER_TOKEN",
+            "GLOBAL_ROUTING_OVERRIDE_TTL_SECONDS",
         )
 
     def _seed_running_run(self) -> dict:
@@ -299,6 +301,17 @@ class BoltFacadeControlEvidenceApiTests(unittest.TestCase):
         self.assertIn("buckets", payload["storage"])
         self.assertIn("recovery_runbook", payload["maintenance"])
 
+    def test_bootstrap_status_omits_masked_token_fingerprints(self) -> None:
+        self.module._HF_TOKEN = "hf_example_secret_value"
+        self.module.BOLTDIY_SPACE_TOKEN = "hf_example_secret_value"
+        self.module.OLLAMAHF_BEARER_TOKEN = "bearer-example"
+        self.module.OLLAMAHF_MASTER_KEY = "master-example"
+
+        payload = self.module._bootstrap_status("boot-test", "integration-test", include_script_start=False)
+
+        self.assertTrue(payload["tokens"]["hf_token_present"])
+        self.assertNotIn("masked_hf_token", payload["tokens"])
+
     def test_normalize_hf_space_url_converts_huggingface_space_base_and_suffix(self) -> None:
         normalize = self.module._normalize_hf_space_url
         self.assertEqual(
@@ -439,6 +452,28 @@ class BoltFacadeControlEvidenceApiTests(unittest.TestCase):
         self.assertEqual(stop_response.status_code, 200)
         self.assertEqual(self.module._routing_mode_for_run(record["run_id"]), "auto")
 
+    def test_global_routing_override_has_ttl_metadata_and_expires_back_to_auto(self) -> None:
+        response = self.client.post(
+            "/routing/override",
+            json={"mode": "remote", "source": "integration-test", "reason": "temporary remote triage"},
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        override = payload["override"]
+        self.assertEqual(override["mode"], "remote")
+        self.assertGreater(int(override.get("ttl_seconds", 0)), 0)
+        self.assertGreater(float(override.get("seconds_remaining", 0.0)), 0.0)
+
+        with self.module.ROUTING_OVERRIDE_LOCK:
+            self.module.ROUTING_OVERRIDE_STATE["expires_at"] = time.time() - 1.0
+
+        status_payload = self.client.get("/routing/status").json()
+        expired_override = status_payload["override"]
+        self.assertEqual(expired_override["mode"], "auto")
+        self.assertTrue(expired_override["drift_prevented"])
+        self.assertEqual(expired_override["previous_override"]["mode"], "remote")
+        self.assertEqual(self.module._routing_mode_for_run(), "auto")
+
     def test_dispatch_ollamahf_blocks_stale_city_park_output_when_prompt_does_not_request_it(self) -> None:
         self.module.OLLAMAHF_BASE_URL = "https://example-ollamahf.hf.space"
         stale_html = (
@@ -498,6 +533,42 @@ class BoltFacadeControlEvidenceApiTests(unittest.TestCase):
                 return {
                     "status": "blocked",
                     "http_status": 401,
+                    "response": {"error": "Invalid username or password."},
+                    "error": "{\"error\":\"Invalid username or password.\"}",
+                }
+            return {
+                "status": "forwarded",
+                "http_status": 200,
+                "response": {"events": [{"message": "public log ok"}]},
+                "error": "",
+            }
+
+        self.module._get_json_url = fake_get_json
+        result = self.module._monitor_probe_with_auth_fallback(
+            "/monitor/api/logs/build",
+            5,
+            expect_json=True,
+            allow_public_retry=True,
+        )
+        self.assertEqual(result.get("http_status"), 200)
+        self.assertEqual(result.get("auth_state"), "invalid_fallback_public")
+        self.assertTrue(bool(result.get("fallback_public")))
+        self.assertEqual(len(calls), 2)
+        self.assertIn("Authorization", calls[0])
+        self.assertNotIn("Authorization", calls[1])
+
+    def test_monitor_probe_retries_public_on_500_invalid_hf_credentials(self) -> None:
+        self.module.OLLAMAHF_BASE_URL = "https://example-ollamahf.hf.space"
+        self.module.OLLAMAHF_BEARER_TOKEN = "bad-token"
+        calls: list[dict] = []
+
+        def fake_get_json(url: str, timeout: int, headers: dict | None = None) -> dict:
+            del url, timeout
+            calls.append(dict(headers or {}))
+            if len(calls) == 1:
+                return {
+                    "status": "forward-failed",
+                    "http_status": 500,
                     "response": {"error": "Invalid username or password."},
                     "error": "{\"error\":\"Invalid username or password.\"}",
                 }
