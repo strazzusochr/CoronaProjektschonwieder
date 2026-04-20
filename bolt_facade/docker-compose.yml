@@ -61,6 +61,7 @@ services:
       - ./app.py:/app/app.py:ro
       - ./requirements.txt:/app/requirements.txt:ro
       - ../agent_registry.json:/workspace/agent_registry.json:ro
+      - ../platform7_contract.json:/workspace/platform7_contract.json:ro
       - ../memory_vault.md:/workspace/memory_vault.md
       - ../FINAL_PROOF.md:/workspace/FINAL_PROOF.md
       - ../GODMODE_GOAL.md:/workspace/GODMODE_GOAL.md

@@ -440,6 +440,78 @@
       "evidence_refs": [
         "https://huggingface.co/spaces/Cgjgj/OllamaHfTrae/raw/main/orchestrator.py"
       ]
+    },
+    {
+      "agent_id": "local.supervisor.sentinel_truth",
+      "display_name": "SentinelTruthAgent",
+      "aliases": [
+        "SentinelTruthAgent",
+        "sentinel_truth"
+      ],
+      "origin": "local",
+      "runtime_target": "langgraph-local",
+      "status_class": "IMPLEMENTED",
+      "input_contract": "7-field",
+      "depends_on": [],
+      "evidence_refs": [
+        "verify_superbrain_merge.py",
+        "proofs/platform7_role_supervisor_audit_latest.json"
+      ]
+    },
+    {
+      "agent_id": "local.supervisor.sentinel_runtime",
+      "display_name": "SentinelRuntimeAgent",
+      "aliases": [
+        "SentinelRuntimeAgent",
+        "sentinel_runtime"
+      ],
+      "origin": "local",
+      "runtime_target": "langgraph-local",
+      "status_class": "IMPLEMENTED",
+      "input_contract": "7-field",
+      "depends_on": [],
+      "evidence_refs": [
+        "verify_devtools_bridge.py",
+        "proofs/state_flap_probe_2026-04-16_recovery.json"
+      ]
+    },
+    {
+      "agent_id": "local.supervisor.evidence_curator",
+      "display_name": "EvidenceCuratorAgent",
+      "aliases": [
+        "EvidenceCuratorAgent",
+        "evidence_curator"
+      ],
+      "origin": "local",
+      "runtime_target": "langgraph-local",
+      "status_class": "IMPLEMENTED",
+      "input_contract": "7-field",
+      "depends_on": [
+        "local.supervisor.sentinel_truth"
+      ],
+      "evidence_refs": [
+        ".godmode_runtime/evidence/manifests/latest.json",
+        "verify_superbrain_merge.py"
+      ]
+    },
+    {
+      "agent_id": "local.supervisor.recovery_marshal",
+      "display_name": "RecoveryMarshalAgent",
+      "aliases": [
+        "RecoveryMarshalAgent",
+        "recovery_marshal"
+      ],
+      "origin": "local",
+      "runtime_target": "langgraph-local",
+      "status_class": "IMPLEMENTED",
+      "input_contract": "7-field",
+      "depends_on": [
+        "local.supervisor.sentinel_runtime"
+      ],
+      "evidence_refs": [
+        "ops/RUN_FULLY_AUTONOMOUS.ps1",
+        "bolt_facade/app.py"
+      ]
     }
   ],
   "legacy_agents": [
