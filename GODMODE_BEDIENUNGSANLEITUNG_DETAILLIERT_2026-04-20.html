@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Godmode/Superbrain Bedienungsanleitung (Detailliert)</title>
+  <style>
+    :root {
+      --bg: #f3f6fb;
+      --card: #ffffff;
+      --text: #10233c;
+      --muted: #4d627e;
+      --line: #d8e1ee;
+      --accent: #0f4f9e;
+      --ok: #0b8f47;
+      --warn: #a66a00;
+      --danger: #b32222;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      background: linear-gradient(180deg, #f7faff 0%, var(--bg) 100%);
+      line-height: 1.5;
+    }
+    .wrap {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .hero {
+      background: linear-gradient(135deg, #153f72 0%, #0d2f57 100%);
+      color: #fff;
+      border-radius: 14px;
+      padding: 28px;
+      box-shadow: 0 10px 28px rgba(6, 20, 45, 0.24);
+      margin-bottom: 20px;
+    }
+    .hero h1 {
+      margin: 0 0 8px 0;
+      font-size: 30px;
+      line-height: 1.2;
+    }
+    .hero p { margin: 6px 0; opacity: 0.95; }
+    .chip {
+      display: inline-block;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      border-radius: 999px;
+      padding: 5px 12px;
+      margin-right: 8px;
+      font-size: 12px;
+      letter-spacing: 0.02em;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: 0 4px 14px rgba(19, 39, 69, 0.08);
+    }
+    h2 {
+      margin: 0 0 10px 0;
+      font-size: 22px;
+      color: #173255;
+    }
+    h3 {
+      margin: 18px 0 10px;
+      font-size: 18px;
+      color: #173255;
+    }
+    h4 {
+      margin: 14px 0 8px;
+      font-size: 15px;
+      color: #25446d;
+    }
+    ul, ol { margin: 8px 0 12px 22px; }
+    code {
+      background: #eef3fa;
+      border: 1px solid #dce7f5;
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 0.95em;
+    }
+    .status {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-right: 8px;
+    }
+    .ok { background: #e5f7ec; color: var(--ok); border: 1px solid #b6e9c7; }
+    .warn { background: #fff6e7; color: var(--warn); border: 1px solid #f5deae; }
+    .danger { background: #fdeaea; color: var(--danger); border: 1px solid #f1c1c1; }
+    .note {
+      background: #f5f9ff;
+      border: 1px solid #d4e4fa;
+      border-left: 4px solid var(--accent);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin: 10px 0 14px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+      padding: 9px;
+    }
+    th {
+      background: #eef4fb;
+      color: #1c3d67;
+      font-weight: 700;
+    }
+    a { color: #0f4f9e; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .section { margin-bottom: 16px; }
+    .small { color: var(--muted); font-size: 13px; }
+    .divider {
+      border-top: 2px dashed #cbd8ea;
+      margin: 28px 0;
+    }
+    .footer {
+      margin-top: 24px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    @media (max-width: 980px) {
+      .grid { grid-template-columns: 1fr; }
+      .hero h1 { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <h1>Godmode/Superbrain Three-Window Platform<br />Betriebshandbuch (Schritt für Schritt)</h1>
+      <p>Stand: 20.04.2026 | Ziel: stabiler, nachvollziehbarer und verifizierbarer Betrieb mit 29 Rollen + 2 Supervisoren.</p>
+      <p>
+        <span class="chip">Session-Pattern: Commander + Glasshouse + Operations</span>
+        <span class="chip">Profil-Default: Full-29 Swarm</span>
+        <span class="chip">Freigabeprinzip: Evidence first</span>
+      </p>
+    </header>
+
+    <section class="grid">
+      <article class="card">
+        <h2>0) Aktueller Soll-Zustand</h2>
+        <p><span class="status ok">OK</span>Bootstrap <code>READY</code>, Prompt-Gate <code>READY</code>, Supervisors <code>LOCKED ON</code>.</p>
+        <p><span class="status ok">OK</span>Platform7-Fortschritt: <code>P0..P4 = 100%</code>, <code>V=100%</code>, <code>H=100%</code>.</p>
+        <p><span class="status warn">Hinweis</span>Wenn ein Run aktiv ist (<code>RUNNING</code>), dürfen Claim/Evidence temporär <code>Partial</code> zeigen. Das ist korrekt und kein Defekt.</p>
+
+        <h3>Wichtige Betriebslinks (nur Kernlinks)</h3>
+        <ul>
+          <li>Dispatch Hub Health: <a href="http://127.0.0.1:3901/health">http://127.0.0.1:3901/health</a></li>
+          <li>Control-Center State: <a href="http://127.0.0.1:3902/control-center/state?fresh=1">http://127.0.0.1:3902/control-center/state?fresh=1</a></li>
+          <li>Routing Status: <a href="http://127.0.0.1:3902/routing/status">http://127.0.0.1:3902/routing/status</a></li>
+          <li>Platform Contract: <a href="http://127.0.0.1:3902/platform7/contract">http://127.0.0.1:3902/platform7/contract</a></li>
+          <li>OpenHands UI: <a href="http://127.0.0.1:3000">http://127.0.0.1:3000</a></li>
+          <li>Production Frontend: <a href="https://corona-projektschonwieder.vercel.app">https://corona-projektschonwieder.vercel.app</a></li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>1) Schnellstart (Operator)</h2>
+        <ol>
+          <li>Commander öffnen und <code>Hub auto-check</code> auf HTTP 200 bestätigen.</li>
+          <li><code>Open synchronized Commander + Glasshouse + Operations</code> ausführen.</li>
+          <li>In allen 3 Fenstern Heartbeat prüfen: Commander/Glasshouse/Operations dürfen nicht <code>Idle</code>/<code>Stale</code> bleiben.</li>
+          <li><code>Start bootstrap</code> ausführen (falls nicht READY).</li>
+          <li><code>Empfohlene Defaults anwenden</code> (Full-29 + product_scope).</li>
+          <li>Dispatch starten oder Prompt ausführen und Live Event Feed beobachten.</li>
+        </ol>
+
+        <div class="note">
+          Wenn Glasshouse/Operations keinen Heartbeat haben, sind die Fenster meist nicht offen oder Browser-Popup wurde blockiert.
+          In dem Fall Fenster explizit öffnen und erneut synchronisieren.
+        </div>
+      </article>
+    </section>
+
+    <article class="card section">
+      <h2>2) Detaillierte Betriebsanleitung</h2>
+
+      <h3>2.1 Preflight-Checks</h3>
+      <table>
+        <thead>
+          <tr><th>Check</th><th>Erwartung</th><th>Aktion bei Abweichung</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Hub Health</td>
+            <td><code>HTTP 200</code></td>
+            <td>Runtime neu starten, dann erneut Health prüfen.</td>
+          </tr>
+          <tr>
+            <td>Bootstrap</td>
+            <td><code>READY</code></td>
+            <td><code>Start bootstrap</code>, danach <code>/bootstrap/status</code> prüfen.</td>
+          </tr>
+          <tr>
+            <td>Prompt Gate</td>
+            <td><code>Prompt and autonomy controls are ready</code></td>
+            <td>Control-Center Status neu laden, fehlende Service-Probes prüfen.</td>
+          </tr>
+          <tr>
+            <td>Routing Mode</td>
+            <td><code>auto</code> (Default)</td>
+            <td>Nach Tests immer auf <code>auto</code> zurücksetzen.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>2.2 Drei-Fenster-Betrieb</h3>
+      <h4>Commander</h4>
+      <ul>
+        <li>Steuerzentrale für Agent/Profil/Dispatch.</li>
+        <li>Empfohlen: <code>3D Web Game Full-29 Swarm</code> mit <code>product_scope</code>.</li>
+        <li>Nur bei Bedarf auf <code>Core-11</code> wechseln (schneller, weniger breit).</li>
+      </ul>
+
+      <h4>Glasshouse</h4>
+      <ul>
+        <li>Truth-Panel für Timeline, Lanes, Evidence, Interventions.</li>
+        <li>Pflichtblick auf <code>reason</code>, <code>evidence ref</code>, <code>fallback/recovery</code>.</li>
+        <li>Interventionen nur mit klarer Absicht: retry/reroute/rollback/quarantine.</li>
+      </ul>
+
+      <h4>Operations</h4>
+      <ul>
+        <li>Technische Diagnose (State Probe, Raw JSON, Config-Presence).</li>
+        <li>Verwendet für reproduzierbare Ursachenanalyse und Kontrollnachweise.</li>
+      </ul>
+
+      <h3>2.3 Dispatch- und Prompt-Flow</h3>
+      <ol>
+        <li>Template laden (<code>Transparent Swarm Run</code>).</li>
+        <li>Dispatch-Payload prüfen: Agent, Task, Repo, Branch, Profile.</li>
+        <li><code>Dispatch starten</code> oder <code>Prompt ausführen</code>.</li>
+        <li>In Glasshouse prüfen: Schritte laufen durch, keine ungelösten Blocker.</li>
+        <li>Bei Abbruch immer Evidence öffnen und <code>reason</code> zuerst auswerten.</li>
+      </ol>
+
+      <h3>2.4 Verifikation & Freigabe</h3>
+      <p>Nur freigeben, wenn alle Pflicht-Gates grün sind:</p>
+      <ul>
+        <li>Frontend: <code>verify:release</code> erfolgreich.</li>
+        <li>Backend: Unit-Tests erfolgreich.</li>
+        <li>Superbrain-Gate: <code>PASS</code>.</li>
+        <li>Deploy-Status: Vercel <code>Ready</code>.</li>
+        <li>Statusmodell: Endzustand <code>Verified</code>, kein offenes <code>Implemented</code> im Runtime-Output.</li>
+      </ul>
+    </article>
+
+    <article class="card section">
+      <h2>3) Standard-Kommandos (operator-ready)</h2>
+      <h3>3.1 Release & Tests</h3>
+      <ul>
+        <li><code>npm --prefix D:\Web\docs\godmode_setup\CoronaProjektschonwieder run verify:release</code></li>
+        <li><code>py -3 -m unittest D:\Web\docs\godmode_setup\bolt_facade\test_control_evidence_api.py D:\Web\docs\godmode_setup\ops\test_runtime_dedupe.py</code></li>
+        <li><code>py -3 D:\Web\docs\godmode_setup\verify_superbrain_merge.py</code></li>
+      </ul>
+
+      <h3>3.2 Stabilisierung bei Zeitüberschreitung</h3>
+      <ul>
+        <li><code>set SUPERBRAIN_DISPATCH_TIMEOUT=90</code></li>
+        <li><code>set SUPERBRAIN_OPENHANDS_DISPATCH_TIMEOUT=180</code></li>
+        <li><code>set SUPERBRAIN_EXTERNAL_DISPATCH_TIMEOUT=360</code></li>
+        <li><code>set SUPERBRAIN_DISPATCH_RETRIES=3</code></li>
+        <li><code>set SUPERBRAIN_EXTERNAL_DISPATCH_RETRIES=4</code></li>
+        <li><code>set SUPERBRAIN_DISPATCH_RETRY_DELAY_SECONDS=2.0</code></li>
+        <li><code>set SUPERBRAIN_INVENTORY_MAX_WORKERS=3</code></li>
+      </ul>
+
+      <h3>3.3 Routing und Runtime</h3>
+      <ul>
+        <li><code>POST http://127.0.0.1:3902/routing/override</code> mit <code>mode=auto|local|remote</code></li>
+        <li><code>docker restart bolt-facade-godmode</code></li>
+        <li><code>Invoke-RestMethod http://127.0.0.1:3902/agents | ConvertTo-Json -Depth 50</code></li>
+      </ul>
+
+      <div class="note">
+        Regel: Nach Live-Tests und manuellen Eingriffen Routing wieder auf <code>auto</code> setzen.
+      </div>
+    </article>
+
+    <article class="card section">
+      <h2>4) Fehlerbilder und direkte Maßnahmen</h2>
+      <table>
+        <thead>
+          <tr><th>Symptom</th><th>Ursache (typisch)</th><th>Maßnahme</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Commander läuft, Glasshouse/Operations bleiben Idle</td>
+            <td>Fenster nicht geöffnet oder Popup blockiert</td>
+            <td>3-Fenster-Sync erneut starten, Fenster manuell öffnen.</td>
+          </tr>
+          <tr>
+            <td>Claim/Evidence = Partial trotz grünem Preflight</td>
+            <td>Run ist aktiv oder nicht terminal abgeschlossen</td>
+            <td>Run bis terminalen Zustand führen, Evidence erneut prüfen.</td>
+          </tr>
+          <tr>
+            <td>Dispatch-Ausfall / Timeout</td>
+            <td>Externes Target/Netzwerk/Retry-Konfiguration</td>
+            <td>Stabilized-Env setzen, reroute kontrolliert, erneut ausführen.</td>
+          </tr>
+          <tr>
+            <td>Vercel Build Error</td>
+            <td>fehlende Datei / Build-Konfig-Drift</td>
+            <td>Build-Log via <code>vercel inspect ... --logs</code> auslesen und gezielt patchen.</td>
+          </tr>
+        </tbody>
+      </table>
+    </article>
+
+    <div class="divider"></div>
+
+    <article class="card section">
+      <h2>Anhang A: Cloud-Link-Verzeichnis (separat, vollständig)</h2>
+      <p class="small">Dieser Anhang ist bewusst vom Bedienablauf getrennt. Keine Tokens/Secrets in URLs aufnehmen.</p>
+
+      <h3>A.1 Vercel</h3>
+      <ul>
+        <li>Production Domain: <a href="https://corona-projektschonwieder.vercel.app">https://corona-projektschonwieder.vercel.app</a></li>
+        <li>Aktueller Deploy: <a href="https://corona-projektschonwieder-qn5zy3j50-strazzusochrs-projects.vercel.app">https://corona-projektschonwieder-qn5zy3j50-strazzusochrs-projects.vercel.app</a></li>
+        <li>Vorheriger Deploy: <a href="https://corona-projektschonwieder-fvllq8tbe-strazzusochrs-projects.vercel.app">https://corona-projektschonwieder-fvllq8tbe-strazzusochrs-projects.vercel.app</a></li>
+        <li>Projekt-Link (bereitgestellt): <a href="https://vercel.com/strazzusochrs-projects/corona-projektschonwieder/FzoyVeDfeoaACGYtkEeWur1wuq8e">https://vercel.com/strazzusochrs-projects/corona-projektschonwieder/FzoyVeDfeoaACGYtkEeWur1wuq8e</a></li>
+      </ul>
+
+      <h3>A.2 Hetzner</h3>
+      <ul>
+        <li>Servername: <code>cax31</code></li>
+        <li>Host-ID: <code>#126407412</code></li>
+        <li>Hostname: <code>ubuntu-16gb-hel1-1</code></li>
+        <li>IPv4: <code>65.108.253.14</code></li>
+        <li>IPv6-Prefix: <code>2a01:4f9:c014:fbfa::/64</code></li>
+      </ul>
+
+      <h3>A.3 Hugging Face Spaces / External Runtime Targets</h3>
+      <ul>
+        <li>HF Aider: <a href="https://wrzzzrzr-aider-godmode-safe.hf.space">https://wrzzzrzr-aider-godmode-safe.hf.space</a></li>
+        <li>Smolagents: <a href="https://wrzzzrzr-smolagents-godmode.hf.space">https://wrzzzrzr-smolagents-godmode.hf.space</a></li>
+        <li>Ollama HF Orchestrator: <a href="https://cgjgj-ollamahftrae.hf.space">https://cgjgj-ollamahftrae.hf.space</a></li>
+      </ul>
+
+      <h3>A.4 Lokale Runtime Endpunkte</h3>
+      <ul>
+        <li>Dispatch Hub: <a href="http://127.0.0.1:3901/health">http://127.0.0.1:3901/health</a></li>
+        <li>Control Center API: <a href="http://127.0.0.1:3902/control-center/state?fresh=1">http://127.0.0.1:3902/control-center/state?fresh=1</a></li>
+        <li>OpenHands: <a href="http://127.0.0.1:3000">http://127.0.0.1:3000</a></li>
+        <li>OpenHands Adapter: <a href="http://127.0.0.1:3001/health">http://127.0.0.1:3001/health</a></li>
+        <li>n8n: <a href="http://127.0.0.1:5678">http://127.0.0.1:5678</a></li>
+      </ul>
+    </article>
+
+    <p class="footer">
+      Dokumentzweck: operative Qualität und reproduzierbare Verifikation. Dieses Handbuch ersetzt keine Secret-Policy.
+      Zugangsdaten, Tokens und API Keys dürfen ausschließlich in Secret Stores/Env-Dateien gepflegt werden.
+    </p>
+  </div>
+</body>
+</html>
